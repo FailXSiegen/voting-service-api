@@ -91,3 +91,5 @@ typings/
 
 # PHP Strom
 .idea/
+
+test/
