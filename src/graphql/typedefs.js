@@ -1,10 +1,14 @@
 const typeDefs = `
-schema {
-  query: Query
-}
 type Query {
-  hello(name: String!): String
+  hello: String!
 }
-`;
+type Counter {
+  count: Int!
+  countStr: String
+}
+type Subscription {
+  counter: Counter!
+}
+`
 
-export default typeDefs;
+export default typeDefs
