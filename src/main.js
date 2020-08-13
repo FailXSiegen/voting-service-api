@@ -1,9 +1,9 @@
 import typeDefs from './graphql/typedefs'
 import resolvers from './graphql/resolvers'
 import { GraphQLServer, PubSub } from 'graphql-yoga'
+import { APP_PORT } from 'babel-dotenv'
 
 const pubsub = new PubSub()
-
 const server = new GraphQLServer({
   typeDefs,
   resolvers,
@@ -11,5 +11,15 @@ const server = new GraphQLServer({
     pubsub
   }
 })
+const options = {
+  port: APP_PORT,
+  endpoint: '/graphql',
+  subscriptions: '/subscriptions',
+  playground: '/playground'
+}
 
-server.start(() => console.log('Server is running on localhost:4000'))
+server.start(options, ({ port }) => {
+  console.log(
+    `Graphql Server started, listening on port ${port} for incoming requests.`
+  )
+})
