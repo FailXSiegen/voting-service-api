@@ -1,4 +1,3 @@
-console.log(process.env)
 const resolvers = {
   Query: {
     hello: (_, args, context) => {
