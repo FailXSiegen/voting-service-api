@@ -94,3 +94,6 @@ typings/
 
 # Docker
 .database/
+
+# dist
+dist/
