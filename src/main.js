@@ -1,4 +1,4 @@
-import typeDefs from './graphql/typedefs'
+import typeDefs from './graphql/schema.graphql'
 import resolvers from './graphql/resolvers'
 import { GraphQLServer, PubSub } from 'graphql-yoga'
 import { APP_PORT } from 'babel-dotenv'

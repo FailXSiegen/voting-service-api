@@ -11,6 +11,9 @@
             {
                 "replacedModuleName": "babel-dotenv"
             }
+        ],
+        [
+            "import-graphql"
         ]
     ]
 }
