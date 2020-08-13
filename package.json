@@ -4,21 +4,23 @@
   "description": "Voting service API",
   "main": "main.js",
   "scripts": {
-    "dev": "nodemon ./src/main.js --watch . --exec babel-node"
+    "start": "nodemon ./src/main.js --watch . --exec babel-node",
+    "create-schema": "nodemon ./src/console/create-schema.js . --exec babel-node",
+    "dev": "nodemon --exec babel-node ./src/main.js",
+    "build" : "babel src --out-dir dist"
   },
   "keywords": [],
   "author": "Wolf Utz",
   "license": "MIT",
   "dependencies": {
-    "graphql-yoga": "1.2.0"
+    "babel-plugin-dotenv": "^0.1.1",
+    "graphql-yoga": "1.2.0",
+    "mariadb": "^2.4.2"
   },
   "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-core": "6.26.0",
-    "babel-preset-es2015": "^6.24.1",
-    "babel-preset-react": "6.24.1",
-    "babel-preset-stage-2": "^6.24.1",
-    "babel-register": "6.26.0",
+    "@babel/core": "^7.11.1",
+    "@babel/node": "^7.10.5",
+    "@babel/preset-env": "^7.11.0",
     "cross-env": "^5.2.0",
     "eslint": "^7.6.0",
     "eslint-config-standard": "^14.1.1",
