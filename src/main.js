@@ -1,8 +1,8 @@
+import 'dotenv/config'
 import typeDefs from './graphql/schema.graphql'
 import resolvers from './graphql/resolvers'
 import { GraphQLServer, PubSub } from 'graphql-yoga'
-import { APP_PORT } from 'babel-dotenv'
-import cors from 'cors';
+import cors from 'cors'
 
 const pubsub = new PubSub()
 const server = new GraphQLServer({
@@ -13,7 +13,7 @@ const server = new GraphQLServer({
   }
 })
 const options = {
-  port: APP_PORT,
+  port: process.env.APP_PORT,
   endpoint: '/graphql',
   subscriptions: '/subscriptions',
   playground: '/playground'
