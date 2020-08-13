@@ -7,7 +7,7 @@
     "start": "nodemon ./src/main.js --watch . --exec babel-node",
     "create-schema": "nodemon ./src/console/create-schema.js . --exec babel-node",
     "dev": "nodemon --exec babel-node ./src/main.js",
-    "build" : "babel src --out-dir dist"
+    "build": "babel src --out-dir dist"
   },
   "keywords": [],
   "author": "Wolf Utz",
@@ -21,6 +21,7 @@
     "@babel/core": "^7.11.1",
     "@babel/node": "^7.10.5",
     "@babel/preset-env": "^7.11.0",
+    "babel-plugin-import-graphql": "^2.7.0",
     "cross-env": "^5.2.0",
     "eslint": "^7.6.0",
     "eslint-config-standard": "^14.1.1",
