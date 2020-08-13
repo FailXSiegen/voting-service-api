@@ -1,0 +1,23 @@
+version: '2.3'
+services:
+  db:
+    container_name: db
+    image: mariadb:10.1
+    command: mysqld --character-set-server=utf8
+    ports:
+      - 3306:3306
+    volumes:
+      - .database:/var/lib/mysql
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=1234
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=1234
+      - MYSQL_DATABASE=application
+  adminer:
+    image: adminer:latest
+    depends_on:
+      - db
+    restart: always
+    ports:
+      - 8080:8080

@@ -92,4 +92,5 @@ typings/
 # PHP Strom
 .idea/
 
-test/
+# Docker
+.database/
