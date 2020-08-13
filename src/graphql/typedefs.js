@@ -1,13 +1,6 @@
 const typeDefs = `
 type Query {
-  hello: String!
-}
-type Counter {
-  count: Int!
-  countStr: String
-}
-type Subscription {
-  counter: Counter!
+  hello(name: String!): String!
 }
 `
 
