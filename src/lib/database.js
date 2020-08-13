@@ -1,18 +1,11 @@
 import mariadb from 'mariadb'
-import {
-  DATABSE_HOST,
-  DATABSE_PORT,
-  DATABSE_USER,
-  DATABSE_PASSWORD,
-  DATABSE_NAME
-} from 'babel-dotenv'
 
 const pool = mariadb.createPool({
-  host: DATABSE_HOST,
-  port: DATABSE_PORT,
-  user: DATABSE_USER,
-  password: DATABSE_PASSWORD,
-  database: DATABSE_NAME,
+  host: process.env.DATABSE_HOST,
+  port: process.env.DATABSE_PORT,
+  user: process.env.DATABSE_USER,
+  password: process.env.DATABSE_PASSWORD,
+  database: process.env.DATABSE_NAME,
   connectionLimit: 5
 })
 

@@ -13,8 +13,7 @@
   "author": "Wolf Utz",
   "license": "MIT",
   "dependencies": {
-    "babel-plugin-dotenv": "^0.1.1",
-    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
     "graphql-yoga": "1.2.0",
     "mariadb": "^2.4.2"
   },
