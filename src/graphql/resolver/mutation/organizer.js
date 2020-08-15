@@ -8,6 +8,8 @@ import {
 import EmailAlreadyExistsError from '../../../errors/EmailAlreadyExistsError'
 import RecordNotFoundError from '../../../errors/RecordNotFoundError'
 
+// @TODO add two more layers (input validation & data enrichment)
+
 export default {
   createOrganizer: async (_, args, context) => {
     const existingUser = await findOneByEmail(args.input.email)
@@ -18,9 +20,15 @@ export default {
     return await findOneByEmail(args.input.email)
   },
   updateOrganizer: async (_, args, context) => {
-    const existingUser = await findById(args.input.id)
+    let existingUser = await findById(args.input.id)
     if (!existingUser) {
       throw new RecordNotFoundError()
+    }
+    if (args.input.email) {
+      existingUser = await findOneByEmail(args.input.email)
+      if (existingUser) {
+        throw new EmailAlreadyExistsError()
+      }
     }
     await update(args.input)
     return await findById(args.input.id)

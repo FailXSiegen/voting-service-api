@@ -1,8 +1,11 @@
 schema {
     query: Query
+    mutation: Mutation
 }
 type Query {
     hello(name: String!): String!
+}
+type Mutation {
     createOrganizer(input: CreateOrganizerInput!): Organizer!
     updateOrganizer(input: UpdateOrganizerInput!): Organizer!
     deleteOrganizer(id: ID!): Boolean
