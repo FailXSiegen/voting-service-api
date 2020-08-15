@@ -1,12 +1,12 @@
-import organizerQueries from './resolvers/query/organizer'
+import organizerMutations from './resolver/mutation/organizer.js'
 
-const resolvers = {
+export default {
   Query: {
     hello: (_, args, context) => {
       return `Hello ${args.name}`
-    },
-    ...organizerQueries
+    }
+  },
+  Mutation: {
+    ...organizerMutations
   }
 }
-
-export default resolvers
