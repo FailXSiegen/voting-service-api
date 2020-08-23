@@ -19,6 +19,7 @@
     "graphql-yoga": "1.2.0",
     "humps": "^2.0.1",
     "mariadb": "^2.4.2",
+    "minimist": "^1.2.5",
     "mysql": "^2.18.1",
     "promise-mysql": "^4.1.3"
   },

@@ -1,7 +1,8 @@
 import 'dotenv/config'
+import 'regenerator-runtime'
 import fs from 'fs'
 import path from 'path'
-import { query } from './../lib/database'
+import { query } from '../lib/database'
 
 const filePath = path.join(__dirname, '/../../res/schema.sql')
 
