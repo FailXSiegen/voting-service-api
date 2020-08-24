@@ -4,18 +4,22 @@
   "description": "Voting service API",
   "main": "main.js",
   "scripts": {
-    "start": "nodemon ./src/main.js --watch . --exec babel-node",
-    "create-schema": "nodemon ./src/console/create-schema.js . --exec babel-node",
-    "dev": "nodemon --exec babel-node ./src/main.js",
+    "create-schema": "nodemon ./src/console/create-schema.js --exec babel-node",
+    "dev": "rm -rf ./node_modules/.cache/* && nodemon -e js,graphql src/index.js --exec babel-node",
     "build": "babel src --out-dir dist"
   },
   "keywords": [],
   "author": "Wolf Utz",
   "license": "MIT",
   "dependencies": {
+    "apollo-errors": "^1.9.0",
+    "bcrypt": "^5.0.0",
     "dotenv": "^8.2.0",
+    "express-session": "^1.17.1",
     "graphql-yoga": "1.2.0",
-    "mariadb": "^2.4.2"
+    "humps": "^2.0.1",
+    "minimist": "^1.2.5",
+    "promise-mysql": "^4.1.3"
   },
   "devDependencies": {
     "@babel/core": "^7.11.1",
