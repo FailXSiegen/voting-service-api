@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS organisator (
+CREATE TABLE IF NOT EXISTS organizer (
     id int(11) NOT NULL AUTO_INCREMENT,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     username varchar(255) DEFAULT '' NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS organisator (
 );
 CREATE TABLE IF NOT EXISTS event (
     id int(11) NOT NULL AUTO_INCREMENT,
-    organisator_id int(11) DEFAULT 0 NOT NULL,
+    organizer_id int(11) DEFAULT 0 NOT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     modified_datetime int(11) DEFAULT 0 NOT NULL,
     scheduled_datetime int(11) DEFAULT 0 NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS event (
     slug varchar(255) DEFAULT '' NOT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY (slug),
-    FOREIGN KEY (organisator_id) REFERENCES organisator (id)
+    FOREIGN KEY (organizer_id) REFERENCES organizer (id)
 );
 CREATE TABLE IF NOT EXISTS poll (
     id int(11) NOT NULL AUTO_INCREMENT,
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS event_user (
     public_name varchar(255) DEFAULT '' NOT NULL,
     allow_to_vote tinyint(2) DEFAULT 0 NOT NULL,
     online tinyint(2) DEFAULT 0 NOT NULL,
-    coorganisator tinyint(2) DEFAULT 0 NOT NULL,
+    coorganizer tinyint(2) DEFAULT 0 NOT NULL,
     verified tinyint(2) DEFAULT 0 NOT NULL,
     identifier_hash varchar(255) DEFAULT '' NOT NULL,
     PRIMARY KEY (id),
