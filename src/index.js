@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import typeDefs from './graphql/schema.graphql'
+import typeDefs from '../res/schema.graphql'
 import * as express from 'express'
 import resolvers from './graphql/resolvers'
 import { GraphQLServer, PubSub } from 'graphql-yoga'
