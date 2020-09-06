@@ -14,10 +14,11 @@
   "dependencies": {
     "apollo-errors": "^1.9.0",
     "bcrypt": "^5.0.0",
+    "cookie-parser": "^1.4.5",
     "dotenv": "^8.2.0",
-    "express-session": "^1.17.1",
-    "graphql-yoga": "1.2.0",
+    "graphql-yoga": "1.18.3",
     "humps": "^2.0.1",
+    "jsonwebtoken": "^8.5.1",
     "minimist": "^1.2.5",
     "promise-mysql": "^4.1.3"
   },

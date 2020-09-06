@@ -1,20 +1,22 @@
 import 'dotenv/config'
 import typeDefs from './graphql/schema.graphql'
+import * as express from 'express'
 import resolvers from './graphql/resolvers'
 import { GraphQLServer, PubSub } from 'graphql-yoga'
 import cors from 'cors'
-import session from 'express-session'
 import { formatError } from 'apollo-errors'
+import cookieParser from 'cookie-parser'
+import authenticate from './middleware/authenticate'
+import loginRequest from './request/login'
+import loginRefreshRequest from './request/login/refresh'
 
 // Configure and create the server instance.
-const pubsub = new PubSub()
-var context = {
-  pubsub
-}
+const context = { pubsub: new PubSub() }
 const server = new GraphQLServer({
   typeDefs,
   resolvers,
-  context
+  context,
+  middlewares: [authenticate]
 })
 const options = {
   port: process.env.APP_PORT,
@@ -26,16 +28,25 @@ const options = {
 }
 
 // Add middlewares.
-server.express.use(session({ secret: process.env.SESSION_SECRET }))
-server.express.use(cors())
+server.express.use(cors({ credentials: true, origin: process.env.CORS_ORIGIN }))
 server.express.use((req, res, next) => {
   context.req = req
   next()
 })
+server.express.use(cookieParser(process.env.COOKIE_SIGN_SECRET))
+server.express.use(express.json())
 
-// Finally start the server.
+// Additional routes.
+server.express.post('/login', async (req, res) => {
+  await loginRequest(req, res)
+})
+server.express.post('/login/refresh', async (req, res) => {
+  await loginRefreshRequest(req, res)
+})
+
+// Start the server.
 server.start(options, ({ port }) => {
-  console.log(
+  console.info(
     `Graphql Server started, listening on port ${port} for incoming requests.`
   )
 })
