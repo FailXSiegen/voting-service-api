@@ -22,6 +22,7 @@ export default async function loginRefreshRequest (req, res) {
     const token = await generateJwt(claims)
     const decodedToken = await jwt.verify(token, process.env.JWT_SECRET)
     const refreshToken = await addRefreshToken(decodedToken.user.type, decodedToken.user.id)
+    res.status(201)
     res.cookie('refreshToken', refreshToken, {
       maxAge: 1000 * 60 * 15, // Expire after 15 minutes
       httpOnly: true,
