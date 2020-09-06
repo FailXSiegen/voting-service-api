@@ -28,9 +28,10 @@ type Event {
     title: String
     slug: String
     description: String
-    sheduledDateTime: Int!
+    scheduledDatetime: Int!
     organizer: Organizer
     lobbyOpen: Boolean
+    active: Boolean
 }
 input CreateOrganizerInput {
     username: String!
