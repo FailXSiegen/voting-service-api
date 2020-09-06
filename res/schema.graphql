@@ -9,6 +9,8 @@ type Mutation {
     createOrganizer(input: CreateOrganizerInput!): Organizer!
     updateOrganizer(input: UpdateOrganizerInput!): Organizer!
     deleteOrganizer(id: ID!): Boolean
+    # Creates a new event user.
+    createEvent(input: CreateEventInput!): Event!
 }
 type Organizer {
     id: ID!
@@ -17,6 +19,19 @@ type Organizer {
     email: String!
     password: String!
     publicName: String!
+    events: [Event]
+}
+type Event {
+    id: ID!
+    createDatetime: Int
+    modifiedDatetime: Int
+    title: String
+    slug: String
+    description: String
+    scheduledDatetime: Int!
+    organizer: Organizer
+    lobbyOpen: Boolean
+    active: Boolean
 }
 input CreateOrganizerInput {
     username: String!
@@ -30,4 +45,13 @@ input UpdateOrganizerInput {
     email: String
     password: String
     publicName: String
+}
+input CreateEventInput {
+    title: String!
+    slug: String!
+    description: String
+    scheduledDatetime: Int!
+    organizerId: ID!
+    lobbyOpen: Boolean!
+    active: Boolean!
 }
