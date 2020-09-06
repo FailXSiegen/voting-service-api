@@ -89,3 +89,13 @@ CREATE TABLE IF NOT EXISTS poll_answer (
     FOREIGN KEY (answer_id) REFERENCES poll_possible_answer (id),
     FOREIGN KEY (event_user_id) REFERENCES event_user (id)
 );
+CREATE TABLE IF NOT EXISTS jwt_refresh_token (
+    id int(11) NOT NULL AUTO_INCREMENT,
+    token varchar(255) DEFAULT '' NOT NULL,
+    organizer_id int(11) DEFAULT 0 NOT NULL,
+    event_user_id int(11) DEFAULT 0,
+    create_datetime int(11) DEFAULT 0,
+    PRIMARY KEY (id),
+    FOREIGN KEY (organizer_id) REFERENCES organizer (id),
+    FOREIGN KEY (event_user_id) REFERENCES event_user (id)
+);
