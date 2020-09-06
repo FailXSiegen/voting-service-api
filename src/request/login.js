@@ -16,6 +16,7 @@ export default async function loginRequest (req, res) {
       default:
         throw new Error('Invalid loginTyp')
     }
+    res.status(201)
     res.cookie('refreshToken', result.refreshToken, {
       maxAge: 1000 * 60 * 15, // Expire after 15 minutes
       httpOnly: true,

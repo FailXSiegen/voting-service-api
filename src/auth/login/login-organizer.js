@@ -5,10 +5,10 @@ import { generateJwt } from '../../lib/jwt-auth'
 import * as jwt from 'jsonwebtoken'
 import { addRefreshToken } from './refresh-token'
 
-export default async function loginOrganizer ({ username, password }) {
-  const organizer = await findOneByEmail(username)
+export default async function loginOrganizer ({ email, password }) {
+  const organizer = await findOneByEmail(email)
   if (!organizer) {
-    throw new Error('Could not find organizer with the following email: ' + username)
+    throw new Error('Could not find organizer with the following email: ' + email)
   }
   const isAuthenticated = await bcrypt.compare(password, organizer.password)
   if (!isAuthenticated) {

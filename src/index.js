@@ -28,12 +28,12 @@ const options = {
 }
 
 // Add middlewares.
+server.express.use(cors({ credentials: true, origin: process.env.CORS_ORIGIN }))
 server.express.use((req, res, next) => {
   context.req = req
   next()
 })
 server.express.use(cookieParser(process.env.COOKIE_SIGN_SECRET))
-server.express.use(cors())
 server.express.use(express.json())
 
 // Additional routes.
