@@ -3,7 +3,10 @@ schema {
     mutation: Mutation
 }
 type Query {
-    hello(name: String!): String!
+    # Fetches a list of upcoming events by oragnizer id.
+    upcomingEvents(organizerId: ID): [Event]
+    # Fetches a list of expired events by oragnizer id.
+    expiredEvents(organizerId: ID): [Event]
 }
 type Mutation {
     createOrganizer(input: CreateOrganizerInput!): Organizer!
