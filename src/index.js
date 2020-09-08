@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import 'regenerator-runtime'
 import typeDefs from '../res/schema.graphql'
 import * as express from 'express'
 import resolvers from './graphql/resolvers'
