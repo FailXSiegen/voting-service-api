@@ -27,7 +27,7 @@ export async function query (sql, params) {
   try {
     connection = await mysql.createConnection(config)
     const result = await connection.query(sql, params)
-    return result.length > 0 ? humps.camelizeKeys(result[0]) : null
+    return result.length > 0 ? humps.camelizeKeys(result) : null
   } catch (err) {
     console.error(err)
   } finally {
