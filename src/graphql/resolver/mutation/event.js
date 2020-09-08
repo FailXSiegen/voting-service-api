@@ -5,7 +5,6 @@ import SlugAlreadyExistsError
 export default {
   createEvent: async (_, args, context) => {
     const existingEvent = await findOneBySlug(args.input.slug)
-    console.log(existingEvent)
     if (existingEvent) {
       throw new SlugAlreadyExistsError()
     }
