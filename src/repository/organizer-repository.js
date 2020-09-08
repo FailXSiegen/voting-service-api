@@ -9,12 +9,9 @@ import { getCurrentUnixTimeStamp } from '../lib/time-stamp'
 import { validateEmail } from '../lib/validator'
 import InvalidEmailFormatError from '../errors/InvalidEmailFormatError'
 
-export async function findById (id) {
-  return await query('SELECT * FROM organizer WHERE id = ?', [id])
-}
-
 export async function findOneByEmail (email) {
-  return await query('SELECT * FROM organizer WHERE email = ?', [email])
+  const result = await query('SELECT * FROM organizer WHERE email = ?', [email])
+  return Array.isArray(result) ? result[0] || null : null
 }
 
 export async function create (input) {
