@@ -2,6 +2,10 @@ schema {
     query: Query
     mutation: Mutation
 }
+enum PollType {
+    SECRET
+    PUBLIC
+}
 type Query {
     # Fetches a list of upcoming events by oragnizer id.
     upcomingEvents(organizerId: ID): [Event]
@@ -9,11 +13,16 @@ type Query {
     expiredEvents(organizerId: ID): [Event]
 }
 type Mutation {
+    # Create a new oragnazier.
     createOrganizer(input: CreateOrganizerInput!): Organizer!
+    # Update an oragnazier.
     updateOrganizer(input: UpdateOrganizerInput!): Organizer!
+    # Delete an oragnazier.
     deleteOrganizer(id: ID!): Boolean
-    # Creates a new event user.
+    # Creates a new event.
     createEvent(input: CreateEventInput!): Event!
+    # Create a new poll.
+    createPoll(eventId: ID!, input: CreateNewPollInput): Poll!
 }
 type Organizer {
     id: ID!
@@ -36,6 +45,18 @@ type Event {
     lobbyOpen: Boolean
     active: Boolean
 }
+type Poll {
+    id: ID!
+    createDatetime: Int
+    title: String!
+    type: PollType!
+    possibleAnswers: [PollPossibleAnswer]
+}
+type PollPossibleAnswer {
+    id: ID!
+    createDatetime: Int
+    content: String!
+}
 input CreateOrganizerInput {
     username: String!
     email: String!
@@ -57,4 +78,9 @@ input CreateEventInput {
     organizerId: ID!
     lobbyOpen: Boolean!
     active: Boolean!
+}
+input CreateNewPollInput {
+    title: String!
+    type: PollType!
+    possibleAnswers: [String!]
 }
