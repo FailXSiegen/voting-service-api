@@ -25,11 +25,11 @@ You need to provide a .env file with all required data. Only run scripts from wi
 
 ### Create SQL schema
 ```shell script
-npm run console/create-schema
+npm run create-schema
 ```
 
 ### Register new organizer using cli
 ```shell script
-npm console/register-organizer.js --username="example" --email="example@domain.tld" --password="12345678" --public-name="Example Public"
+node console/register-organizer.js --username="example" --email="example@domain.tld" --password="12345678" --public-name="Example Public"
 ```
 All arguments are required!
