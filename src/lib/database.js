@@ -19,20 +19,25 @@ function logQuery (sql, params) {
   console.log('SQL:', sql)
   console.log('PARAMS:', JSON.stringify(params))
   console.log('END---------------------------------------')
-};
+}
 
-export async function query (sql, params) {
+export async function baseQuery (sql, params) {
   let connection
   logQuery(sql, params)
   try {
     connection = await mysql.createConnection(config)
     const result = await connection.query(sql, params)
-    return result.length > 0 ? humps.camelizeKeys(result) : null
+    return result
   } catch (err) {
     console.error(err)
   } finally {
     await connection.end()
   }
+}
+
+export async function query (sql, params) {
+  const result = await baseQuery(sql, params)
+  return result.length > 0 ? humps.camelizeKeys(result) : null
 }
 
 export async function insert (table, input) {
@@ -46,7 +51,8 @@ export async function insert (table, input) {
     })
     const fieldsList = properties.join(',')
     const sql = `INSERT INTO ${table} (${fieldsList}) VALUES (?)`
-    await query(sql, [values])
+    const result = await baseQuery(sql, [values])
+    return result.insertId || null
   } catch (err) {
     console.error(err)
   }
