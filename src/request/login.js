@@ -1,4 +1,5 @@
 import loginOrganizer from '../auth/login/login-organizer'
+import loginEventUser from '../auth/login/login-event-user'
 
 export default async function loginRequest (req, res) {
   res.setHeader('content-type', 'application/json')
@@ -12,6 +13,9 @@ export default async function loginRequest (req, res) {
     switch (requestArguments.loginType) {
       case 'organizer':
         result = await loginOrganizer(requestArguments)
+        break
+      case 'event-user':
+        result = await loginEventUser(requestArguments)
         break
       default:
         throw new Error('Invalid loginTyp')
