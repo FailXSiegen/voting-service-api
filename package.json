@@ -12,6 +12,7 @@
   "author": "Wolf Utz",
   "license": "MIT",
   "dependencies": {
+    "@babel/core": "^7.11.6",
     "apollo-errors": "^1.9.0",
     "bcrypt": "^5.0.0",
     "cookie-parser": "^1.4.5",
