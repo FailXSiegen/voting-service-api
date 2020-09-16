@@ -48,9 +48,7 @@ CREATE TABLE IF NOT EXISTS event_user (
     online tinyint(2) DEFAULT 0 NOT NULL,
     coorganizer tinyint(2) DEFAULT 0 NOT NULL,
     verified tinyint(2) DEFAULT 0 NOT NULL,
-    identifier_hash varchar(255) DEFAULT '' NOT NULL,
     PRIMARY KEY (id),
-    UNIQUE KEY (identifier_hash),
     FOREIGN KEY (event_id) REFERENCES event (id)
 );
 CREATE TABLE IF NOT EXISTS poll_user (
@@ -92,8 +90,8 @@ CREATE TABLE IF NOT EXISTS poll_answer (
 CREATE TABLE IF NOT EXISTS jwt_refresh_token (
     id int(11) NOT NULL AUTO_INCREMENT,
     token varchar(255) DEFAULT '' NOT NULL,
-    organizer_id int(11) DEFAULT 0 NOT NULL,
-    event_user_id int(11) DEFAULT 0,
+    organizer_id int(11) DEFAULT NULL,
+    event_user_id int(11) DEFAULT NULL,
     create_datetime int(11) DEFAULT 0,
     PRIMARY KEY (id),
     FOREIGN KEY (organizer_id) REFERENCES organizer (id),
