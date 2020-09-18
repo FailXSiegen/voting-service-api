@@ -21,6 +21,8 @@ type Mutation {
     deleteOrganizer(id: ID!): Boolean
     # Creates a new event.
     createEvent(input: CreateEventInput!): Event!
+    # Creates a new event.
+    updateEvent(input: UpdateEventInput!): Event!
     # Create a new poll.
     createPoll(eventId: ID!, input: CreateNewPollInput): Poll!
 }
@@ -76,6 +78,15 @@ input CreateEventInput {
     description: String
     scheduledDatetime: Int!
     organizerId: ID!
+    lobbyOpen: Boolean!
+    active: Boolean!
+}
+input UpdateEventInput {
+    id: ID!
+    title: String!
+    slug: String!
+    description: String
+    scheduledDatetime: Int!
     lobbyOpen: Boolean!
     active: Boolean!
 }
