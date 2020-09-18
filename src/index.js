@@ -10,6 +10,7 @@ import cookieParser from 'cookie-parser'
 import authenticate from './middleware/authenticate'
 import loginRequest from './request/login'
 import loginRefreshRequest from './request/login/refresh'
+import verifySlug from './request/event/verify-slug'
 
 // Configure and create the server instance.
 const context = { pubsub: new PubSub() }
@@ -43,6 +44,9 @@ server.express.post('/login', async (req, res) => {
 })
 server.express.post('/login/refresh', async (req, res) => {
   await loginRefreshRequest(req, res)
+})
+server.express.post('/event/verify-slug', async (req, res) => {
+  await verifySlug(req, res)
 })
 
 // Start the server.
