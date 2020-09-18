@@ -7,17 +7,17 @@ enum PollType {
     PUBLIC
 }
 type Query {
-    # Fetches a list of upcoming events by oragnizer id.
+    # Fetches a list of upcoming events by organizer id.
     upcomingEvents(organizerId: ID): [Event]
-    # Fetches a list of expired events by oragnizer id.
+    # Fetches a list of expired events by organizer id.
     expiredEvents(organizerId: ID): [Event]
 }
 type Mutation {
-    # Create a new oragnazier.
+    # Create a new organizer.
     createOrganizer(input: CreateOrganizerInput!): Organizer!
-    # Update an oragnazier.
+    # Update an organizer.
     updateOrganizer(input: UpdateOrganizerInput!): Organizer!
-    # Delete an oragnazier.
+    # Delete an organizer.
     deleteOrganizer(id: ID!): Boolean
     # Creates a new event.
     createEvent(input: CreateEventInput!): Event!
