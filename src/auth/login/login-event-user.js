@@ -45,13 +45,18 @@ export default async function loginEventUser ({ username, password, email, displ
     if (eventUser.publicName !== displayName) {
       // Update display name.
       eventUser.publicName = displayName
+      delete eventUser.password
       await update(eventUser)
     }
   }
   // Create jwt and refresh token.
   const refreshToken = await addRefreshToken('event-user', eventUser.id)
   const claims = {
-    user: { id: eventUser.id, type: 'event-user' },
+    user: {
+      id: eventUser.id,
+      type: 'event-user',
+      verified: eventUser.verified
+    },
     role: 'event-user'
   }
   const token = await generateJwt(claims)
