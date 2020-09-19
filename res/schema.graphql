@@ -11,6 +11,8 @@ type Query {
     upcomingEvents(organizerId: ID): [Event]
     # Fetches a list of expired events by organizer id.
     expiredEvents(organizerId: ID): [Event]
+    # Fetches a list users by event and verified
+    findEventUserByEvent(eventId: ID, verified: Boolean): [EventUser]
 }
 type Mutation {
     # Create a new organizer.
@@ -25,6 +27,10 @@ type Mutation {
     updateEvent(input: UpdateEventInput!): Event!
     # Create a new poll.
     createPoll(eventId: ID!, input: CreateNewPollInput): Poll!
+    # Update EventUser
+    updateEventUser(input: UpdateEventUserInput!): EventUser!
+    # Update EventUserVerified
+    updateEventUserVerified(input: UpdateEventUserVerifiedInput!): EventUser!
 }
 type Organizer {
     id: ID!
@@ -59,6 +65,14 @@ type PollPossibleAnswer {
     createDatetime: Int
     content: String!
 }
+type EventUser {
+    id: ID!
+    publicName: String!
+    verified: Boolean!
+    allowToVote: Boolean!
+    online: Boolean!
+    username: String!
+}
 input CreateOrganizerInput {
     username: String!
     email: String!
@@ -89,6 +103,14 @@ input UpdateEventInput {
     scheduledDatetime: Int!
     lobbyOpen: Boolean!
     active: Boolean!
+}
+input UpdateEventUserInput {
+    id: ID!
+}
+input UpdateEventUserVerifiedInput {
+    id: ID!
+    verified: Boolean!
+    allowToVote: Boolean!
 }
 input CreateNewPollInput {
     title: String!

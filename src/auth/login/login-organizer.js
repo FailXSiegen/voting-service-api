@@ -5,11 +5,11 @@ import * as jwt from 'jsonwebtoken'
 import { addRefreshToken } from './refresh-token'
 import { verify } from '../../lib/crypto'
 
-export default async function loginOrganizer ({ email, password }) {
+export default async function loginOrganizer ({ username, password }) {
   // Fetch organizer record.
-  const organizer = await findOneByEmail(email)
+  const organizer = await findOneByEmail(username)
   if (!organizer) {
-    throw new Error('Could not find organizer with the following email: ' + email)
+    throw new Error('Could not find organizer with the following email: ' + username)
   }
   // Verify password.
   const isAuthenticated = await verify(password, organizer.password)
