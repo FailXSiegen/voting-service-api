@@ -15,8 +15,9 @@ export default async function loginRefreshRequest (req, res) {
     const tokenRecord = await fetchRefreshToken(signedCookies.refreshToken)
     const type = tokenRecord.organizerId > 0 ? 'organizer' : 'event-user'
     const id = type === 'organizer' ? tokenRecord.organizerId : tokenRecord.eventUserId
+    const verified = tokenRecord.verified
     const claims = {
-      user: { id, type },
+      user: { id, type, verified },
       role: type
     }
     const token = await generateJwt(claims)
