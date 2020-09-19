@@ -22,7 +22,6 @@ export async function findEventUserByEvent (eventId, verified = true) {
 }
 
 export async function create (input) {
-  console.log(input)
   input.createDatetime = getCurrentUnixTimeStamp()
   input.password = await hash(input.password)
   return await insert('event_user', input)

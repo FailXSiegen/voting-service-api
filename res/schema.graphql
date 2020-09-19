@@ -27,6 +27,10 @@ type Mutation {
     updateEvent(input: UpdateEventInput!): Event!
     # Create a new poll.
     createPoll(eventId: ID!, input: CreateNewPollInput): Poll!
+    # Update EventUser
+    updateEventUser(input: UpdateEventUserInput!): EventUser!
+    # Update EventUserVerified
+    updateEventUserVerified(input: UpdateEventUserVerifiedInput!): EventUser!
 }
 type Organizer {
     id: ID!
@@ -67,6 +71,7 @@ type EventUser {
     verified: Boolean!
     allowToVote: Boolean!
     online: Boolean!
+    username: String!
 }
 input CreateOrganizerInput {
     username: String!
@@ -98,6 +103,14 @@ input UpdateEventInput {
     scheduledDatetime: Int!
     lobbyOpen: Boolean!
     active: Boolean!
+}
+input UpdateEventUserInput {
+    id: ID!
+}
+input UpdateEventUserVerifiedInput {
+    id: ID!
+    verified: Boolean!
+    allowToVote: Boolean!
 }
 input CreateNewPollInput {
     title: String!
