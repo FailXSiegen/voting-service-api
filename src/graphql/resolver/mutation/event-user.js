@@ -24,6 +24,7 @@ export default {
     await update(eventUser)
     pubsub.publish('updateEventUserAccessRights', {
       updateEventUserAccessRights: {
+        eventUserId: eventUser.id,
         verified: eventUser.verified,
         allowToVote: eventUser.allowToVote
       }
@@ -43,6 +44,7 @@ export default {
     await update(eventUser)
     pubsub.publish('updateEventUserAccessRights', {
       updateEventUserAccessRights: {
+        eventUserId: eventUser.id,
         verified: eventUser.verified,
         allowToVote: eventUser.allowToVote
       }

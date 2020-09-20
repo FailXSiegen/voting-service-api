@@ -12,8 +12,10 @@ type Query {
     upcomingEvents(organizerId: ID): [Event]
     # Fetches a list of expired events by organizer id.
     expiredEvents(organizerId: ID): [Event]
-    # Fetches a list users by event and verified
+    # Fetches a list users by event and verified.
     findEventUserByEvent(eventId: ID, verified: Boolean): [EventUser]
+    # Fetches an event user by id.
+    eventUser(id:ID): EventUser
 }
 type Mutation {
     # Create a new organizer.
@@ -86,6 +88,7 @@ type EventUser {
     username: String!
 }
 type EventUserAccessRights {
+    eventUserId: ID!
     verified: Boolean!
     allowToVote: Boolean!
 }
