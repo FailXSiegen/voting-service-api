@@ -3,10 +3,10 @@ import { create as createPossibleAnswer } from '../../../repository/poll/poll-po
 
 export default {
   createPoll: async (_, args, context) => {
-    const pollObject = args.input
+    const poll = args.input
     const possibleAnswers = args.input.possibleAnswers
-    delete pollObject.possibleAnswers
-    const pollId = await createPoll(pollObject)
+    delete poll.possibleAnswers
+    const pollId = await createPoll(poll)
     for await (const answerInput of possibleAnswers) {
       await createPossibleAnswer({ pollId, content: answerInput.content })
     }
