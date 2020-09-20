@@ -29,7 +29,6 @@ export async function toggleUserOnlineStateByRequestToken (token, online) {
     SET event_user.online = ?
     WHERE jwt_refresh_token.token = ?
   `
-
   return await query(sql, [online, token])
 }
 

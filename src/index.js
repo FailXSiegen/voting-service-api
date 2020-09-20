@@ -32,7 +32,6 @@ const options = {
   subscriptions: {
     path: '/subscriptions',
     onConnect: async (connectionParams, webSocket, context) => {
-      console.log(context.request.headers)
       if (!context.request.headers.cookie) {
         return
       }
@@ -75,5 +74,3 @@ server.start(options, ({ port }) => {
     `Graphql Server started, listening on port ${port} for incoming requests.`
   )
 })
-
-console.log(server.subscriptionServerOptions)
