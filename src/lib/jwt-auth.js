@@ -2,7 +2,7 @@ import * as jwt from 'jsonwebtoken'
 
 export async function generateJwt (claims) {
   return await jwt.sign(claims, process.env.JWT_SECRET, {
-    expiresIn: 86400 * 30,
+    expiresIn: (86400 * 30) * 1000,
     issuer: process.env.JWT_ISSUER
   })
 }

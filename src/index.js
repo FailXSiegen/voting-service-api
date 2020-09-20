@@ -11,6 +11,8 @@ import authenticate from './middleware/authenticate'
 import loginRequest from './request/login'
 import loginRefreshRequest from './request/login/refresh'
 import verifySlug from './request/event/verify-slug'
+import { extractCookieValueByHeader } from './lib/cookie-from-string-util'
+import { toggleUserOnlineStateByRequestToken } from './repository/event-user-repository'
 
 // Configure and create the server instance.
 const context = { pubsub: new PubSub() }
@@ -20,13 +22,31 @@ const server = new GraphQLServer({
   context,
   middlewares: [authenticate]
 })
+
 const options = {
   port: process.env.APP_PORT,
   endpoint: '/graphql',
-  subscriptions: '/subscriptions',
   playground: '/playground',
   debug: process.env.ENABLE_DEBUG === '1',
-  formatError
+  formatError,
+  subscriptions: {
+    path: '/subscriptions',
+    onConnect: async (connectionParams, webSocket, context) => {
+      console.log(context.request.headers)
+      if (!context.request.headers.cookie) {
+        return
+      }
+      const token = extractCookieValueByHeader(context.request.headers.cookie, 'refreshToken')
+      await toggleUserOnlineStateByRequestToken(token, true)
+    },
+    onDisconnect: async (webSocket, context) => {
+      if (!context.request.headers.cookie) {
+        return
+      }
+      const token = extractCookieValueByHeader(context.request.headers.cookie, 'refreshToken')
+      await toggleUserOnlineStateByRequestToken(token, false)
+    }
+  }
 }
 
 // Add middlewares.
@@ -55,3 +75,5 @@ server.start(options, ({ port }) => {
     `Graphql Server started, listening on port ${port} for incoming requests.`
   )
 })
+
+console.log(server.subscriptionServerOptions)

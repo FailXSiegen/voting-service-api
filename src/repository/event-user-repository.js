@@ -21,6 +21,18 @@ export async function findEventUserByEvent (eventId, verified = true) {
   return await query('SELECT * FROM event_user WHERE event_id = ? AND verified = ?', [eventId, verified])
 }
 
+export async function toggleUserOnlineStateByRequestToken (token, online) {
+  const sql = `
+    UPDATE event_user
+    INNER JOIN jwt_refresh_token
+    ON jwt_refresh_token.event_user_id = event_user.id
+    SET event_user.online = ?
+    WHERE jwt_refresh_token.token = ?
+  `
+
+  return await query(sql, [online, token])
+}
+
 export async function create (input) {
   input.createDatetime = getCurrentUnixTimeStamp()
   input.password = await hash(input.password)
