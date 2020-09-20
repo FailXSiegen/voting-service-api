@@ -1,6 +1,7 @@
 schema {
     query: Query
     mutation: Mutation
+    subscription: Subscription
 }
 enum PollType {
     SECRET
@@ -31,8 +32,13 @@ type Mutation {
     createPollAnswer(input: PollPossibleAnswerInput!): PollPossibleAnswer!
     # Update EventUser
     updateEventUser(input: UpdateEventUserInput!): EventUser!
-    # Update EventUserVerified
-    updateEventUserVerified(input: UpdateEventUserVerifiedInput!): EventUser!
+    # Update event user to guest (verfied: true, allowToVote: false).
+    updateUserToGuest(eventUserId: ID!): EventUser!
+    # Update event user to participant (verfied: true, allowToVote: true).
+    updateUserToParticipant(eventUserId: ID!): EventUser!
+}
+type Subscription {
+    updateEventUserAccessRights: EventUserAccessRights!
 }
 type Organizer {
     id: ID!
@@ -76,6 +82,10 @@ type EventUser {
     online: Boolean!
     username: String!
 }
+type EventUserAccessRights {
+    verified: Boolean!
+    allowToVote: Boolean!
+}
 input PollPossibleAnswerInput {
     content: String!
 }
@@ -112,11 +122,6 @@ input UpdateEventInput {
 }
 input UpdateEventUserInput {
     id: ID!
-}
-input UpdateEventUserVerifiedInput {
-    id: ID!
-    verified: Boolean!
-    allowToVote: Boolean!
 }
 input CreateNewPollInput {
     eventId: ID!
