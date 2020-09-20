@@ -5,10 +5,10 @@ export default {
   createPoll: async (_, args, context) => {
     const pollId = await createPoll({
       title: args.input.title,
-      eventId: args.eventId
+      eventId: args.input.eventId
     })
-    for await (const content of args.input.possibleAnswers) {
-      await createPossibleAnswer({ pollId, content })
+    for await (const answerInput of args.input.possibleAnswers) {
+      await createPossibleAnswer({ pollId, content: answerInput.content })
     }
     return await findOneById(pollId)
   }
