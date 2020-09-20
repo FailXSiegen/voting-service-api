@@ -6,6 +6,7 @@ import eventUserMutations from './resolver/mutation/event-user'
 import pollMutations from './resolver/mutation/poll'
 import pollResolvers from './resolver/poll/poll'
 import eventSubscriptionResolvers from './resolver/subscription/event'
+import pollSubscriptionResolvers from './resolver/subscription/poll'
 
 export default {
   Query: {
@@ -22,6 +23,7 @@ export default {
     ...pollResolvers
   },
   Subscription: {
-    ...eventSubscriptionResolvers
+    ...eventSubscriptionResolvers,
+    ...pollSubscriptionResolvers
   }
 }
