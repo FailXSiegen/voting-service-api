@@ -1,4 +1,5 @@
 import eventQueries from './resolver/queries/event'
+import eventUserQueries from './resolver/queries/event-user'
 import organizerMutations from './resolver/mutation/organizer'
 import eventMutations from './resolver/mutation/event'
 import eventUserMutations from './resolver/mutation/event-user'
@@ -8,7 +9,8 @@ import eventSubscriptionResolvers from './resolver/subscription/event'
 
 export default {
   Query: {
-    ...eventQueries
+    ...eventQueries,
+    ...eventUserQueries
   },
   Mutation: {
     ...organizerMutations,
