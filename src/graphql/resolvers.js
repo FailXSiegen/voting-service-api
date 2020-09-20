@@ -1,9 +1,10 @@
 import eventQueries from './resolver/queries/event'
 import organizerMutations from './resolver/mutation/organizer'
 import eventMutations from './resolver/mutation/event'
-import eventUserMutations from './resolver/mutation/eventUser'
+import eventUserMutations from './resolver/mutation/event-user'
 import pollMutations from './resolver/mutation/poll'
 import pollResolvers from './resolver/poll/poll'
+import eventSubscriptionResolvers from './resolver/subscription/event'
 
 export default {
   Query: {
@@ -17,5 +18,8 @@ export default {
   },
   Poll: {
     ...pollResolvers
+  },
+  Subscription: {
+    ...eventSubscriptionResolvers
   }
 }
