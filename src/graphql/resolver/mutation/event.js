@@ -13,7 +13,7 @@ export default {
   },
   updateEvent: async (_, args, context) => {
     const existingEvent = await findOneBySlug(args.input.slug)
-    if(existingEvent && parseInt(existingEvent.id) !== parseInt(args.input.id)) {
+    if (existingEvent && parseInt(existingEvent.id) !== parseInt(args.input.id)) {
       throw new SlugAlreadyExistsError()
     }
     await update(args.input)
