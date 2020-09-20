@@ -40,7 +40,10 @@ type Mutation {
     updateUserToParticipant(eventUserId: ID!): EventUser!
 }
 type Subscription {
+    # Notifies about user access rights updates.
     updateEventUserAccessRights: EventUserAccessRights!
+    # Notifies about the life cycle of a poll.
+    pollLifeCycle: PollLifeCylclePayload!
 }
 type Organizer {
     id: ID!
@@ -91,6 +94,10 @@ type EventUserAccessRights {
     eventUserId: ID!
     verified: Boolean!
     allowToVote: Boolean!
+}
+type PollLifeCylclePayload {
+    state: String!
+    poll: Poll
 }
 input PollPossibleAnswerInput {
     content: String!
