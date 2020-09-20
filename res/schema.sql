@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS event (
 CREATE TABLE IF NOT EXISTS poll (
     id int(11) NOT NULL AUTO_INCREMENT,
     event_id int(11) DEFAULT 0 NOT NULL,
-    original_id int(11) NULL,
+    original_id int(11) DEFAULT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     title varchar(255) DEFAULT '' NOT NULL,
     type int(11) DEFAULT 0 NOT NULL,
