@@ -78,7 +78,6 @@ type EventUser {
     username: String!
 }
 input PollPossibleAnswerInput {
-    pollId: ID!
     content: String!
 }
 input CreateOrganizerInput {
@@ -124,4 +123,5 @@ input CreateNewPollInput {
     eventId: ID!
     title: String!
     type: PollType!
+    possibleAnswers: [PollPossibleAnswerInput!]
 }
