@@ -4,6 +4,7 @@ import {
   remove as removeQuery, query
 } from './../../lib/database'
 import { getCurrentUnixTimeStamp } from '../../lib/time-stamp'
+import { pollTypeConverterToString } from '../../graphql/resolver/poll/poll'
 
 export async function findOneById (id) {
   const result = await query('SELECT * FROM poll WHERE id = ?', [id])
@@ -12,6 +13,7 @@ export async function findOneById (id) {
 
 export async function create (input) {
   input.createDatetime = getCurrentUnixTimeStamp()
+  input.type = pollTypeConverterToString(input.type)
   return await insert('poll', input)
 }
 

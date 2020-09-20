@@ -10,7 +10,16 @@ export function pollTypeConverter (typeId) {
       throw new Error(`the given type id "${typeId}" is not supported!`)
   }
 }
-
+export function pollTypeConverterToString (typeString) {
+  switch (typeString) {
+    case 'SECRET':
+      return 0
+    case 'PUBLIC':
+      return 1
+    default:
+      throw new Error(`the given type id "${typeString}" is not supported!`)
+  }
+}
 export default {
   type: ({ type }) => {
     return pollTypeConverter(type)

@@ -68,6 +68,9 @@ type Poll {
     title: String!
     type: PollType!
     possibleAnswers: [PollPossibleAnswer]
+    minVotes: Int
+    maxVotes: Int
+    allowAbstain: Boolean
 }
 type PollPossibleAnswer {
     id: ID!
@@ -128,4 +131,7 @@ input CreateNewPollInput {
     title: String!
     type: PollType!
     possibleAnswers: [PollPossibleAnswerInput!]
+    minVotes: Int
+    maxVotes: Int
+    allowAbstain: Boolean
 }
