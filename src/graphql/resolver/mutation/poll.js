@@ -3,11 +3,11 @@ import { create as createPossibleAnswer } from '../../../repository/poll/poll-po
 
 export default {
   createPoll: async (_, args, context) => {
-    const pollId = await createPoll({
-      title: args.input.title,
-      eventId: args.input.eventId
-    })
-    for await (const answerInput of args.input.possibleAnswers) {
+    const pollObject = args.input
+    const possibleAnswers = args.input.possibleAnswers
+    delete pollObject.possibleAnswers
+    const pollId = await createPoll(pollObject)
+    for await (const answerInput of possibleAnswers) {
       await createPossibleAnswer({ pollId, content: answerInput.content })
     }
     return await findOneById(pollId)

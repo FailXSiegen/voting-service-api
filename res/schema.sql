@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS poll (
     title varchar(255) DEFAULT '' NOT NULL,
     type int(11) DEFAULT 0 NOT NULL,
     repeated tinyint(2) DEFAULT 0 NOT NULL,
+    min_votes int(11) DEFAULT 0 NOT NULL,
+    max_votes int(11) DEFAULT 1 NOT NULL,
+    allow_abstain tinyint(2) DEFAULT 0 NOT NULL,
     PRIMARY KEY (id),
     FOREIGN KEY (event_id) REFERENCES event (id),
     FOREIGN KEY (original_id) REFERENCES poll (id)
