@@ -27,7 +27,9 @@ type Mutation {
     # Creates a new event.
     updateEvent(input: UpdateEventInput!): Event!
     # Create a new poll.
-    createPoll(eventId: ID!, input: CreateNewPollInput): Poll!
+    createPoll(input: CreateNewPollInput!): Poll!
+    # Create a new poll answer.
+    createPollAnswer(input: PollPossibleAnswerInput!): PollPossibleAnswer!
     # Update EventUser
     updateEventUser(input: UpdateEventUserInput!): EventUser!
     # Update event user to guest (verfied: true, allowToVote: false).
@@ -61,6 +63,7 @@ type Event {
 }
 type Poll {
     id: ID!
+    eventId: ID!
     createDatetime: Int
     title: String!
     type: PollType!
@@ -80,8 +83,11 @@ type EventUser {
     username: String!
 }
 type EventUserAccessRights {
-    verified: Boolean!,
-    allowToVote: Boolean!,
+    verified: Boolean!
+    allowToVote: Boolean!
+}
+input PollPossibleAnswerInput {
+    content: String!
 }
 input CreateOrganizerInput {
     username: String!
@@ -118,7 +124,8 @@ input UpdateEventUserInput {
     id: ID!
 }
 input CreateNewPollInput {
+    eventId: ID!
     title: String!
     type: PollType!
-    possibleAnswers: [String!]
+    possibleAnswers: [PollPossibleAnswerInput!]
 }
