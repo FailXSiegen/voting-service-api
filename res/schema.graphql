@@ -32,6 +32,8 @@ type Mutation {
     createPoll(input: CreateNewPollInput!): Poll!
     # Create a new poll answer.
     createPollAnswer(input: PollPossibleAnswerInput!): PollPossibleAnswer!
+    # Create a new event user for an event.
+    createEventUser(input: CreateEventUserInput!): EventUser!
     # Update EventUser
     updateEventUser(input: UpdateEventUserInput!): EventUser!
     # Update event user to guest (verfied: true, allowToVote: false).
@@ -132,6 +134,13 @@ input UpdateEventInput {
     scheduledDatetime: Int!
     lobbyOpen: Boolean!
     active: Boolean!
+}
+input CreateEventUserInput {
+    eventId: ID!
+    username: String!
+    verified: Boolean
+    allowToVote: Boolean
+    amountVotes: Int
 }
 input UpdateEventUserInput {
     id: ID!

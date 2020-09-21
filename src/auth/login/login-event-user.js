@@ -1,5 +1,5 @@
 import {
-  findOneByUsernameAndEvenId,
+  findOneByUsernameAndEventId,
   findOneById,
   create,
   update
@@ -25,7 +25,7 @@ async function buildNewEventUserObject (username, password, email, displayName, 
 }
 
 export default async function loginEventUser ({ username, password, email, displayName, eventId }) {
-  let eventUser = await findOneByUsernameAndEvenId(username, eventId)
+  let eventUser = await findOneByUsernameAndEventId(username, eventId)
   if (!eventUser) {
     // create new event user.
     const newEventUserId = await create(
