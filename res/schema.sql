@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS event_user (
     password varchar(255) DEFAULT '' NOT NULL,
     public_name varchar(255) DEFAULT '' NOT NULL,
     allow_to_vote tinyint(2) DEFAULT 0 NOT NULL,
+    vote_amount int(4) DEFAULT 0 NOT NULL,
     online tinyint(2) DEFAULT 0 NOT NULL,
     coorganizer tinyint(2) DEFAULT 0 NOT NULL,
     verified tinyint(2) DEFAULT 0 NOT NULL,

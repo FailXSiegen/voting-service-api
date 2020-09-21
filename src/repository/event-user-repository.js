@@ -12,7 +12,7 @@ export async function findOneById (id) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
-export async function findOneByUsernameAndEvenId (username, eventId) {
+export async function findOneByUsernameAndEventId (username, eventId) {
   const result = await query('SELECT * FROM event_user WHERE username = ? AND event_id = ?', [username, eventId])
   return Array.isArray(result) ? result[0] || null : null
 }
@@ -34,7 +34,9 @@ export async function toggleUserOnlineStateByRequestToken (token, online) {
 
 export async function create (input) {
   input.createDatetime = getCurrentUnixTimeStamp()
-  input.password = await hash(input.password)
+  if (input.password) {
+    input.password = await hash(input.password)
+  }
   return await insert('event_user', input)
 }
 

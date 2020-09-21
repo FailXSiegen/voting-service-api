@@ -1,6 +1,15 @@
-import { findOneById, update } from '../../../repository/event-user-repository'
+import { findOneById, findOneByUsernameAndEventId, update, create } from '../../../repository/event-user-repository'
 
 export default {
+  createEventUser: async (_, args, context) => {
+    const eventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
+    if (eventUser) {
+      throw new Error('EventUser already exists')
+    }
+    await create(args.input)
+    return await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
+  },
+
   updateEventUser: async (_, args, context) => {
     const eventUser = await findOneById(args.input.id)
     if (!eventUser) {
@@ -11,7 +20,6 @@ export default {
   },
   updateUserToGuest: async (_, args, { pubsub }) => {
     const eventUser = await findOneById(args.eventUserId)
-    console.log(eventUser)
     if (!eventUser) {
       throw new Error('EventUser not found')
     }
