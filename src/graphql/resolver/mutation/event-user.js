@@ -9,7 +9,6 @@ export default {
     await create(args.input)
     return await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
   },
-
   updateEventUser: async (_, args, context) => {
     const eventUser = await findOneById(args.input.id)
     if (!eventUser) {
@@ -32,6 +31,7 @@ export default {
     await update(eventUser)
     pubsub.publish('updateEventUserAccessRights', {
       updateEventUserAccessRights: {
+        eventId: eventUser.eventId,
         eventUserId: eventUser.id,
         verified: eventUser.verified,
         allowToVote: eventUser.allowToVote
@@ -52,6 +52,7 @@ export default {
     await update(eventUser)
     pubsub.publish('updateEventUserAccessRights', {
       updateEventUserAccessRights: {
+        eventId: eventUser.eventId,
         eventUserId: eventUser.id,
         verified: eventUser.verified,
         allowToVote: eventUser.allowToVote
