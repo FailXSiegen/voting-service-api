@@ -37,8 +37,18 @@ export default async function loginEventUser ({ username, password, email, displ
       throw new Error('Could not create new user!')
     }
   } else {
-    // Verify password.
-    const isAuthenticated = await verify(password, eventUser.password)
+    let isAuthenticated = false
+    if (eventUser.password === '') {
+      const eventUserPasswordUpdate = {
+        id: eventUser.id,
+        password: password
+      }
+      await update(eventUserPasswordUpdate)
+      isAuthenticated = true
+    } else {
+      // Verify password.
+      isAuthenticated = await verify(password, eventUser.password)
+    }
     if (!isAuthenticated) {
       throw new AuthenticationError()
     }
