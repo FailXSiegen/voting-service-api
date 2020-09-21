@@ -17,8 +17,8 @@ export async function findOneByUsernameAndEventId (username, eventId) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
-export async function findEventUserByEvent (eventId, verified = true) {
-  return await query('SELECT * FROM event_user WHERE event_id = ? AND verified = ?', [eventId, verified])
+export async function findEventUserByEventId (eventId) {
+  return await query('SELECT * FROM event_user WHERE event_id = ?', [eventId])
 }
 
 export async function toggleUserOnlineStateByRequestToken (token, online) {
