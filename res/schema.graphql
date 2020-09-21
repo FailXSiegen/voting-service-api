@@ -46,6 +46,8 @@ type Subscription {
     updateEventUserAccessRights: EventUserAccessRights!
     # Notifies about the life cycle of a poll.
     pollLifeCycle: PollLifeCylclePayload!
+    # Notifies about a new event user record.
+    newEventUser: EventUser!
 }
 type Organizer {
     id: ID!
@@ -92,6 +94,7 @@ type EventUser {
     online: Boolean!
     username: String!
     voteAmount: Int!
+    eventId: ID!
 }
 type EventUserAccessRights {
     eventId: ID!
