@@ -91,6 +91,7 @@ type EventUser {
     allowToVote: Boolean!
     online: Boolean!
     username: String!
+    amountVote: Int!
 }
 type EventUserAccessRights {
     eventUserId: ID!
@@ -138,12 +139,18 @@ input UpdateEventInput {
 input CreateEventUserInput {
     eventId: ID!
     username: String!
-    verified: Boolean
-    allowToVote: Boolean
-    amountVotes: Int
+    verified: Boolean!
+    allowToVote: Boolean!
+    amountVote: Int
 }
 input UpdateEventUserInput {
     id: ID!
+    eventId: ID!
+    username: String!
+    verified: Boolean!
+    allowToVote: Boolean!
+    publicName: String
+    amountVote: Int
 }
 input CreateNewPollInput {
     eventId: ID!
