@@ -1,13 +1,19 @@
 import { findOneById, findOneByUsernameAndEventId, update, create } from '../../../repository/event-user-repository'
 
 export default {
-  createEventUser: async (_, args, context) => {
+  createEventUser: async (_, args, { pubsub }) => {
     const eventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
     if (eventUser) {
       throw new Error('EventUser already exists')
     }
     await create(args.input)
-    return await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
+    const newEventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
+    pubsub.publish('newEventUser', {
+      newEventUser: {
+        ...newEventUser
+      }
+    })
+    return newEventUser
   },
   updateEventUser: async (_, args, context) => {
     const eventUser = await findOneById(args.input.id)
