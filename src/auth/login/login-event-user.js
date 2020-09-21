@@ -39,11 +39,11 @@ export default async function loginEventUser ({ username, password, email, displ
   } else {
     let isAuthenticated = false
     if (eventUser.password === '') {
-      const eventUserPWUpdate = {
+      const eventUserPasswordUpdate = {
         id: eventUser.id,
         password: password
       }
-      await update(eventUserPWUpdate)
+      await update(eventUserPasswordUpdate)
       isAuthenticated = true
     } else {
       // Verify password.
