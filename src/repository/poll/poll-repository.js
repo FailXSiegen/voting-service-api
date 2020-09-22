@@ -25,3 +25,7 @@ export async function update (input) {
 export async function remove (id) {
   return await removeQuery('poll', id)
 }
+
+export async function findPollsWithNoResults (eventId) {
+  return await query('SELECT poll.* FROM poll LEFT JOIN poll_result ON poll.id = poll_result.poll_id WHERE poll.event_id = ? AND poll_result.poll_id IS NULL', [eventId])
+}
