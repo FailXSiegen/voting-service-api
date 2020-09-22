@@ -45,7 +45,7 @@ type Mutation {
 }
 type Subscription {
     # Notifies about user access rights updates.
-    updateEventUserAccessRights: EventUserAccessRights!
+    updateEventUserAccessRights(eventUserId: ID!): EventUserAccessRights!
     # Notifies about the life cycle of a poll.
     pollLifeCycle: PollLifeCylclePayload!
     # Notifies about a new event user record.
