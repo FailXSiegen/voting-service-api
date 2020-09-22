@@ -15,7 +15,9 @@ type Query {
     # Fetches a list of evnet users by event id.
     eventUsers(eventId: ID): [EventUser]
     # Fetches an event user by id.
-    eventUser(id:ID): EventUser
+    eventUser(id: ID): EventUser
+    # Fetches all polls by event id.
+    pollsWithNoResults(eventId: ID): [Poll]
 }
 type Mutation {
     # Create a new organizer.
