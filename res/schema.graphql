@@ -29,7 +29,7 @@ type Mutation {
     # Creates a new event.
     updateEvent(input: UpdateEventInput!): Event!
     # Create a new poll.
-    createPoll(input: CreateNewPollInput!): Poll!
+    createPoll(input: CreateNewPollInput!, instantStart: Boolean!): Poll!
     # Create a new poll answer.
     createPollAnswer(input: PollPossibleAnswerInput!): PollPossibleAnswer!
     # Create a new event user for an event.
