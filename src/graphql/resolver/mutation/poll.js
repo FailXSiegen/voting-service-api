@@ -11,12 +11,14 @@ export default {
       await createPossibleAnswer({ pollId, content: answerInput.content })
     }
     const pollRecord = await findOneById(pollId)
-    pubsub.publish('pollLifeCycle', {
-      pollLifeCycle: {
-        state: 'new',
-        poll: pollRecord
-      }
-    })
+    if (args.instantStart === true) {
+      pubsub.publish('pollLifeCycle', {
+        pollLifeCycle: {
+          state: 'new',
+          poll: pollRecord
+        }
+      })
+    }
     return pollRecord
   }
 }
