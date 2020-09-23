@@ -18,6 +18,8 @@ type Query {
     eventUser(id: ID): EventUser
     # Fetches all polls by event id.
     pollsWithNoResults(eventId: ID): [Poll]
+    # Fetches all poll results by event id.
+    pollResult(eventId: ID): [PollResult]
 }
 type Mutation {
     # Create a new organizer.
@@ -72,22 +74,6 @@ type Event {
     lobbyOpen: Boolean
     active: Boolean
 }
-type Poll {
-    id: ID!
-    eventId: ID!
-    createDatetime: Int
-    title: String!
-    type: PollType!
-    possibleAnswers: [PollPossibleAnswer]
-    minVotes: Int
-    maxVotes: Int
-    allowAbstain: Boolean
-}
-type PollPossibleAnswer {
-    id: ID!
-    createDatetime: Int
-    content: String!
-}
 type EventUser {
     id: ID!
     publicName: String!
@@ -103,10 +89,51 @@ type EventUserAccessRights {
     eventUserId: ID!
     verified: Boolean!
     allowToVote: Boolean!
+    voteAmount: Int!
+}
+type Poll {
+    id: ID!
+    eventId: ID!
+    createDatetime: Int
+    title: String!
+    type: PollType!
+    possibleAnswers: [PollPossibleAnswer]
+    minVotes: Int
+    maxVotes: Int
+    allowAbstain: Boolean
+}
+type PollResult {
+    id: ID!
+    pollId: ID!
+    createDatetime: Int
+    type: PollType!
+    pollUser: [PollUser!]
+    pollAnswer: [PollAnswer!]
+}
+type PollPossibleAnswer {
+    id: ID!
+    createDatetime: Int
+    content: String!
+}
+type PollUser {
+    pollId: ID!
+    eventUserId: ID!
+    publicName: String!
+}
+type PollAnswer {
+    id: ID!
+    pollResultId: ID!
+    answerContent: String!
+    pollUserId: ID
 }
 type PollLifeCylclePayload {
     state: String!
     poll: Poll
+}
+type Result {
+    id: ID!
+    pollId: ID!
+    content: String!
 }
 input PollPossibleAnswerInput {
     content: String!
