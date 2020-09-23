@@ -104,9 +104,9 @@ type Poll {
 }
 type PollResult {
     id: ID!
-    pollId: ID!
     createDatetime: Int
     type: PollType!
+    poll: Poll!
     pollUser: [PollUser!]
     pollAnswer: [PollAnswer!]
 }

@@ -1,5 +1,6 @@
 import { findByPollResultId } from '../../../repository/poll/poll-answer-repository'
 import { findByEventId } from '../../../repository/poll/poll-user-repository'
+import { findOneById } from '../../../repository/poll/poll-repository'
 
 export function pollTypeConverter (typeId) {
   switch (typeId) {
@@ -24,6 +25,9 @@ export function pollTypeConverterToString (typeString) {
 export default {
   type: ({ type }) => {
     return pollTypeConverter(type)
+  },
+  poll: async ({ pollId }) => {
+    return await findOneById(pollId)
   },
   pollUser: async ({ pollId }) => {
     return await findByEventId(pollId)
