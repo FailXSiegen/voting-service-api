@@ -13,9 +13,11 @@ import loginRefreshRequest from './request/login/refresh'
 import verifySlug from './request/event/verify-slug'
 import { extractCookieValueByHeader } from './lib/cookie-from-string-util'
 import { toggleUserOnlineStateByRequestToken } from './repository/event-user-repository'
+import logoutRequest from './request/logout'
 
 // Configure and create the server instance.
-const context = { pubsub: new PubSub() }
+export const pubsub = new PubSub()
+const context = { pubsub }
 const server = new GraphQLServer({
   typeDefs,
   resolvers,
@@ -36,14 +38,38 @@ const options = {
         return
       }
       const token = extractCookieValueByHeader(context.request.headers.cookie, 'refreshToken')
-      await toggleUserOnlineStateByRequestToken(token, true)
+      if (token === null) {
+        return
+      }
+      const tokenRecord = await toggleUserOnlineStateByRequestToken(token, true)
+      if (!tokenRecord) {
+        return
+      }
+      pubsub.publish('eventUserLifeCycle', {
+        eventUserLifeCycle: {
+          online: true,
+          eventUserId: tokenRecord.eventUserId
+        }
+      })
     },
     onDisconnect: async (webSocket, context) => {
       if (!context.request.headers.cookie) {
         return
       }
       const token = extractCookieValueByHeader(context.request.headers.cookie, 'refreshToken')
-      await toggleUserOnlineStateByRequestToken(token, false)
+      if (token === null) {
+        return
+      }
+      const tokenRecord = await toggleUserOnlineStateByRequestToken(token, false)
+      if (!tokenRecord) {
+        return
+      }
+      pubsub.publish('eventUserLifeCycle', {
+        eventUserLifeCycle: {
+          online: false,
+          eventUserId: tokenRecord.eventUserId
+        }
+      })
     }
   }
 }
@@ -66,6 +92,9 @@ server.express.post('/login/refresh', async (req, res) => {
 })
 server.express.post('/event/verify-slug', async (req, res) => {
   await verifySlug(req, res)
+})
+server.express.get('/logout', async (req, res) => {
+  await logoutRequest(req, res)
 })
 
 // Start the server.

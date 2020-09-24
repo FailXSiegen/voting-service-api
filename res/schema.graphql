@@ -47,11 +47,13 @@ type Mutation {
 }
 type Subscription {
     # Notifies about user access rights updates.
-    updateEventUserAccessRights(eventUserId: ID!): EventUserAccessRights!
+    updateEventUserAccessRights(eventUserId: ID): EventUserAccessRights!
     # Notifies about the life cycle of a poll.
     pollLifeCycle: PollLifeCylclePayload!
     # Notifies about a new event user record.
     newEventUser: EventUser!
+    # Notifies about event user online states.
+    eventUserLifeCycle: EventUserLifeCyclePayload!
 }
 type Organizer {
     id: ID!
@@ -90,6 +92,10 @@ type EventUserAccessRights {
     verified: Boolean!
     allowToVote: Boolean!
     voteAmount: Int!
+}
+type EventUserLifeCyclePayload {
+    online: Boolean!
+    eventUserId: ID!
 }
 type Poll {
     id: ID!
