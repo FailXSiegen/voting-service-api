@@ -29,7 +29,12 @@ export async function toggleUserOnlineStateByRequestToken (token, online) {
     SET event_user.online = ?
     WHERE jwt_refresh_token.token = ?
   `
-  return await query(sql, [online, token])
+  // Update online state.
+  await query(sql, [online, token])
+  // Fetch event user id for further processing.
+  const result = await query('SELECT event_user_id FROM jwt_refresh_token WHERE token = ?', [token])
+
+  return Array.isArray(result) ? result[0] || null : null
 }
 
 export async function create (input) {
