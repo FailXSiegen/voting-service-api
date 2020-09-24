@@ -9,6 +9,11 @@ export async function findByEventId (pollId) {
   return await query('SELECT poll_user.* FROM poll_user INNER JOIN poll ON poll.id = poll_user.poll_id WHERE poll.id = ?', [pollId])
 }
 
+export async function findById (pollUserId) {
+  const result = await query('SELECT * FROM poll_user WHERE id = ?', [pollUserId])
+  return Array.isArray(result) ? result[0] || null : null
+}
+
 export async function create (input) {
   input.createDatetime = getCurrentUnixTimeStamp()
   return await insert('poll_user', input)
