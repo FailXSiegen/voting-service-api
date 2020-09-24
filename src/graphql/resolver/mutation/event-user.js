@@ -32,7 +32,7 @@ export default {
     // Define guest access rights.
     eventUser.verified = true
     eventUser.allowToVote = false
-
+    eventUser.voteAmount = 0
     delete eventUser.password
     await update(eventUser)
     pubsub.publish('updateEventUserAccessRights', {
@@ -40,7 +40,8 @@ export default {
         eventId: eventUser.eventId,
         eventUserId: eventUser.id,
         verified: eventUser.verified,
-        allowToVote: eventUser.allowToVote
+        allowToVote: eventUser.allowToVote,
+        voteAmount: eventUser.voteAmount
       }
     })
     return eventUser
@@ -53,7 +54,7 @@ export default {
     // Define participant access rights.
     eventUser.verified = true
     eventUser.allowToVote = true
-
+    eventUser.voteAmount = 1
     delete eventUser.password
     await update(eventUser)
     pubsub.publish('updateEventUserAccessRights', {
@@ -61,7 +62,8 @@ export default {
         eventId: eventUser.eventId,
         eventUserId: eventUser.id,
         verified: eventUser.verified,
-        allowToVote: eventUser.allowToVote
+        allowToVote: eventUser.allowToVote,
+        voteAmount: eventUser.voteAmount
       }
     })
     return eventUser
