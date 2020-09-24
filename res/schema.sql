@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS poll_user (
     create_datetime int(11) DEFAULT 0 NOT NULL,
     PRIMARY KEY (id),
     FOREIGN KEY (event_user_id) REFERENCES event_user (id),
-    FOREIGN KEY (poll_result_id) REFERENCES poll_result (id)
+    FOREIGN KEY (poll_id) REFERENCES poll (id)
 );
 CREATE TABLE IF NOT EXISTS poll_possible_answer (
     id int(11) NOT NULL AUTO_INCREMENT,
