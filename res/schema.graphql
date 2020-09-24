@@ -124,7 +124,7 @@ type PollAnswer {
     id: ID!
     pollResultId: ID!
     answerContent: String!
-    pollUserId: ID
+    pollUser: PollUser
 }
 type PollLifeCylclePayload {
     state: String!

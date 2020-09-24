@@ -8,6 +8,7 @@ import eventUserMutations from './resolver/mutation/event-user'
 import pollMutations from './resolver/mutation/poll'
 import pollResolvers from './resolver/poll/poll'
 import pollResultResolvers from './resolver/poll-result/poll-result'
+import pollAnswerResolvers from './resolver/poll-answer/poll-answer'
 import pollSubscriptionResolvers from './resolver/subscription/poll'
 import eventUserSubscriptionResolvers from './resolver/subscription/event-user'
 
@@ -29,6 +30,9 @@ export default {
   },
   PollResult: {
     ...pollResultResolvers
+  },
+  PollAnswer: {
+    ...pollAnswerResolvers
   },
   Subscription: {
     ...pollSubscriptionResolvers,
