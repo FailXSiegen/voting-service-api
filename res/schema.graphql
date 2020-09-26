@@ -34,8 +34,18 @@ type Mutation {
     updateEvent(input: UpdateEventInput!): Event!
     # Create a new poll.
     createPoll(input: CreateNewPollInput!, instantStart: Boolean!): Poll!
+    # Delete a poll.
+    removePoll(id: ID!): Boolean!
+    # Delete a poll.
+    startPoll(id: ID!): Poll!
+    # Delete a poll.
+    stopPoll(id: ID!): Boolean!
+    # Create poll answer on poll submit.
+    createPollSubmitAnswer(input: PollSubmitAnswer): Boolean
     # Create a new poll answer.
     createPollAnswer(input: PollPossibleAnswerInput!): PollPossibleAnswer!
+    # Create poll dependencies
+    createPollDependencies(pollRecord: PollInput!): Boolean
     # Create a new event user for an event.
     createEventUser(input: CreateEventUserInput!): EventUser!
     # Update EventUser
@@ -110,6 +120,7 @@ type Poll {
 }
 type PollResult {
     id: ID!
+    maxVotes: Int
     createDatetime: Int
     type: PollType!
     poll: Poll!
@@ -135,6 +146,7 @@ type PollAnswer {
 type PollLifeCylclePayload {
     state: String!
     poll: Poll
+    pollResultId: ID
 }
 type Result {
     id: ID!
@@ -200,4 +212,16 @@ input CreateNewPollInput {
     minVotes: Int
     maxVotes: Int
     allowAbstain: Boolean
+}
+input PollInput {
+    id: ID!
+    type: PollType!
+    eventId: ID!
+}
+input PollSubmitAnswer {
+    answerContent: String!
+    pollResultId: ID!
+    eventUserId: ID
+    type: String!
+    possibleAnswerId: ID!
 }

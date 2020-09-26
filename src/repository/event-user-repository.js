@@ -21,6 +21,10 @@ export async function findEventUserByEventId (eventId) {
   return await query('SELECT * FROM event_user WHERE event_id = ?', [eventId])
 }
 
+export async function findOnlineEventUserByEventId (eventId) {
+  return await query('SELECT * FROM event_user WHERE event_id = ? AND online = 1 AND allow_to_vote = 1', [eventId])
+}
+
 export async function toggleUserOnlineStateByRequestToken (token, online) {
   const sql = `
     UPDATE event_user
