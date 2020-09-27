@@ -86,13 +86,13 @@ CREATE TABLE IF NOT EXISTS poll_result (
 CREATE TABLE IF NOT EXISTS poll_answer (
     id int(11) NOT NULL AUTO_INCREMENT,
     poll_result_id int(11) DEFAULT 0 NOT NULL,
-    poll_answer_id int(11) DEFAULT 0 NOT NULL,
+    poll_possible_answer_id int(11) DEFAULT 0 NOT NULL,
     answer_content varchar(255) DEFAULT '' NOT NULL,
     poll_user_id int(11) NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     PRIMARY KEY (id),
     FOREIGN KEY (poll_result_id) REFERENCES poll_result (id),
-    FOREIGN KEY (poll_answer_id) REFERENCES poll_possible_answer (id),
+    FOREIGN KEY (poll_possible_answer_id) REFERENCES poll_possible_answer (id),
     FOREIGN KEY (poll_user_id) REFERENCES poll_user (id)
 );
 CREATE TABLE IF NOT EXISTS jwt_refresh_token (
