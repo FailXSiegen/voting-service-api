@@ -8,6 +8,7 @@ export default async function logoutRequest (req, res) {
     res.send(JSON.stringify({
       success: false
     }))
+    return
   }
   const result = await query('SELECT event_user_id FROM jwt_refresh_token WHERE token = ?', [token])
   const tokenRecord = Array.isArray(result) ? result[0] || null : null

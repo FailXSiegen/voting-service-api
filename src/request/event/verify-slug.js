@@ -8,7 +8,7 @@ export default async function verifySlug (req, res) {
       throw new Error('Missing slug')
     }
     const event = await findOneBySlug(requestArguments.slug)
-    if(event === null) {
+    if (event === null) {
       throw new Error('slug not found')
     }
     res.send(JSON.stringify({

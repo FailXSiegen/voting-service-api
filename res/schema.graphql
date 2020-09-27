@@ -41,7 +41,7 @@ type Mutation {
     # Delete a poll.
     stopPoll(id: ID!): Boolean!
     # Create poll answer on poll submit.
-    createPollSubmitAnswer(input: PollSubmitAnswerInput): Boolean
+    createPollSubmitAnswer(input: PollSubmitAnswerInput!): Boolean
     # Create a new poll answer.
     createPollAnswer(input: PollPossibleAnswerInput!): PollPossibleAnswer!
     # Create a new event user for an event.
@@ -124,6 +124,7 @@ type PollResult {
     poll: Poll!
     pollUser: [PollUser!]
     pollAnswer: [PollAnswer!]
+    closed: Boolean!
 }
 type PollPossibleAnswer {
     id: ID!
@@ -220,6 +221,6 @@ input PollSubmitAnswerInput {
     answerContent: String!
     pollResultId: ID!
     eventUserId: ID
-    type: String!
+    type: PollType!
     possibleAnswerId: ID!
 }
