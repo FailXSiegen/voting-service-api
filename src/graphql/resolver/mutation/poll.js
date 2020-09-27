@@ -15,15 +15,7 @@ export default {
     }
     const pollRecord = await findOneById(pollId)
     if (args.instantStart === true) {
-      const onlineEventUsers = await findOnlineEventUserByEventId(pollRecord.eventId)
-      let maxPollVotes = 0
-      for (const onlineEventUser of onlineEventUsers) {
-        maxPollVotes = maxPollVotes + onlineEventUser.voteAmount
-        const pollUser = { eventUserId: onlineEventUser.id, publicName: onlineEventUser.publicName, pollId: pollRecord.id }
-        await createPollUser(pollUser)
-      }
-      const pollResult = { pollId: pollRecord.id, type: pollRecord.type, maxVotes: maxPollVotes }
-      const pollResultId = await createPollResult(pollResult)
+      const pollResultId = await createPollDependencies(pollRecord)
       if (pollResultId) {
         pubsub.publish('pollLifeCycle', {
           pollLifeCycle: {
@@ -38,15 +30,7 @@ export default {
   },
   startPoll: async (_, args, { pubsub }) => {
     const pollRecord = await findOneById(args.id)
-    let maxPollVotes = 0
-    const onlineEventUsers = await findOnlineEventUserByEventId(pollRecord.eventId)
-    for (const onlineEventUser of onlineEventUsers) {
-      maxPollVotes = maxPollVotes + onlineEventUser.voteAmount
-      const pollUser = { eventUserId: onlineEventUser.id, publicName: onlineEventUser.publicName, pollId: pollRecord.id }
-      await createPollUser(pollUser)
-    }
-    const pollResult = { pollId: pollRecord.id, type: pollRecord.type, maxVotes: maxPollVotes }
-    const pollResultId = await createPollResult(pollResult)
+    const pollResultId = await createPollDependencies(pollRecord)
     if (pollResultId) {
       pubsub.publish('pollLifeCycle', {
         pollLifeCycle: {
@@ -64,14 +48,22 @@ export default {
   removePoll: async (_, args, context) => {
     return await removePoll(args.id)
   }
-  // createPollDependencies (pollRecord) {
-  //   const pollResult = { pollId: pollRecord.id, type: pollRecord.type }
-  //   const pollResultId = await createPollResult(pollResult)
-  //   const onlineEventUsers = await findOnlineEventUserByEventId(pollRecord.eventId)
-  //   for (const onlineEventUser in onlineEventUsers) {
-  //     const pollUser = { eventUserId: onlineEventUser.id, publicName: onlineEventUser.publicName, pollId: pollRecord.id }
-  //     await createPollUser(pollUser)
-  //   }
-  //   return pollResultId
-  // }
+
+}
+
+async function createPollDependencies (pollRecord) {
+  let maxPollVotes = 0
+  const onlineEventUsers = await findOnlineEventUserByEventId(pollRecord.eventId)
+  for (const onlineEventUser in onlineEventUsers) {
+    maxPollVotes += onlineEventUser.voteAmount
+    const pollUser = {
+      eventUserId: onlineEventUser.id,
+      publicName: onlineEventUser.publicName,
+      pollId: pollRecord.id,
+      maxVotes: maxPollVotes
+    }
+    await createPollUser(pollUser)
+  }
+  const pollResult = { pollId: pollRecord.id, type: pollRecord.type, maxVotes: maxPollVotes }
+  return await createPollResult(pollResult)
 }
