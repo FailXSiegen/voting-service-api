@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS event (
     deleted tinyint(2) DEFAULT 0 NOT NULL,
     description text,
     image_path varchar(255) DEFAULT '' NOT NULL,
-    slug varchar(255) DEFAULT '' NOT NULL,
+    slug varchar(150) DEFAULT '' NOT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY (slug),
     FOREIGN KEY (organizer_id) REFERENCES organizer (id)
@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS poll_possible_answer (
 CREATE TABLE IF NOT EXISTS poll_result (
     id int(11) NOT NULL AUTO_INCREMENT,
     poll_id int(11) DEFAULT 0 NOT NULL,
+    max_votes int(11) DEFAULT 0 NOT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     type tinyint(2) DEFAULT 0 NOT NULL,
     PRIMARY KEY (id),
