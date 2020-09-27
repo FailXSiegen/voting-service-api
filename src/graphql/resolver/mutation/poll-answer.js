@@ -2,7 +2,7 @@ import {
   insertPollSubmitAnswer
 } from '../../../repository/poll/poll-answer-repository'
 import {
-  resultAcceptsVotes,
+  findLeftAnswersCount,
   closePollResult
 } from '../../../repository/poll/poll-result-repository'
 
@@ -18,17 +18,22 @@ async function publishPollLifeCycle (pubsub, pollResultId) {
 export default {
   createPollSubmitAnswer: async (_, { input }, { pubsub }) => {
     // Check if there are votes left.
-    let acceptVotes = await resultAcceptsVotes(input.pollResultId)
-    if (!acceptVotes) {
+    let leftAnswersDataSet = await findLeftAnswersCount(input.pollResultId)
+    if (leftAnswersDataSet === null) {
       await publishPollLifeCycle(pubsub, input.pollResultId)
       return false
     }
     await insertPollSubmitAnswer(input)
     // Again check if there are votes left.
-    acceptVotes = await resultAcceptsVotes(input.pollResultId)
-    if (!acceptVotes) {
+    leftAnswersDataSet = await findLeftAnswersCount(input.pollResultId)
+    if (leftAnswersDataSet === null) {
       await publishPollLifeCycle(pubsub, input.pollResultId)
+      return true
     }
+    // Notify the organizer about the current voted count.
+    pubsub.publish('pollAnswerLifeCycle', {
+      pollAnswerLifeCycle: leftAnswersDataSet
+    })
     return true
   }
 }
