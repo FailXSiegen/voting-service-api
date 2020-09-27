@@ -23,3 +23,7 @@ export async function update (input) {
 export async function remove (id) {
   return await removeQuery('poll_possible_answer', id)
 }
+
+export async function removeByPoll (pollId) {
+  return await query('DELETE FROM poll_possible_answer WHERE poll_id = ?', [pollId])
+}

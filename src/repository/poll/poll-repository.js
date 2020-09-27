@@ -5,6 +5,7 @@ import {
 } from './../../lib/database'
 import { getCurrentUnixTimeStamp } from '../../lib/time-stamp'
 import { pollTypeConverterToString } from '../../graphql/resolver/poll/poll'
+import { removeByPoll } from './poll-possible-answer-repository'
 
 export async function findOneById (id) {
   const result = await query('SELECT * FROM poll WHERE id = ?', [id])
@@ -23,6 +24,7 @@ export async function update (input) {
 }
 
 export async function remove (id) {
+  await removeByPoll(id)
   return await removeQuery('poll', id)
 }
 

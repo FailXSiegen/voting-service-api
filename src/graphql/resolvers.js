@@ -6,6 +6,7 @@ import organizerMutations from './resolver/mutation/organizer'
 import eventMutations from './resolver/mutation/event'
 import eventUserMutations from './resolver/mutation/event-user'
 import pollMutations from './resolver/mutation/poll'
+import pollAnswerMutations from './resolver/mutation/poll-answer'
 import pollResolvers from './resolver/poll/poll'
 import pollResultResolvers from './resolver/poll-result/poll-result'
 import pollAnswerResolvers from './resolver/poll-answer/poll-answer'
@@ -23,6 +24,7 @@ export default {
     ...organizerMutations,
     ...eventMutations,
     ...pollMutations,
+    ...pollAnswerMutations,
     ...eventUserMutations
   },
   Poll: {
