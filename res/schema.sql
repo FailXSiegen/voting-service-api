@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS poll_result (
     max_votes int(11) DEFAULT 0 NOT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     type tinyint(2) DEFAULT 0 NOT NULL,
+    closed tinyint(2) DEFAULT 0 NOT NULL,
     PRIMARY KEY (id),
     FOREIGN KEY (poll_id) REFERENCES poll (id)
 );

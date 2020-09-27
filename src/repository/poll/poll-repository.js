@@ -12,6 +12,16 @@ export async function findOneById (id) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
+export async function findOneByPollResultId (pollResultId) {
+  const result = await query(`
+    SELECT poll.*
+    FROM poll
+    LEFT JOIN poll_result ON poll_result.poll_id = poll.id
+    WHERE poll_result.id = ?
+  `, [pollResultId])
+  return Array.isArray(result) ? result[0] || null : null
+}
+
 export async function create (input) {
   input.createDatetime = getCurrentUnixTimeStamp()
   input.type = pollTypeConverterToString(input.type)
@@ -29,5 +39,12 @@ export async function remove (id) {
 }
 
 export async function findPollsWithNoResults (eventId) {
-  return await query('SELECT poll.* FROM poll LEFT JOIN poll_result ON poll.id = poll_result.poll_id WHERE poll.event_id = ? AND poll_result.poll_id IS NULL', [eventId])
+  return await query(`
+  SELECT poll.*
+  FROM poll
+  LEFT JOIN poll_result ON poll.id = poll_result.poll_id
+  WHERE poll.event_id = ?
+  AND poll_result.poll_id IS NULL
+  `,
+  [eventId])
 }
