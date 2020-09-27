@@ -54,7 +54,7 @@ export default {
 async function createPollDependencies (pollRecord) {
   let maxPollVotes = 0
   const onlineEventUsers = await findOnlineEventUserByEventId(pollRecord.eventId)
-  for (const onlineEventUser in onlineEventUsers) {
+  for await (const onlineEventUser of onlineEventUsers) {
     maxPollVotes += onlineEventUser.voteAmount
     const pollUser = {
       eventUserId: onlineEventUser.id,
