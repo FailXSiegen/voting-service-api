@@ -15,13 +15,23 @@ export default {
     })
     return newEventUser
   },
-  updateEventUser: async (_, args, context) => {
-    const eventUser = await findOneById(args.input.id)
+  updateEventUser: async (_, args, { pubsub }) => {
+    let eventUser = await findOneById(args.input.id)
     if (!eventUser) {
       throw new Error('EventUser not found')
     }
     await update(args.input)
-    return await findOneById(args.input.id)
+    eventUser = await findOneById(args.input.id)
+    pubsub.publish('updateEventUserAccessRights', {
+      updateEventUserAccessRights: {
+        eventId: eventUser.eventId,
+        eventUserId: eventUser.id,
+        verified: eventUser.verified,
+        allowToVote: eventUser.allowToVote,
+        voteAmount: eventUser.voteAmount
+      }
+    })
+    return eventUser
   },
   updateUserToGuest: async (_, args, { pubsub }) => {
     const eventUser = await findOneById(args.eventUserId)
