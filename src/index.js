@@ -14,6 +14,12 @@ import verifySlug from './request/event/verify-slug'
 import { extractCookieValueByHeader } from './lib/cookie-from-string-util'
 import { toggleUserOnlineStateByRequestToken } from './repository/event-user-repository'
 import logoutRequest from './request/logout'
+import { query } from './lib/database'
+
+// Set each event user to offline on server start up.
+query('UPDATE event_user SET online = ?', [false]).catch((error) => {
+  console.error(error)
+})
 
 // Configure and create the server instance.
 export const pubsub = new PubSub()
