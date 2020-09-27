@@ -22,7 +22,7 @@ export default async function loginRequest (req, res) {
     }
     res.status(201)
     res.cookie('refreshToken', result.refreshToken, {
-      maxAge: 1000 * 60 * 15, // Expire after 15 minutes
+      maxAge: (86400 * 30) * 1000, // Lasts 30 days.
       httpOnly: true,
       signed: true,
       secure: process.env.NODE_ENV === 'production'
