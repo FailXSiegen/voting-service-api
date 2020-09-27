@@ -7,7 +7,7 @@ const config = {
   user: process.env.DATABSE_USER,
   password: process.env.DATABSE_PASSWORD,
   database: process.env.DATABSE_NAME,
-  connectionLimit: 5,
+  connectionLimit: 100,
   trace: process.env.ENABLE_DEBUG === '1'
 }
 
@@ -26,8 +26,7 @@ export async function baseQuery (sql, params) {
   logQuery(sql, params)
   try {
     connection = await mysql.createConnection(config)
-    const result = await connection.query(sql, params)
-    return result
+    return await connection.query(sql, params)
   } catch (err) {
     console.error(err)
   } finally {
