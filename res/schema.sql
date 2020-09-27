@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS poll_answer (
     poll_result_id int(11) DEFAULT 0 NOT NULL,
     poll_answer_id int(11) DEFAULT 0 NOT NULL,
     answer_content varchar(255) DEFAULT '' NOT NULL,
-    poll_user_id int(11) DEFAULT 0 NULL,
+    poll_user_id int(11) NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     PRIMARY KEY (id),
     FOREIGN KEY (poll_result_id) REFERENCES poll_result (id),
