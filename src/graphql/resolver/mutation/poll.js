@@ -59,8 +59,7 @@ async function createPollDependencies (pollRecord) {
     const pollUser = {
       eventUserId: onlineEventUser.id,
       publicName: onlineEventUser.publicName,
-      pollId: pollRecord.id,
-      maxVotes: maxPollVotes
+      pollId: pollRecord.id
     }
     await createPollUser(pollUser)
   }
