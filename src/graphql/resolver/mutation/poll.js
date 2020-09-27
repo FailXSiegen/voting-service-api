@@ -55,6 +55,7 @@ export default {
         state: 'closed'
       }
     })
+    return true
   },
   removePoll: async (_, args, context) => {
     return await removePoll(args.id)
