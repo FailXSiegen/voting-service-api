@@ -134,6 +134,7 @@ type PollPossibleAnswer {
     content: String!
 }
 type PollUser {
+    id: ID!
     pollId: ID!
     eventUserId: ID!
     publicName: String!

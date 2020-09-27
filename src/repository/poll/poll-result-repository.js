@@ -17,6 +17,7 @@ export async function findClosedPollResults (eventId) {
     INNER JOIN poll ON poll.id = poll_result.poll_id
     WHERE poll.event_id = ?
     AND poll_result.closed = ?
+    ORDER BY create_datetime DESC
   `,
   [eventId, true])
 }
