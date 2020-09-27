@@ -12,6 +12,8 @@ import pollResultResolvers from './resolver/poll-result/poll-result'
 import pollAnswerResolvers from './resolver/poll-answer/poll-answer'
 import pollSubscriptionResolvers from './resolver/subscription/poll'
 import eventUserSubscriptionResolvers from './resolver/subscription/event-user'
+import poolAnswerSubscriptionResolvers
+  from './resolver/subscription/poll-answer'
 
 export default {
   Query: {
@@ -38,6 +40,7 @@ export default {
   },
   Subscription: {
     ...pollSubscriptionResolvers,
-    ...eventUserSubscriptionResolvers
+    ...eventUserSubscriptionResolvers,
+    ...poolAnswerSubscriptionResolvers
   }
 }

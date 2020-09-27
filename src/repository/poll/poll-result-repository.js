@@ -17,22 +17,21 @@ export async function findClosedPollResults (eventId) {
     INNER JOIN poll ON poll.id = poll_result.poll_id
     WHERE poll.event_id = ?
     AND poll_result.closed = ?
-    ORDER BY create_datetime DESC
   `,
   [eventId, true])
 }
 
-export async function resultAcceptsVotes (pollResultId) {
+export async function findLeftAnswersCount (pollResultId) {
   const result = await query(`
-    SELECT poll_result.id, poll_result.max_votes,
+    SELECT poll_result.id as poll_result_id, poll_result.max_votes,
     COUNT(poll_answer.id) AS poll_answers_count
     FROM poll_result
     LEFT JOIN poll_answer ON poll_answer.poll_result_id = poll_result.id
     WHERE poll_result.id = ?
-    GROUP BY poll_result.id
+    GROUP BY poll_result_id
     HAVING poll_answers_count < poll_result.max_votes
   `, [pollResultId])
-  return result !== null
+  return Array.isArray(result) ? result[0] || null : null
 }
 
 export async function closePollResult (pollResultId) {
