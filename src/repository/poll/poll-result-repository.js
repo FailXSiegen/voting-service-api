@@ -35,10 +35,10 @@ export async function findLeftAnswersCount (pollResultId) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
-export async function closePollResult (pollResultId) {
+export async function closePollResult (id) {
   await query(
     'UPDATE poll_result SET closed = ? WHERE id = ?',
-    [1, pollResultId]
+    [1, id]
   )
 }
 

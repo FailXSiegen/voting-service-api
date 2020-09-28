@@ -48,8 +48,8 @@ export default {
     }
     return poll
   },
-  stopPoll: async (_, { pollResultId }, { pubsub }) => {
-    await closePollResult(pollResultId)
+  stopPoll: async (_, { id }, { pubsub }) => {
+    await closePollResult(id)
     pubsub.publish('pollLifeCycle', {
       pollLifeCycle: {
         state: 'closed'
