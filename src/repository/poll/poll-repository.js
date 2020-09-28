@@ -49,8 +49,8 @@ export async function findPollsWithNoResults (eventId) {
   [eventId])
 }
 
-export async function findPollsNotClosed (eventId) {
-  return await query(`
+export async function findActivePoll (eventId) {
+  const result = await query(`
   SELECT poll.*, poll_result.max_votes, COUNT(poll_answer.id) AS answerCount
   FROM poll
   INNER JOIN poll_result ON poll.id = poll_result.poll_id
@@ -59,4 +59,5 @@ export async function findPollsNotClosed (eventId) {
   GROUP BY poll.id
   `,
   [eventId])
+  return Array.isArray(result) ? result[0] || null : null
 }

@@ -19,7 +19,7 @@ type Query {
     # Fetches all polls by event id.
     pollsWithNoResults(eventId: ID): [Poll]
     # Fetches all open polls by event id.
-    pollsNotClosed(eventId: ID): [OpenPollWithResult]
+    activePoll(eventId: ID): OpenPollWithResult
     # Fetches all poll results by event id.
     pollResult(eventId: ID): [PollResult]
 }
