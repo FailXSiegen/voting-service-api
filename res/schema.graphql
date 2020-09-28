@@ -18,6 +18,8 @@ type Query {
     eventUser(id: ID): EventUser
     # Fetches all polls by event id.
     pollsWithNoResults(eventId: ID): [Poll]
+    # Fetches all open polls by event id.
+    pollsNotClosed(eventId: ID): [OpenPollWithResult]
     # Fetches all poll results by event id.
     pollResult(eventId: ID): [PollResult]
 }
@@ -117,6 +119,12 @@ type Poll {
     minVotes: Int
     maxVotes: Int
     allowAbstain: Boolean
+}
+type OpenPollWithResult {
+    id: ID!
+    title: String!
+    maxVotes: Int
+    answerCount: Int
 }
 type PollResult {
     id: ID!
