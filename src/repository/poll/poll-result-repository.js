@@ -35,11 +35,24 @@ export async function findLeftAnswersCount (pollResultId) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
-export async function closePollResult (pollId) {
+export async function closePollResult (pollResultId) {
   await query(
-    'UPDATE poll_result SET closed = ? WHERE poll_id = ?',
-    [1, pollId]
+    'UPDATE poll_result SET closed = ? WHERE id = ?',
+    [1, pollResultId]
   )
+}
+
+export async function findActivePoll (eventId) {
+  const result = await query(`
+  SELECT poll_result.id AS id, poll.title AS title, poll_result.max_votes, COUNT(poll_answer.id) AS answerCount
+  FROM poll
+  INNER JOIN poll_result ON poll.id = poll_result.poll_id
+  LEFT JOIN poll_answer ON poll_result.id = poll_answer.poll_result_id
+  WHERE poll.event_id = ? AND poll_result.closed = 0
+  GROUP BY poll.id
+  `,
+  [eventId])
+  return Array.isArray(result) ? result[0] || null : null
 }
 
 export async function create (input) {
