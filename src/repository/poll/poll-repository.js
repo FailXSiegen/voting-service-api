@@ -54,7 +54,7 @@ export async function findActivePoll (eventId) {
   SELECT poll.*, poll_result.max_votes, COUNT(poll_answer.id) AS answerCount
   FROM poll
   INNER JOIN poll_result ON poll.id = poll_result.poll_id
-  INNER JOIN poll_answer ON poll_result.id = poll_answer.poll_result_id
+  LEFT JOIN poll_answer ON poll_result.id = poll_answer.poll_result_id
   WHERE poll.event_id = ? AND poll_result.closed = 0
   GROUP BY poll.id
   `,
