@@ -6,8 +6,8 @@ import {
   closePollResult
 } from '../../../repository/poll/poll-result-repository'
 
-async function publishPollLifeCycle (pubsub, pollResultId) {
-  await closePollResult(pollResultId)
+async function publishPollLifeCycle (pubsub, pollId) {
+  await closePollResult(pollId)
   pubsub.publish('pollLifeCycle', {
     pollLifeCycle: {
       state: 'closed'
