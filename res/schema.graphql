@@ -21,7 +21,7 @@ type Query {
     # Fetches all open polls by event id.
     activePoll(eventId: ID): OpenPollWithResult
     # Fetches all poll results by event id.
-    pollResult(eventId: ID): [PollResult]
+    pollResult(eventId: ID, page: Int, pageSize: Int): [PollResult]
 }
 type Mutation {
     # Create a new organizer.

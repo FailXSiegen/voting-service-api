@@ -10,7 +10,8 @@ export async function findOneById (id) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
-export async function findClosedPollResults (eventId) {
+export async function findClosedPollResults (eventId, page, pageSize) {
+  const offset = page * pageSize
   return await query(`
     SELECT poll_result.*
     FROM poll_result
@@ -18,8 +19,9 @@ export async function findClosedPollResults (eventId) {
     WHERE poll.event_id = ?
     AND poll_result.closed = ?
     ORDER BY create_datetime DESC
+    LIMIT ? OFFSET ?
   `,
-  [eventId, true])
+  [eventId, true, pageSize, offset])
 }
 
 export async function findLeftAnswersCount (pollResultId) {
