@@ -10,7 +10,8 @@ export async function findOneById (id) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
-export async function findClosedPollResults (eventId) {
+export async function findClosedPollResults (eventId, page, pageSize) {
+  const offset = page * pageSize
   return await query(`
     SELECT poll_result.*
     FROM poll_result
@@ -18,19 +19,22 @@ export async function findClosedPollResults (eventId) {
     WHERE poll.event_id = ?
     AND poll_result.closed = ?
     ORDER BY create_datetime DESC
+    LIMIT ? OFFSET ?
   `,
-  [eventId, true])
+  [eventId, true, pageSize, offset])
 }
 
 export async function findLeftAnswersCount (pollResultId) {
   const result = await query(`
-    SELECT poll_result.id as poll_result_id, poll_result.max_votes,
-    COUNT(poll_answer.id) AS poll_answers_count
+    SELECT poll_result.id as poll_result_id, poll_result.max_votes, poll_result.max_vote_cycles,
+    COUNT(poll_answer.id) AS poll_answers_count,
+    SUM(poll_user_voted.vote_cycle) AS poll_user_vote_cycles
     FROM poll_result
     LEFT JOIN poll_answer ON poll_answer.poll_result_id = poll_result.id
+    LEFT JOIN poll_user_voted ON poll_user_voted.poll_result_id = poll_result.id
     WHERE poll_result.id = ?
     GROUP BY poll_result_id
-    HAVING poll_answers_count < poll_result.max_votes
+    HAVING poll_answers_count < poll_result.max_votes OR poll_user_vote_cycles < poll_result.max_vote_cycles
   `, [pollResultId])
   return Array.isArray(result) ? result[0] || null : null
 }

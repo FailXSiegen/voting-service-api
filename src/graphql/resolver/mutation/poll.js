@@ -77,6 +77,8 @@ async function createPollDependencies (pollRecord) {
     }
     await createPollUser(pollUser)
   }
-  const pollResult = { pollId: pollRecord.id, type: pollRecord.type, maxVotes: maxPollVotes }
+  const maxPollVoteCycles = maxPollVotes
+  maxPollVotes = pollRecord.maxVotes * maxPollVotes
+  const pollResult = { pollId: pollRecord.id, type: pollRecord.type, maxVotes: maxPollVotes, maxVoteCycles: maxPollVoteCycles }
   return await createPollResult(pollResult)
 }

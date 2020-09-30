@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS poll_result (
     id int(11) NOT NULL AUTO_INCREMENT,
     poll_id int(11) DEFAULT 0 NOT NULL,
     max_votes int(11) DEFAULT 0 NOT NULL,
+    max_vote_cycles int(11) DEFAULT 0 NOT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     type tinyint(2) DEFAULT 0 NOT NULL,
     closed tinyint(2) DEFAULT 0 NOT NULL,
@@ -94,6 +95,16 @@ CREATE TABLE IF NOT EXISTS poll_answer (
     FOREIGN KEY (poll_result_id) REFERENCES poll_result (id),
     FOREIGN KEY (poll_possible_answer_id) REFERENCES poll_possible_answer (id),
     FOREIGN KEY (poll_user_id) REFERENCES poll_user (id)
+);
+CREATE TABLE IF NOT EXISTS poll_user_voted (
+    id int(11) NOT NULL AUTO_INCREMENT,
+    poll_result_id int(11) DEFAULT 0 NOT NULL,
+    event_user_id int(11) DEFAULT 0 NOT NULL,
+    vote_cycle INT(11) DEFAULT 0 NOT NULL,
+    create_datetime int(11) DEFAULT 0 NOT NULL,
+    PRIMARY KEY (id),
+    FOREIGN KEY (poll_result_id) REFERENCES poll_result (id),
+    FOREIGN KEY (event_user_id) REFERENCES event_user (id)
 );
 CREATE TABLE IF NOT EXISTS jwt_refresh_token (
     id int(11) NOT NULL AUTO_INCREMENT,
