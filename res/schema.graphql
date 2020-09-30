@@ -54,6 +54,8 @@ type Mutation {
     updateUserToGuest(eventUserId: ID!): EventUser!
     # Update event user to participant (verfied: true, allowToVote: true).
     updateUserToParticipant(eventUserId: ID!): EventUser!
+    # Create pollUserVoted entry for each voting cycle an eventuser has
+    createPollUserVoted(input: PollUserVotedInput!): Boolean
 }
 type Subscription {
     # Notifies about user access rights updates.
@@ -129,6 +131,7 @@ type OpenPollWithResult {
 type PollResult {
     id: ID!
     maxVotes: Int
+    maxVoteCycles: Int
     createDatetime: Int
     type: PollType!
     poll: Poll!
@@ -239,4 +242,11 @@ input PollSubmitAnswerInput {
     eventUserId: ID
     type: PollType!
     possibleAnswerId: ID!
+    voteCycle: Int!
+}
+input PollUserVotedInput {
+    answerContent: String!
+    pollResultId: ID!
+    pollUser: ID!
+    voteCycle: Int!
 }

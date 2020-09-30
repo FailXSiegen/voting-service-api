@@ -26,13 +26,15 @@ export async function findClosedPollResults (eventId, page, pageSize) {
 
 export async function findLeftAnswersCount (pollResultId) {
   const result = await query(`
-    SELECT poll_result.id as poll_result_id, poll_result.max_votes,
-    COUNT(poll_answer.id) AS poll_answers_count
+    SELECT poll_result.id as poll_result_id, poll_result.max_votes, poll_result.max_vote_cycles,
+    COUNT(poll_answer.id) AS poll_answers_count,
+    SUM(poll_user_voted.vote_cycle) AS poll_user_vote_cycles
     FROM poll_result
     LEFT JOIN poll_answer ON poll_answer.poll_result_id = poll_result.id
+    LEFT JOIN poll_user_voted ON poll_user_voted.poll_result_id = poll_result.id
     WHERE poll_result.id = ?
     GROUP BY poll_result_id
-    HAVING poll_answers_count < poll_result.max_votes
+    HAVING poll_answers_count < poll_result.max_votes OR poll_user_vote_cycles < poll_result.max_vote_cycles
   `, [pollResultId])
   return Array.isArray(result) ? result[0] || null : null
 }
