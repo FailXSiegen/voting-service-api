@@ -245,8 +245,7 @@ input PollSubmitAnswerInput {
     voteCycle: Int!
 }
 input PollUserVotedInput {
-    answerContent: String!
     pollResultId: ID!
-    pollUser: ID!
+    eventUserId: ID!
     voteCycle: Int!
 }
