@@ -25,6 +25,7 @@ async function buildNewEventUserObject (username, password, email, displayName, 
 }
 
 export default async function loginEventUser ({ username, password, email, displayName, eventId }) {
+  username = username.trim()
   let eventUser = await findOneByUsernameAndEventId(username, eventId)
   if (!eventUser) {
     // create new event user.
