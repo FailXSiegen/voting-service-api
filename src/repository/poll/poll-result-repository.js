@@ -32,7 +32,7 @@ export async function findLeftAnswersCount (pollResultId) {
     FROM poll_result
     WHERE poll_result.id = ?
     GROUP BY poll_result_id
-    HAVING poll_answers_count < poll_result.max_votes OR poll_user_vote_cycles < poll_result.max_vote_cycles
+    HAVING poll_answers_count < poll_result.max_votes AND poll_user_vote_cycles < poll_result.max_vote_cycles
   `, [pollResultId])
   return Array.isArray(result) ? result[0] || null : null
 }
