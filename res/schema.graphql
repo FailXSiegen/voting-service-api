@@ -241,8 +241,10 @@ input PollSubmitAnswerInput {
     pollResultId: ID!
     eventUserId: ID
     type: PollType!
-    possibleAnswerId: ID!
+    possibleAnswerId: ID
     voteCycle: Int!
+    answerItemLength: Int!
+    answerItemCount: Int!
 }
 input PollUserVotedInput {
     pollResultId: ID!
