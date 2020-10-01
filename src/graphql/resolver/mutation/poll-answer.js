@@ -30,8 +30,6 @@ export default {
   createPollSubmitAnswer: async (_, { input }, { pubsub }) => {
     const cloneAnswerObject = {}
     Object.assign(cloneAnswerObject, input)
-    console.log(cloneAnswerObject.answerItemCount)
-    console.log(cloneAnswerObject.answerItemLength)
     delete input.answerItemCount
     delete input.answerItemLength
     let leftAnswersDataSet = null
