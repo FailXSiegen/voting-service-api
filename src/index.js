@@ -33,12 +33,12 @@ const server = new GraphQLServer({
 
 const options = {
   port: process.env.APP_PORT,
-  endpoint: '/graphql',
-  playground: '/playground',
+  endpoint: process.env.GRAPHQL_ENDPOINT,
+  playground: process.env.PLAYGROUND_ENDPOINT,
   debug: process.env.ENABLE_DEBUG === '1',
   formatError,
   subscriptions: {
-    path: '/subscriptions',
+    path: process.env.SUBSCRIPTIONS_ENDPOINT,
     onConnect: async (connectionParams, webSocket, context) => {
       if (!context.request.headers.cookie) {
         return
