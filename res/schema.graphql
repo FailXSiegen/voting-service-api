@@ -134,6 +134,7 @@ type ActivePollEventUser {
     state: String!
     poll: Poll
     pollResultId: ID
+    pollUserVoted: [PollUserVoted]
 }
 type PollResult {
     id: ID!
@@ -156,6 +157,11 @@ type PollUser {
     pollId: ID!
     eventUserId: ID!
     publicName: String!
+}
+type PollUserVoted {
+    id: ID!
+    pollResultId: ID!
+    eventUserId: ID!
 }
 type PollAnswer {
     id: ID!
