@@ -20,6 +20,8 @@ type Query {
     pollsWithNoResults(eventId: ID): [Poll]
     # Fetches all open polls by event id.
     activePoll(eventId: ID): OpenPollWithResult
+    #fetch active poll for eventUser
+    activePollEventUser(eventId: ID): ActivePollEventUser
     # Fetches all poll results by event id.
     pollResult(eventId: ID, page: Int, pageSize: Int): [PollResult]
 }
@@ -127,6 +129,11 @@ type OpenPollWithResult {
     title: String!
     maxVotes: Int
     answerCount: Int
+}
+type ActivePollEventUser {
+    state: String!
+    poll: Poll
+    pollResultId: ID
 }
 type PollResult {
     id: ID!
