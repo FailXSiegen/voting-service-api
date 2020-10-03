@@ -57,6 +57,18 @@ export async function findActivePoll (eventId) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
+export async function findActivePollEventUser (eventId) {
+  const result = await query(`
+  SELECT 'new' AS state, poll.id AS poll, poll_result.id AS poll_result_id
+  FROM poll
+  INNER JOIN poll_result ON poll.id = poll_result.poll_id
+  WHERE poll.event_id = ? AND poll_result.closed = 0
+  GROUP BY poll.id
+  `,
+  [eventId])
+  return Array.isArray(result) ? result[0] || null : null
+}
+
 export async function create (input) {
   input.createDatetime = getCurrentUnixTimeStamp()
   return await insert('poll_result', input)
