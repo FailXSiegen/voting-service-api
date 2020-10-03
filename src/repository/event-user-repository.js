@@ -59,3 +59,7 @@ export async function update (input) {
 export async function remove (id) {
   return await removeQuery('event_user', id)
 }
+
+export async function setEventUserOnline (id) {
+  return await query('UPDATE event_user SET online = true WHERE id = ? AND online = false', [id])
+}

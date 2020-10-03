@@ -1,6 +1,7 @@
 import {
   findEventUserByEventId,
-  findOneById
+  findOneById,
+  setEventUserOnline
 } from '../../../repository/event-user-repository'
 
 export default {
@@ -8,6 +9,7 @@ export default {
     return await findEventUserByEventId(args.eventId)
   },
   eventUser: async (_, args, context) => {
+    await setEventUserOnline(args.id)
     return await findOneById(args.id)
   }
 }
