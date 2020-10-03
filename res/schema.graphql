@@ -135,6 +135,7 @@ type ActivePollEventUser {
     poll: Poll
     pollResultId: ID
     pollUserVoted: [PollUserVoted]
+    pollUser: [PollUser]
 }
 type PollResult {
     id: ID!
