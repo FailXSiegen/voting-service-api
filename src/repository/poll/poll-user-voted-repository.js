@@ -12,3 +12,8 @@ export async function existInCurrentVote (pollResultId, eventUserId, voteCycle) 
     WHERE poll_result_id = ? AND event_user_id = ? AND vote_cycle = ?
   `, [pollResultId, eventUserId, voteCycle])
 }
+
+export async function findByPollResultId (pollResultId) {
+  const result = await query('SELECT * FROM poll_user_voted WHERE poll_result_id = ?', [pollResultId])
+  return Array.isArray(result) ? result : []
+}
