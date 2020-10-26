@@ -129,6 +129,8 @@ type OpenPollWithResult {
     title: String!
     maxVotes: Int
     answerCount: Int
+    pollUserCount: Int
+    pollUserVotedCount: Int
 }
 type ActivePollEventUser {
     state: String!
@@ -179,6 +181,8 @@ type PollAnswerLifeCyclePayLoad {
     pollResultId: ID!
     maxVotes: Int!
     pollAnswersCount: Int!
+    pollUserCount: Int!
+    pollUserVotedCount: Int!
 }
 type Result {
     id: ID!

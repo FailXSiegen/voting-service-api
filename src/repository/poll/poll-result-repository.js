@@ -26,9 +26,13 @@ export async function findClosedPollResults (eventId, page, pageSize) {
 
 export async function findLeftAnswersCount (pollResultId) {
   const result = await query(`
-    SELECT poll_result.id as poll_result_id, poll_result.max_votes, poll_result.max_vote_cycles,
+    SELECT poll_result.id as poll_result_id,
+     poll_result.max_votes,
+     poll_result.max_vote_cycles,
     (SELECT COUNT(*) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_vote_cycles,
-    (SELECT COUNT(*) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS poll_answers_count
+    (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id AND poll_user_voted.vote_cycle = 1) AS poll_user_voted_count,
+    (SELECT COUNT(*) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS poll_answers_count,
+    (SELECT COUNT(poll_user.id) FROM poll_user WHERE poll_user.poll_id = poll_result.poll_id) AS poll_user_count
     FROM poll_result
     WHERE poll_result.id = ?
     GROUP BY poll_result_id
@@ -46,10 +50,15 @@ export async function closePollResult (id) {
 
 export async function findActivePoll (eventId) {
   const result = await query(`
-  SELECT poll_result.id AS id, poll.title AS title, poll_result.max_votes, COUNT(poll_answer.id) AS answerCount
+  SELECT
+    poll_result.id AS id,
+    poll.title AS title,
+    poll_result.max_votes,
+    (SELECT COUNT(poll_user.id) FROM poll_user WHERE poll_user.poll_id = poll.id) AS poll_user_count,
+    (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id AND poll_user_voted.vote_cycle = 1) AS poll_user_voted_count,
+    (SELECT COUNT(poll_answer.id) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS poll_answers_count
   FROM poll
   INNER JOIN poll_result ON poll.id = poll_result.poll_id
-  LEFT JOIN poll_answer ON poll_result.id = poll_answer.poll_result_id
   WHERE poll.event_id = ? AND poll_result.closed = 0
   GROUP BY poll.id
   `,
