@@ -14,6 +14,10 @@ export async function findOneByEmail (email) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
+export async function findOrganizers () {
+  return await query('SELECT * FROM organizer')
+}
+
 export async function create (input) {
   if (!validateEmail(input.email)) {
     throw new InvalidEmailFormatError()
