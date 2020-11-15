@@ -97,3 +97,5 @@ typings/
 
 # dist
 dist/
+/deploy_rsa
+/deploy_rsa.pub
