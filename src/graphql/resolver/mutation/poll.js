@@ -2,7 +2,8 @@ import { create as createPoll, remove as removePoll, findOneById } from '../../.
 import { create as createPossibleAnswer } from '../../../repository/poll/poll-possible-answer-repository'
 import {
   closePollResult,
-  create as createPollResult
+  create as createPollResult,
+  findOneById as findOnePollResultById
 } from '../../../repository/poll/poll-result-repository'
 import { create as createPollUser } from '../../../repository/poll/poll-user-repository'
 import { findOnlineEventUserByEventId } from '../../../repository/event-user-repository'
@@ -22,6 +23,7 @@ export default {
       if (pollResultId) {
         pubsub.publish('pollLifeCycle', {
           pollLifeCycle: {
+            eventId: poll.eventId,
             state: 'new',
             poll: pollRecord,
             pollResultId: pollResultId
@@ -40,6 +42,7 @@ export default {
     if (pollResultId) {
       pubsub.publish('pollLifeCycle', {
         pollLifeCycle: {
+          eventId: poll.eventId,
           state: 'new',
           poll,
           pollResultId
@@ -49,9 +52,18 @@ export default {
     return poll
   },
   stopPoll: async (_, { id }, { pubsub }) => {
+    const pollResult = await findOnePollResultById(id)
+    if (pollResult === null) {
+      throw new Error(`Poll result with id ${id} not found!`)
+    }
+    const poll = await findOneById(pollResult.pollId)
+    if (poll === null) {
+      throw new Error(`Poll with id ${pollResult.pollId} not found!`)
+    }
     await closePollResult(id)
     pubsub.publish('pollLifeCycle', {
       pollLifeCycle: {
+        eventId: poll.eventId,
         state: 'closed'
       }
     })
