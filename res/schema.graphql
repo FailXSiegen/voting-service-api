@@ -12,6 +12,8 @@ type Query {
     upcomingEvents(organizerId: ID): [Event]
     # Fetches a list of expired events by organizer id.
     expiredEvents(organizerId: ID): [Event]
+    # Fetches a list of all organizers.
+    organizers: [Organizer]
     # Fetches a list of evnet users by event id.
     eventUsers(eventId: ID): [EventUser]
     # Fetches an event user by id.
@@ -79,6 +81,9 @@ type Organizer {
     password: String!
     publicName: String!
     events: [Event]
+    confirmedEmail: Boolean!
+    superAdmin: Boolean!
+    verified: Boolean!
 }
 type Event {
     id: ID!
