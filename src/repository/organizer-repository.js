@@ -15,8 +15,7 @@ export async function findOneByEmail (email) {
 }
 
 export async function findOrganizers () {
-  const result = await query('SELECT * FROM organizer')
-  return Array.isArray(result) ? result[0] || null : null
+  return await query('SELECT * FROM organizer')
 }
 
 export async function create (input) {

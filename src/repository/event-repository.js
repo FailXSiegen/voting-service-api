@@ -11,6 +11,13 @@ export async function findOneBySlug (slug) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
+export async function findByOrganizer (organizerId) {
+  return await query(
+    'SELECT * FROM event WHERE organizer_id = ?',
+    [organizerId]
+  )
+}
+
 export async function findUpcoming (organizerId) {
   const currentTimestamp = getCurrentUnixTimeStamp()
   return await query(
