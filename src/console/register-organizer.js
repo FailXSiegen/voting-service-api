@@ -1,8 +1,7 @@
 import 'dotenv/config'
 import 'regenerator-runtime'
 import parseArgs from 'minimist'
-import { create, findOneByEmail } from '../repository/organizer-repository.js'
-import EmailAlreadyExistsError from '../errors/EmailAlreadyExistsError'
+import { create, update, findOneByEmail } from '../repository/organizer-repository.js'
 
 (async () => {
   const argv = parseArgs(process.argv.slice(2))
@@ -32,10 +31,12 @@ import EmailAlreadyExistsError from '../errors/EmailAlreadyExistsError'
   // Validate email for uniqueness and create new organizer
   const existingUser = await findOneByEmail(organizer.email)
   if (existingUser) {
-    throw new EmailAlreadyExistsError()
+    await update(organizer)
+    console.log('Successfully registered updated organizer')
+  } else {
+    await create(organizer)
+    console.log('Successfully registered new organizer')
   }
-  await create(organizer)
-  console.log('Successfully registered new organizer')
 })().catch((error) => {
   console.log('An error occurred while trying to register a new organizer')
   console.error(error)
