@@ -18,6 +18,14 @@ export async function findByOrganizer (organizerId) {
   )
 }
 
+export async function findEventIdByPollResultId (pollResultId) {
+  const result = await query(
+    'SELECT poll.event_id FROM poll INNER JOIN poll_result ON poll.id = poll_result.poll_id WHERE poll_result.id = ?',
+    [pollResultId]
+  )
+  return Array.isArray(result) ? result[0].eventId || null : null
+}
+
 export async function findUpcoming (organizerId) {
   const currentTimestamp = getCurrentUnixTimeStamp()
   return await query(
