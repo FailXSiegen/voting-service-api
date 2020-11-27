@@ -11,6 +11,7 @@ import pollAnswerMutations from './resolver/mutation/poll-answer'
 import pollUserVotedMutations from './resolver/mutation/poll-user-voted'
 import activePollEventUser from './resolver/active-poll-event-user/active-poll-event-user'
 import pollResolvers from './resolver/poll/poll'
+import eventResolvers from './resolver/event/event'
 import organizerResolvers from './resolver/organizer/organizer'
 import pollResultResolvers from './resolver/poll-result/poll-result'
 import pollSubscriptionResolvers from './resolver/subscription/poll'
@@ -39,6 +40,9 @@ export default {
   },
   Poll: {
     ...pollResolvers
+  },
+  Event: {
+    ...eventResolvers
   },
   Organizer: {
     ...organizerResolvers

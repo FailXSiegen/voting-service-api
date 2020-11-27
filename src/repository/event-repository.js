@@ -7,13 +7,13 @@ import {
 import { getCurrentUnixTimeStamp } from '../lib/time-stamp'
 
 export async function findOneBySlug (slug) {
-  const result = await query('SELECT * FROM event WHERE slug = ?', [slug])
+  const result = await query('SELECT * FROM event WHERE slug = ?  AND deleted = 0', [slug])
   return Array.isArray(result) ? result[0] || null : null
 }
 
 export async function findByOrganizer (organizerId) {
   return await query(
-    'SELECT * FROM event WHERE organizer_id = ?',
+    'SELECT * FROM event WHERE organizer_id = ?  AND deleted = 0',
     [organizerId]
   )
 }
@@ -26,10 +26,18 @@ export async function findEventIdByPollResultId (pollResultId) {
   return Array.isArray(result) ? result[0].eventId || null : null
 }
 
+export async function eventIsActive (eventId) {
+  const result = await query(
+    'SELECT event.active FROM event WHERE event.id = ?',
+    [eventId]
+  )
+  return Array.isArray(result) ? result[0].active === 1 : false
+}
+
 export async function findUpcoming (organizerId) {
   const currentTimestamp = getCurrentUnixTimeStamp()
   return await query(
-    'SELECT * FROM event WHERE organizer_id = ? AND scheduled_datetime > ?',
+    'SELECT * FROM event WHERE organizer_id = ? AND deleted = 0 AND scheduled_datetime > ?',
     [organizerId, currentTimestamp]
   )
 }
@@ -37,7 +45,7 @@ export async function findUpcoming (organizerId) {
 export async function findExpired (organizerId) {
   const currentTimestamp = getCurrentUnixTimeStamp()
   return await query(
-    'SELECT * FROM event WHERE organizer_id = ? AND scheduled_datetime <= ?',
+    'SELECT * FROM event WHERE organizer_id = ? AND deleted = 0 AND scheduled_datetime <= ?',
     [organizerId, currentTimestamp]
   )
 }
@@ -50,6 +58,8 @@ export async function create (input) {
 }
 
 export async function update (input) {
+  // input.active = input.active ? 1 : 0
+  // input.lobbyOpen = input.lobbyOpen ? 1 : 0
   input.modifiedDatetime = getCurrentUnixTimeStamp()
   await updateQuery('event', input)
 }

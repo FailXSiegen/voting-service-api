@@ -13,7 +13,7 @@ export async function findOneById (id) {
 }
 
 export async function findOneByUsernameAndEventId (username, eventId) {
-  const result = await query('SELECT * FROM event_user WHERE username = ? AND event_id = ?', [username, eventId])
+  const result = await query('SELECT * FROM event_user INNER JOIN event ON event_user.event_id = event.id WHERE event_user.username = ? AND event.id = ? AND event.deleted = 0', [username, eventId])
   return Array.isArray(result) ? result[0] || null : null
 }
 
