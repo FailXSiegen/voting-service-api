@@ -9,11 +9,14 @@ import {
   create as createPollUserVoted,
   existInCurrentVote
 } from '../../../repository/poll/poll-user-voted-repository'
+import { findEventIdByPollResultId } from '../../../repository/event-repository'
 
-async function publishPollLifeCycle (pubsub, pollId) {
-  await closePollResult(pollId)
+async function publishPollLifeCycle (pubsub, pollResultId) {
+  await closePollResult(pollResultId)
+  const eventId = await findEventIdByPollResultId(pollResultId)
   pubsub.publish('pollLifeCycle', {
     pollLifeCycle: {
+      eventId: eventId,
       state: 'closed'
     }
   })
