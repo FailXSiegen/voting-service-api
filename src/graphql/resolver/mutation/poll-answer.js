@@ -7,7 +7,8 @@ import {
 } from '../../../repository/poll/poll-result-repository'
 import {
   create as createPollUserVoted,
-  existInCurrentVote
+  existInCurrentVote,
+  allowToCreateNewVote
 } from '../../../repository/poll/poll-user-voted-repository'
 import { findEventIdByPollResultId } from '../../../repository/event-repository'
 
@@ -22,11 +23,13 @@ async function publishPollLifeCycle (pubsub, pollResultId) {
   })
 }
 
-async function existsPollUserVoted (pollResultId, eventUserId, voteCycle) {
-  const userExists = await existInCurrentVote(pollResultId, eventUserId, voteCycle)
+async function existsPollUserVoted (pollResultId, eventUserId) {
+  const userExists = await existInCurrentVote(pollResultId, eventUserId)
   if (userExists === null) {
-    await createPollUserVoted({ pollResultId: pollResultId, eventUserId: eventUserId, voteCycle: voteCycle })
+    await createPollUserVoted({ pollResultId: pollResultId, eventUserId: eventUserId, voteCycle: 1 })
+    return true
   }
+  return await allowToCreateNewVote(pollResultId, eventUserId)
 }
 
 export default {
@@ -36,21 +39,24 @@ export default {
     delete input.answerItemCount
     delete input.answerItemLength
     let leftAnswersDataSet = null
+    let allowToVote = true
     if (cloneAnswerObject.answerItemLength === cloneAnswerObject.answerItemCount) {
       leftAnswersDataSet = await findLeftAnswersCount(input.pollResultId)
       if (leftAnswersDataSet === null) {
         await publishPollLifeCycle(pubsub, input.pollResultId)
         return false
       }
-      await existsPollUserVoted(input.pollResultId, input.eventUserId, input.voteCycle)
+      allowToVote = await existsPollUserVoted(input.pollResultId, input.eventUserId, input.voteCycle)
     }
-    await insertPollSubmitAnswer(input)
-    leftAnswersDataSet = await findLeftAnswersCount(input.pollResultId)
-    if (cloneAnswerObject.answerItemLength === cloneAnswerObject.answerItemCount) {
-      // Again check if there are votes left.
-      if (leftAnswersDataSet === null) {
-        await publishPollLifeCycle(pubsub, input.pollResultId)
-        return true
+    if (allowToVote) {
+      await insertPollSubmitAnswer(input)
+      leftAnswersDataSet = await findLeftAnswersCount(input.pollResultId)
+      if (cloneAnswerObject.answerItemLength === cloneAnswerObject.answerItemCount) {
+        // Again check if there are votes left.
+        if (leftAnswersDataSet === null) {
+          await publishPollLifeCycle(pubsub, input.pollResultId)
+          return true
+        }
       }
     }
     // Notify the organizer about the current voted count.
