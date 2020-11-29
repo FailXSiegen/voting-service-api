@@ -6,11 +6,28 @@ export async function create (input) {
   return await insert('poll_user_voted', input)
 }
 
-export async function existInCurrentVote (pollResultId, eventUserId, voteCycle) {
+export async function existInCurrentVote (pollResultId, eventUserId) {
   return await query(`
     SELECT id FROM poll_user_voted
-    WHERE poll_result_id = ? AND event_user_id = ? AND vote_cycle = ?
-  `, [pollResultId, eventUserId, voteCycle])
+    WHERE poll_result_id = ? AND event_user_id = ?
+  `, [pollResultId, eventUserId])
+}
+
+export async function allowToCreateNewVote (pollResultId, eventUserId) {
+  const result = await query(`
+    SELECT poll_user_voted.id FROM poll_user_voted
+    INNER JOIN event_user
+    ON event_user.id = poll_user_voted.event_user_id
+    WHERE poll_user_voted.poll_result_id = ? AND event_user.id = ? AND event_user.vote_amount > poll_user_voted.vote_cycle
+  `, [pollResultId, eventUserId])
+  if (Array.isArray(result)) {
+    await query(`
+      UPDATE poll_user_voted
+      SET vote_cycle = vote_cycle + 1
+      WHERE poll_user_voted.poll_result_id = ? AND poll_user_voted.event_user_id = ?
+  `, [pollResultId, eventUserId])
+  }
+  return Array.isArray(result)
 }
 
 export async function findByPollResultId (pollResultId) {
