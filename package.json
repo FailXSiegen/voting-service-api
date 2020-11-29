@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "create-schema": "nodemon ./src/console/create-schema.js --exec babel-node",
-    "serve": "rm -rf ./node_modules/.cache/* && nodemon -e js,graphql src/index.js --exec babel-node",
+    "serve": "rm -rf ./node_modules/.cache/* && nodemon --signal SIGINT --watch ./src -e js,graphql --exec babel-node src/index.js",
     "build": "babel src --out-dir dist"
   },
   "keywords": [],
@@ -35,6 +35,6 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",
-    "nodemon": "1.17.3"
+    "nodemon": "^1.18.6"
   }
 }
