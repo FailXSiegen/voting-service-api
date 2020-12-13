@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS organizer (
     confirmed_email tinyint(2) DEFAULT 0 NOT NULL,
     super_admin tinyint(2) DEFAULT 0 NOT NULL,
     verified tinyint(2) DEFAULT 0 NOT NULL,
+    hash varchar(255) DEFAULT '' NOT NULL,
     PRIMARY KEY (id)
 );
 CREATE TABLE IF NOT EXISTS event (
