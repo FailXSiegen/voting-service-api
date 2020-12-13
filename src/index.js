@@ -11,6 +11,7 @@ import authenticate from './middleware/authenticate'
 import loginRequest from './request/login'
 import loginRefreshRequest from './request/login/refresh'
 import verifySlug from './request/event/verify-slug'
+import createOrganizer from './request/organizer/create'
 import { extractCookieValueByHeader } from './lib/cookie-from-string-util'
 import { toggleUserOnlineStateByRequestToken } from './repository/event-user-repository'
 import logoutRequest from './request/logout'
@@ -109,7 +110,9 @@ server.express.post('/organizer/validate-hash', async (req, res) => {
 server.express.get('/logout', async (req, res) => {
   await logoutRequest(req, res)
 })
-
+server.express.post('/create', async (req, res) => {
+  await createOrganizer(req, res)
+})
 // Start the server.
 server.start(options, ({ port }) => {
   console.info(
