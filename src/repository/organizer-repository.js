@@ -23,7 +23,7 @@ export async function findOneById (id) {
   const result = await query('SELECT * FROM organizer WHERE id = ?', [id])
   return Array.isArray(result) ? result[0] || null : null
 }
-  
+
 export async function findOneByHash (hash) {
   const result = await query('SELECT * FROM organizer WHERE hash = ?', [hash])
   return Array.isArray(result) ? result[0] || null : null
@@ -39,7 +39,7 @@ export async function create (input) {
   }
   input.password = await hash((input.password))
   input.createDatetime = getCurrentUnixTimeStamp()
-  await insert('organizer', input)
+  return await insert('organizer', input)
 }
 
 export async function update (input) {
