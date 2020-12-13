@@ -14,6 +14,11 @@ export async function findOneByEmail (email) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
+export async function findOneByHash (hash) {
+  const result = await query('SELECT * FROM organizer WHERE hash = ?', [hash])
+  return Array.isArray(result) ? result[0] || null : null
+}
+
 export async function findOrganizers () {
   return await query('SELECT * FROM organizer')
 }
