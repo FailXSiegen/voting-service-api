@@ -43,7 +43,8 @@ const options = {
       if (!context.request.headers.cookie) {
         return
       }
-      const token = extractCookieValueByHeader(context.request.headers.cookie, 'refreshToken')
+      const token = extractCookieValueByHeader(context.request.headers.cookie,
+        'refreshToken')
       if (token === null) {
         return
       }
@@ -62,11 +63,13 @@ const options = {
       if (!context.request.headers.cookie) {
         return
       }
-      const token = extractCookieValueByHeader(context.request.headers.cookie, 'refreshToken')
+      const token = extractCookieValueByHeader(context.request.headers.cookie,
+        'refreshToken')
       if (token === null) {
         return
       }
-      const tokenRecord = await toggleUserOnlineStateByRequestToken(token, false)
+      const tokenRecord = await toggleUserOnlineStateByRequestToken(token,
+        false)
       if (!tokenRecord) {
         return
       }
