@@ -21,7 +21,9 @@ export async function findOneByUsername (username) {
 
 export async function findOneById (id) {
   const result = await query('SELECT * FROM organizer WHERE id = ?', [id])
-
+  return Array.isArray(result) ? result[0] || null : null
+}
+  
 export async function findOneByHash (hash) {
   const result = await query('SELECT * FROM organizer WHERE hash = ?', [hash])
   return Array.isArray(result) ? result[0] || null : null
