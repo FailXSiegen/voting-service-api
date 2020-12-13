@@ -13,7 +13,6 @@ async function insertOrganizerHash (hash, organizer) {
 
 export async function validate (hash) {
   const organizer = await findOneByHash(hash)
-  console.log(organizer)
   return organizer !== null && organizer.id > 0
 }
 
