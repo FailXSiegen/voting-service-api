@@ -14,6 +14,16 @@ export async function findOneByEmail (email) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
+export async function findOneByUsername (username) {
+  const result = await query('SELECT * FROM organizer WHERE username = ?', [username])
+  return Array.isArray(result) ? result[0] || null : null
+}
+
+export async function findOneById (id) {
+  const result = await query('SELECT * FROM organizer WHERE id = ?', [id])
+  return Array.isArray(result) ? result[0] || null : null
+}
+  
 export async function findOneByHash (hash) {
   const result = await query('SELECT * FROM organizer WHERE hash = ?', [hash])
   return Array.isArray(result) ? result[0] || null : null
@@ -33,7 +43,7 @@ export async function create (input) {
 }
 
 export async function update (input) {
-  if (!validateEmail(input.email)) {
+  if (input.email && !validateEmail(input.email)) {
     throw new InvalidEmailFormatError()
   }
   if (input.password) {

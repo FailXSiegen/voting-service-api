@@ -11,8 +11,10 @@ type Query {
     # Fetches a list of upcoming events by organizer id.
     upcomingEvents(organizerId: ID): [Event]
     # Fetches a list of expired events by organizer id.
-    expiredEvents(organizerId: ID): [Event]
-    # Fetches a list of all organizers.
+    expiredEvents(organizerId: ID!): [Event]
+    # Fetches current organizer.
+    organizer(organizerId: ID): Organizer
+     # Fetches a list of all organizers.
     organizers: [Organizer]
     # Fetches a list of evnet users by event id.
     eventUsers(eventId: ID): [EventUser]
@@ -206,7 +208,6 @@ input CreateOrganizerInput {
 }
 input UpdateOrganizerInput {
     id: ID!
-    username: String
     email: String
     password: String
     publicName: String
