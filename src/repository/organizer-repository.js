@@ -8,7 +8,6 @@ import { hash } from '../lib/crypto'
 import { getCurrentUnixTimeStamp } from '../lib/time-stamp'
 import { validateEmail } from '../lib/validator'
 import InvalidEmailFormatError from '../errors/InvalidEmailFormatError'
-import UsernameAlreadyExistsError from '../errors/UsernameAlreadyExistsError'
 
 export async function findOneByEmail (email) {
   const result = await query('SELECT * FROM organizer WHERE email = ?', [email])
