@@ -7,6 +7,7 @@ import {
 } from '../../../repository/organizer-repository'
 import EmailAlreadyExistsError from '../../../errors/EmailAlreadyExistsError'
 import RecordNotFoundError from '../../../errors/RecordNotFoundError'
+import { generateAndSetOrganizerHash } from '../../../lib/organizer/optin-util'
 // @TODO add two more layers (input validation & data enrichment)
 
 export default {
@@ -16,7 +17,10 @@ export default {
       throw new EmailAlreadyExistsError()
     }
     await create(args.input)
-    return await findOneByUsername(args.input.username)
+    let organizer =  await findOneByUsername(args.input.username)
+    await generateAndSetOrganizerHash(organizer)
+    // @Todo Sendmail?
+    return organizer
   },
   updateOrganizer: async (_, args, context) => {
     let existingUser = await findOneById(args.input.id)
