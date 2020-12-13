@@ -1,39 +1,30 @@
-// import {
-//   create,
-//   findById,
-//   findOneByEmail,
-//   remove,
-//   update
-// } from '../../../repository/organizer-repository'
-// import EmailAlreadyExistsError from '../../../errors/EmailAlreadyExistsError'
-// import RecordNotFoundError from '../../../errors/RecordNotFoundError'
-
+import {
+  create,
+  findOneById,
+  findOneByUsername,
+  remove,
+  update
+} from '../../../repository/organizer-repository'
+import EmailAlreadyExistsError from '../../../errors/EmailAlreadyExistsError'
+import RecordNotFoundError from '../../../errors/RecordNotFoundError'
 // @TODO add two more layers (input validation & data enrichment)
 
 export default {
   createOrganizer: async (_, args, context) => {
-    throw new Error('Yet not integrated!')
-    // const existingUser = await findOneByEmail(args.input.email)
-    // if (existingUser) {
-    //   throw new EmailAlreadyExistsError()
-    // }
-    // await create(args.input)
-    // return await findOneByEmail(args.input.email)
+    const existingUser = await findOneByUsername(args.input.username)
+    if (existingUser) {
+      throw new EmailAlreadyExistsError()
+    }
+    await create(args.input)
+    return await findOneByUsername(args.input.username)
   },
   updateOrganizer: async (_, args, context) => {
-    throw new Error('Yet not integrated!')
-    // let existingUser = await findById(args.input.id)
-    // if (!existingUser) {
-    //   throw new RecordNotFoundError()
-    // }
-    // if (args.input.email) {
-    //   existingUser = await findOneByEmail(args.input.email)
-    //   if (existingUser) {
-    //     throw new EmailAlreadyExistsError()
-    //   }
-    // }
-    // await update(args.input)
-    // return await findById(args.input.id)
+    let existingUser = await findOneById(args.input.id)
+    if (!existingUser) {
+      throw new RecordNotFoundError()
+    }
+    await update(args.input)
+    return await findOneById(args.input.id)
   },
   deleteOrganizer: async (_, args, context) => {
     throw new Error('Yet not integrated!')
