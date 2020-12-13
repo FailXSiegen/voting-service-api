@@ -39,9 +39,4 @@ npm run create-schema
 node dist/console/register-organizer.js --username="example" --email="example@domain.tld" --password="12345678" --public-name="Example Public"
 ```
 
-
-```javascript
-
-```
-
 > All arguments are required!
