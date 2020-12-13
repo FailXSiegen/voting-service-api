@@ -14,6 +14,7 @@ import verifySlug from './request/event/verify-slug'
 import { extractCookieValueByHeader } from './lib/cookie-from-string-util'
 import { toggleUserOnlineStateByRequestToken } from './repository/event-user-repository'
 import logoutRequest from './request/logout'
+import validateOrganizerHashRequest from './request/organizer/validate-hash'
 import { query } from './lib/database'
 
 // Set each event user to offline on server start up.
@@ -101,6 +102,9 @@ server.express.post('/login/refresh', async (req, res) => {
 })
 server.express.post('/event/verify-slug', async (req, res) => {
   await verifySlug(req, res)
+})
+server.express.post('/organizer/validate-hash', async (req, res) => {
+  await validateOrganizerHashRequest(req, res)
 })
 server.express.get('/logout', async (req, res) => {
   await logoutRequest(req, res)
