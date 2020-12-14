@@ -211,6 +211,9 @@ input UpdateOrganizerInput {
     email: String
     password: String
     publicName: String
+    confirmedEmail: Boolean
+    verified: Boolean
+    superAdmin: Boolean
 }
 input CreateEventInput {
     title: String!
