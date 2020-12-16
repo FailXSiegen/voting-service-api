@@ -1,5 +1,6 @@
 import { validate } from '../../lib/organizer/optin-util'
 import { findOneByHash, update } from '../../repository/organizer-repository'
+import mailer from '../../lib/email-util'
 
 export default async function verifySlug (req, res) {
   res.setHeader('content-type', 'application/json')
@@ -16,13 +17,27 @@ export default async function verifySlug (req, res) {
     if (organizer === null) {
       throw new Error('Organizer with hash "' + requestArguments.hash + '" not found.')
     }
-
+   
+    if (organizer.confirmedEmail) {
+      throw new Error('Organizer with hash "' + requestArguments.hash + '" already confirmed.')
+    }
     // Update confirmed_email field of target organizer record.
     await update({
       id: organizer.id,
-      email: organizer.email,
       confirmedEmail: true
     })
+    const mailing = await mailer.sendMail({
+      from: process.env.MAIL_DEFAULT_FROM,
+      to: process.env.MAIL_ADMIN_EMAIL,
+      subject: 'Validierung einer E-Mail Adresse',
+      template: "validate-complete",
+      ctx: {
+          name: organizer.publicName,
+          email: organizer.email,
+          id: organizer.id
+      },
+    })
+    console.log(mailing)
     res.send(JSON.stringify({
       success: await validate(requestArguments.hash)
     }))
