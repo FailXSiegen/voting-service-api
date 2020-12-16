@@ -53,5 +53,6 @@ export async function update (input) {
 }
 
 export async function remove (id) {
+  await query('DELETE FROM jwt_refresh_token WHERE organizer_id = ?', id)
   return await removeQuery('organizer', id)
 }

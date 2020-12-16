@@ -9,7 +9,7 @@ import { generateAndSetOrganizerHash } from '../../../lib/organizer/optin-util'
 
 export default {
   updateOrganizer: async (_, args, context) => {
-    let existingUser = await findOneById(args.input.id)
+    const existingUser = await findOneById(args.input.id)
     if (!existingUser) {
       throw new RecordNotFoundError()
     }
@@ -17,11 +17,10 @@ export default {
     return await findOneById(args.input.id)
   },
   deleteOrganizer: async (_, args, context) => {
-    throw new Error('Yet not integrated!')
-    // const existingUser = await findById(args.id)
-    // if (!existingUser) {
-    //   throw new RecordNotFoundError()
-    // }
-    // return await remove(parseInt(args.id))
+    const existingUser = await findOneById(args.id)
+    if (!existingUser) {
+      throw new RecordNotFoundError()
+    }
+    return await remove(parseInt(args.id))
   }
 }
