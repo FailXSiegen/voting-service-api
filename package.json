@@ -6,7 +6,8 @@
   "scripts": {
     "create-schema": "nodemon ./src/console/create-schema.js --exec babel-node",
     "serve": "rm -rf ./node_modules/.cache/* && nodemon --signal SIGINT --watch ./src -e js,graphql --exec babel-node src/index.js",
-    "build": "babel src --out-dir dist"
+    "copy": "cp -avr src/lib/emails/ dist/lib/",
+    "build": "babel src --out-dir dist && npm run copy"
   },
   "keywords": [],
   "author": "Wolf Utz",
