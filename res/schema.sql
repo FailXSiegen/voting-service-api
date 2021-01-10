@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS organizer (
     email varchar(255) DEFAULT '' NOT NULL,
     password varchar(255) DEFAULT '' NOT NULL,
     public_name varchar(255) DEFAULT '' NOT NULL,
+    public_organisation varchar(255) DEFAULT '' NOT NULL,
     confirmed_email tinyint(2) DEFAULT 0 NOT NULL,
     super_admin tinyint(2) DEFAULT 0 NOT NULL,
     verified tinyint(2) DEFAULT 0 NOT NULL,

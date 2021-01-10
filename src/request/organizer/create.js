@@ -27,6 +27,8 @@ export default async function createOrganizer (req, res) {
           host: process.env.CORS_ORIGIN,
           hash: hash,
           link: process.env.CORS_ORIGIN +'/validate/' + hash,
+          organisation: process.env.MAIL_ORGANISATION,
+          adminmail: process.env.MAIL_ADMIN_EMAIL,
           dataprotection: process.env.MAIL_LINK_DATAPROTECTION,
           imprint :process.env.MAIL_LINK_IMPRINT
       }
