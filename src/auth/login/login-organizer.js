@@ -9,7 +9,7 @@ export default async function loginOrganizer ({ username, password }) {
   // Fetch organizer record.
   const organizer = await findOneByUsername(username)
   if (!organizer || !organizer.verified) {
-    throw new Error('Could not find organizer with the following email: ' + username)
+    throw new Error('Could not find organizer with the following email or is not yet verified: ' + username)
   }
   // Verify password.
   const isAuthenticated = await verify(password, organizer.password)
