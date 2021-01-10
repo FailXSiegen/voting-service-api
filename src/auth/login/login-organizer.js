@@ -8,7 +8,7 @@ import { verify, hash } from '../../lib/crypto'
 export default async function loginOrganizer ({ username, password }) {
   // Fetch organizer record.
   const organizer = await findOneByUsername(username)
-  if (!organizer) {
+  if (!organizer || !organizer.verified) {
     throw new Error('Could not find organizer with the following email: ' + username)
   }
   // Verify password.
