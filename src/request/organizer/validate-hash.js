@@ -37,7 +37,6 @@ export default async function verifySlug (req, res) {
           id: organizer.id
       },
     })
-    console.log(mailing)
     res.send(JSON.stringify({
       success: await validate(requestArguments.hash)
     }))

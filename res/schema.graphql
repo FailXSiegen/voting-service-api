@@ -82,6 +82,7 @@ type Organizer {
     email: String!
     password: String!
     publicName: String!
+    publicOrganisation: String
     events: [Event]
     confirmedEmail: Boolean!
     superAdmin: Boolean!
@@ -205,12 +206,14 @@ input CreateOrganizerInput {
     email: String!
     password: String!
     publicName: String!
+    publicOrganisation: String!
 }
 input UpdateOrganizerInput {
     id: ID!
     email: String
     password: String
     publicName: String
+    publicOrganisation: String
     confirmedEmail: Boolean
     verified: Boolean
     superAdmin: Boolean
