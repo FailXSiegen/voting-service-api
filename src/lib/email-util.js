@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer'
-import { pugEngine } from "nodemailer-pug-engine";
-
+import { pugEngine } from 'nodemailer-pug-engine'
 
 export default {
   transport: null,
@@ -27,13 +26,13 @@ export default {
       if (error) {
         console.error('ERROR: Server is unable to send mails. Error message: ' + error.message)
       } else {
-        console.log('INFO: Server is ready to send mails.') 
+        console.log('INFO: Server is ready to send mails.')
       }
     })
     this.transport.use('compile', pugEngine({
-          templateDir: __dirname + '/emails',
-          pretty: true
-    }));
+      templateDir: __dirname + '/emails',
+      pretty: true
+    }))
   },
   async sendMail (config) {
     if (!this.transport) {
