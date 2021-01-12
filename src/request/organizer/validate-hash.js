@@ -17,7 +17,7 @@ export default async function verifySlug (req, res) {
     if (organizer === null) {
       throw new Error('Organizer with hash "' + requestArguments.hash + '" not found.')
     }
-   
+
     if (organizer.confirmedEmail) {
       throw new Error('Organizer with hash "' + requestArguments.hash + '" already confirmed.')
     }
@@ -26,16 +26,17 @@ export default async function verifySlug (req, res) {
       id: organizer.id,
       confirmedEmail: true
     })
-    const mailing = await mailer.sendMail({
+    await mailer.sendMail({
       from: process.env.MAIL_DEFAULT_FROM,
       to: process.env.MAIL_ADMIN_EMAIL,
       subject: 'Validierung einer E-Mail Adresse',
-      template: "validate-complete",
+      template: 'validate-complete',
       ctx: {
-          name: organizer.publicName,
-          email: organizer.email,
-          id: organizer.id
-      },
+        name: organizer.publicName,
+        organisation: organizer.publicOrganisation,
+        email: organizer.email,
+        id: organizer.id
+      }
     })
     res.send(JSON.stringify({
       success: await validate(requestArguments.hash)
