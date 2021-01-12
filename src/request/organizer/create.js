@@ -14,26 +14,26 @@ export default async function createOrganizer (req, res) {
       throw new Error('Could not create organizer with the following username: ' + data.username)
     }
 
-    const fakeOrganizer = {id: organizerId}
+    const fakeOrganizer = { id: organizerId }
     const hash = await generateAndSetOrganizerHash(fakeOrganizer)
     await mailer.sendMail({
       from: process.env.MAIL_DEFAULT_FROM,
       to: data.email,
       subject: 'E-Mail Bestätigung - digitalwahl.org',
-      template: "validate-email",
+      template: 'validate-email',
       ctx: {
-          username: data.username,
-          publicname: data.publicname,
-          host: process.env.CORS_ORIGIN,
-          hash: hash,
-          link: process.env.CORS_ORIGIN +'/validate/' + hash,
-          organisation: process.env.MAIL_ORGANISATION,
-          adminmail: process.env.MAIL_ADMIN_EMAIL,
-          dataprotection: process.env.MAIL_LINK_DATAPROTECTION,
-          imprint :process.env.MAIL_LINK_IMPRINT
+        username: data.username,
+        publicname: data.publicname,
+        host: process.env.CORS_ORIGIN,
+        hash: hash,
+        link: process.env.MAIL_LINK + '/validate/' + hash,
+        organisation: process.env.MAIL_ORGANISATION,
+        adminmail: process.env.MAIL_ADMIN_EMAIL,
+        dataprotection: process.env.MAIL_LINK_DATAPROTECTION,
+        imprint: process.env.MAIL_LINK_IMPRINT
       }
     })
-    
+
     res.send(JSON.stringify({
       success: true
     }))
