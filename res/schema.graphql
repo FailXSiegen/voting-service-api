@@ -54,6 +54,8 @@ type Mutation {
     createPollAnswer(input: PollPossibleAnswerInput!): PollPossibleAnswer!
     # Create a new event user for an event.
     createEventUser(input: CreateEventUserInput!): EventUser!
+    # Delete an EventUser.
+    deleteEventUser(eventUserId: ID!): Boolean
     # Update EventUser
     updateEventUser(input: UpdateEventUserInput!): EventUser!
     # Update event user to guest (verfied: true, allowToVote: false).
