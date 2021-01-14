@@ -1,4 +1,4 @@
-import { findOneById, findOneByUsernameAndEventId, update, create } from '../../../repository/event-user-repository'
+import { findOneById, findOneByUsernameAndEventId, update, create, remove } from '../../../repository/event-user-repository'
 
 export default {
   createEventUser: async (_, args, { pubsub }) => {
@@ -77,5 +77,12 @@ export default {
       }
     })
     return eventUser
+  },
+  deleteEventUser: async (_, args, context) => {
+    const existingUser = await findOneById(args.eventUserId)
+    if (!existingUser) {
+      throw new Error('EventUser not found')
+    }
+    return await remove(parseInt(args.eventUserId))
   }
 }
