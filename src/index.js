@@ -11,6 +11,7 @@ import authenticate from './middleware/authenticate'
 import loginRequest from './request/login'
 import loginRefreshRequest from './request/login/refresh'
 import verifySlug from './request/event/verify-slug'
+import downloadPollResultCsv from './request/event/export-results'
 import createOrganizer from './request/organizer/create'
 import { extractCookieValueByHeader } from './lib/cookie-from-string-util'
 import { toggleUserOnlineStateByRequestToken } from './repository/event-user-repository'
@@ -103,6 +104,9 @@ server.express.post('/login/refresh', async (req, res) => {
 })
 server.express.post('/event/verify-slug', async (req, res) => {
   await verifySlug(req, res)
+})
+server.express.post('/event/export-results', async (req, res) => {
+  await downloadPollResultCsv(req, res)
 })
 server.express.post('/organizer/validate-hash', async (req, res) => {
   await validateOrganizerHashRequest(req, res)
