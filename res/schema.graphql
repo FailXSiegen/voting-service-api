@@ -12,6 +12,8 @@ type Query {
     upcomingEvents(organizerId: ID): [Event]
     # Fetches a list of expired events by organizer id.
     expiredEvents(organizerId: ID!): [Event]
+    # Fetches a list of expired events by organizer id.
+    allUpcomingEvents: [Event]
     # Fetches current organizer.
     organizer(organizerId: ID): Organizer
      # Fetches a list of all organizers.
