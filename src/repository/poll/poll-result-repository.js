@@ -29,7 +29,7 @@ export async function findLeftAnswersCount (pollResultId) {
     SELECT poll_result.id as poll_result_id,
      poll_result.max_votes,
      poll_result.max_vote_cycles,
-    (SELECT COUNT(*) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_vote_cycles,
+    (SELECT COALESCE(SUM(poll_user_voted.vote_cycle),0) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_vote_cycles,
     (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_voted_count,
     (SELECT COUNT(*) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS poll_answers_count,
     (SELECT COUNT(poll_user.id) FROM poll_user WHERE poll_user.poll_id = poll_result.poll_id) AS poll_user_count
