@@ -1,4 +1,4 @@
-import { create } from '../../repository/organizer-repository'
+import { create, findOneByUsername } from '../../repository/organizer-repository'
 
 export default async function createOrganizer (req, res) {
   res.setHeader('content-type', 'application/json')
@@ -6,6 +6,9 @@ export default async function createOrganizer (req, res) {
     const requestArguments = req.body
     if (!requestArguments.username) {
       throw new Error('Missing username')
+    }
+    if (await findOneByUsername(requestArguments.username)) {
+      throw new Error('Username already exists')
     }
     const organizer = await create(req)
     if (!organizer) {
