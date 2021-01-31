@@ -7,7 +7,7 @@ export default async function createOrganizer (req, res) {
   try {
     const data = req.body
     if (findOneByUsername(data.username) !== null) {
-      throw new Error('Could not create organizer with the following username: ' + data.username)
+      throw new Error('organizer with the following username already exists: ' + data.username)
     }
     const organizerId = await create(data)
     if (!organizerId) {
