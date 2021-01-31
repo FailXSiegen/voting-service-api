@@ -50,6 +50,14 @@ export async function findExpired (organizerId) {
   )
 }
 
+export async function findAllUpcomingEvents () {
+  const currentTimestamp = getCurrentUnixTimeStamp()
+  return await query(
+    'SELECT * FROM event WHERE event.deleted = 0 AND event.active = 1 AND event.scheduled_datetime > ?',
+    [currentTimestamp]
+  )
+}
+
 export async function create (input) {
   const currentTime = getCurrentUnixTimeStamp()
   input.createDatetime = currentTime
@@ -58,8 +66,6 @@ export async function create (input) {
 }
 
 export async function update (input) {
-  // input.active = input.active ? 1 : 0
-  // input.lobbyOpen = input.lobbyOpen ? 1 : 0
   input.modifiedDatetime = getCurrentUnixTimeStamp()
   await updateQuery('event', input)
 }
