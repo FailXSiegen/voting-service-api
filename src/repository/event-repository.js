@@ -53,7 +53,7 @@ export async function findExpired (organizerId) {
 export async function findAllUpcomingEvents () {
   const currentTimestamp = getCurrentUnixTimeStamp()
   return await query(
-    'SELECT * FROM event WHERE event.deleted = 0 AND event.active = 1 AND event.scheduled_datetime > ?',
+    'SELECT * FROM event WHERE event.deleted = 0 AND event.active = 1 AND event.scheduled_datetime > ? ORDER BY event.scheduled_datetime ASC',
     [currentTimestamp]
   )
 }
