@@ -6,7 +6,7 @@ export default async function createOrganizer (req, res) {
   res.setHeader('content-type', 'application/json')
   try {
     const data = req.body
-    if (findOneByUsername(data.username) !== null) {
+    if (await findOneByUsername(data.username) !== null) {
       throw new Error('organizer with the following username already exists: ' + data.username)
     }
     const organizerId = await create(data)
@@ -30,7 +30,7 @@ export default async function createOrganizer (req, res) {
         organisation: process.env.MAIL_ORGANISATION,
         adminmail: process.env.MAIL_ADMIN_EMAIL,
         dataprotection: process.env.MAIL_LINK_DATAPROTECTION,
-        imprint: process.env.MAIL_LINK_IMPRINT
+        imprint: process.env.MAIL_LINK_IsMPRINT
       }
     })
 
