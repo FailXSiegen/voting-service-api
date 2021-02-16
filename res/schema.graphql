@@ -91,6 +91,7 @@ type Organizer {
     confirmedEmail: Boolean!
     superAdmin: Boolean!
     verified: Boolean!
+    hash: String
 }
 type Event {
     id: ID!
