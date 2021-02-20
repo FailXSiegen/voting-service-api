@@ -44,6 +44,8 @@ type Mutation {
     updateEvent(input: UpdateEventInput!): Event!
     # Create a new poll.
     createPoll(input: CreateNewPollInput!, instantStart: Boolean!): Poll!
+    # Update poll.
+    updatePoll(input: UpdatePollInput!, instantStart: Boolean!): Poll!
     # Delete a poll.
     removePoll(id: ID!): Boolean!
     # Delete a poll.
@@ -132,6 +134,8 @@ type Poll {
     createDatetime: Int
     title: String!
     type: PollType!
+    pollAnswer: String
+    list: String
     possibleAnswers: [PollPossibleAnswer]
     minVotes: Int
     maxVotes: Int
@@ -262,6 +266,20 @@ input CreateNewPollInput {
     eventId: ID!
     title: String!
     type: PollType!
+    pollAnswer: String
+    list: String
+    possibleAnswers: [PollPossibleAnswerInput!]
+    minVotes: Int
+    maxVotes: Int
+    allowAbstain: Boolean
+}
+input UpdatePollInput {
+    id: ID!
+    eventId: ID!
+    title: String!
+    type: PollType!
+    pollAnswer: String
+    list: String
     possibleAnswers: [PollPossibleAnswerInput!]
     minVotes: Int
     maxVotes: Int

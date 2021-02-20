@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS poll (
     original_id int(11) DEFAULT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     title varchar(255) DEFAULT '' NOT NULL,
+    poll_answer varchar(255) DEFAULT '' NOT NULL,
+    list text DEFAULT '' NOT NULL,
     type int(11) DEFAULT 0 NOT NULL,
     repeated tinyint(2) DEFAULT 0 NOT NULL,
     min_votes int(11) DEFAULT 0 NOT NULL,
