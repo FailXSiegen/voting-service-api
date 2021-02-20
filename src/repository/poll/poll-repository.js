@@ -29,7 +29,9 @@ export async function create (input) {
 }
 
 export async function update (input) {
-  input.modifiedDatetime = getCurrentUnixTimeStamp()
+  await removeByPoll(input.id)
+  input.createDatetime = getCurrentUnixTimeStamp()
+  input.type = pollTypeConverterToString(input.type)
   await updateQuery('poll', input)
 }
 

@@ -1,4 +1,4 @@
-import { create as createPoll, remove as removePoll, findOneById } from '../../../repository/poll/poll-repository'
+import { create as createPoll, remove as removePoll, update as updatePoll, findOneById } from '../../../repository/poll/poll-repository'
 import { create as createPossibleAnswer } from '../../../repository/poll/poll-possible-answer-repository'
 import {
   closePollResult,
@@ -14,6 +14,31 @@ export default {
     const possibleAnswers = args.input.possibleAnswers
     delete poll.possibleAnswers
     const pollId = await createPoll(poll)
+    for await (const answerInput of possibleAnswers) {
+      await createPossibleAnswer({ pollId, content: answerInput.content })
+    }
+    const pollRecord = await findOneById(pollId)
+    if (args.instantStart) {
+      const pollResultId = await createPollDependencies(pollRecord)
+      if (pollResultId) {
+        pubsub.publish('pollLifeCycle', {
+          pollLifeCycle: {
+            eventId: poll.eventId,
+            state: 'new',
+            poll: pollRecord,
+            pollResultId: pollResultId
+          }
+        })
+      }
+    }
+    return pollRecord
+  },
+  updatePoll: async (_, args, { pubsub }) => {
+    const poll = args.input
+    const possibleAnswers = args.input.possibleAnswers
+    delete poll.possibleAnswers
+    const pollId = poll.id
+    await updatePoll(poll)
     for await (const answerInput of possibleAnswers) {
       await createPossibleAnswer({ pollId, content: answerInput.content })
     }
