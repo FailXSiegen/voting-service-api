@@ -13,6 +13,13 @@ export default async function loginRefreshRequest (req, res) {
       throw new Error('Could not fetch refreshToken cookie')
     }
     const tokenRecord = await fetchRefreshToken(signedCookies.refreshToken)
+    if (!tokenRecord) {
+      res.status(200)
+      res.send(JSON.stringify({
+        success: false
+      }))
+      return
+    }
     const type = tokenRecord.organizerId > 0 ? 'organizer' : 'event-user'
     const id = type === 'organizer' ? tokenRecord.organizerId : tokenRecord.eventUserId
     const verified = tokenRecord.verified
