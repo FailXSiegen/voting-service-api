@@ -22,6 +22,13 @@ export default async function loginRefreshRequest (req, res) {
     }
     const type = tokenRecord.organizerId > 0 ? 'organizer' : 'event-user'
     const id = type === 'organizer' ? tokenRecord.organizerId : tokenRecord.eventUserId
+    if (id === 'undefined') {
+      res.status(200)
+      res.send(JSON.stringify({
+        success: false
+      }))
+      return
+    }
     const verified = tokenRecord.verified
     const claims = {
       user: { id, type, verified },
