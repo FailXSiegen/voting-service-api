@@ -10,8 +10,10 @@ async function generateRefreshTokenHash () {
 
 export async function addRefreshToken (type, id) {
   const userField = type === 'organizer' ? 'organizer_id' : 'event_user_id'
-  // Remove existing tokens.
-  await query(`DELETE FROM ${table} WHERE ${userField} = ${id}`)
+  if (id) {
+    // Remove existing tokens.
+    await query(`DELETE FROM ${table} WHERE ${userField} = ${id}`)
+  }
   // Generate, persist and return a new token.
   const token = await generateRefreshTokenHash()
   await insert(table, {
