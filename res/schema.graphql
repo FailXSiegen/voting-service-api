@@ -125,8 +125,8 @@ type EventUserAccessRights {
     voteAmount: Int!
 }
 type EventUserLifeCyclePayload {
-    online: Boolean!
-    eventUserId: ID!
+    online: Boolean
+    eventUserId: ID
 }
 type Poll {
     id: ID!
