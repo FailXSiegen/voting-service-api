@@ -19,7 +19,8 @@ export default async function createOrganizer (req, res) {
     await mailer.sendMail({
       from: process.env.MAIL_DEFAULT_FROM,
       to: data.email,
-      subject: 'E-Mail Bestätigung - digitalwahl.org',
+      replyTo: process.env.MAIL_DEFAULT_FROM,
+      subject: 'Bestätigung der Registrierung für digitalwahl.org',
       template: 'validate-email',
       ctx: {
         username: data.username,
