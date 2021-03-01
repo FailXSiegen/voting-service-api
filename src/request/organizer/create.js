@@ -30,7 +30,7 @@ export default async function createOrganizer (req, res) {
         organisation: process.env.MAIL_ORGANISATION,
         adminmail: process.env.MAIL_ADMIN_EMAIL,
         dataprotection: process.env.MAIL_LINK_DATAPROTECTION,
-        imprint: process.env.MAIL_LINK_IsMPRINT
+        imprint: process.env.MAIL_LINK_IMPRINT
       }
     })
 
