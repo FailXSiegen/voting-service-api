@@ -12,6 +12,8 @@ import loginRequest from './request/login'
 import loginRefreshRequest from './request/login/refresh'
 import verifySlug from './request/event/verify-slug'
 import requestVerifyPassword from './request/login/verify-password'
+import requestPasswordForgot from './request/organizer/password-forgot'
+import updateOrganizerPassword from './request/organizer/update-password'
 import downloadPollResultCsv from './request/event/export-results'
 import createOrganizer from './request/organizer/create'
 import { extractCookieValueByHeader } from './lib/cookie-from-string-util'
@@ -114,6 +116,12 @@ server.express.post('/event/export-results', async (req, res) => {
 })
 server.express.post('/organizer/validate-hash', async (req, res) => {
   await validateOrganizerHashRequest(req, res)
+})
+server.express.post('/organizer/password-forgot', async (req, res) => {
+  await requestPasswordForgot(req, res)
+})
+server.express.post('/organizer/update-password', async (req, res) => {
+  await updateOrganizerPassword(req, res)
 })
 server.express.get('/logout', async (req, res) => {
   await logoutRequest(req, res)

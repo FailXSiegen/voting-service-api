@@ -2,7 +2,7 @@ import { validate } from '../../lib/organizer/optin-util'
 import { findOneByHash, update } from '../../repository/organizer-repository'
 import mailer from '../../lib/email-util'
 
-export default async function verifySlug (req, res) {
+export default async function validateOrganizerHashRequest (req, res) {
   res.setHeader('content-type', 'application/json')
   try {
     const requestArguments = req.body
@@ -19,7 +19,11 @@ export default async function verifySlug (req, res) {
     }
 
     if (organizer.confirmedEmail) {
-      throw new Error('Organizer with hash "' + requestArguments.hash + '" already confirmed.')
+      res.send(JSON.stringify({
+        success: await validate(requestArguments.hash),
+        organizer: organizer
+      }))
+      return
     }
     // Update confirmed_email field of target organizer record.
     await update({
