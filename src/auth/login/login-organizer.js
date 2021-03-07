@@ -3,7 +3,7 @@ import AuthenticationError from '../../errors/AuthenticationError'
 import { generateJwt } from '../../lib/jwt-auth'
 import * as jwt from 'jsonwebtoken'
 import { addRefreshToken } from './refresh-token'
-import { verify, hash } from '../../lib/crypto'
+import verifyPassword from './login-verify-password'
 
 export default async function loginOrganizer ({ username, password }) {
   // Fetch organizer record.
@@ -11,10 +11,9 @@ export default async function loginOrganizer ({ username, password }) {
   if (!organizer || !organizer.verified) {
     throw new Error('Could not find organizer with the following email or is not yet verified: ' + username)
   }
-  // Verify password.
-  const isAuthenticated = await verify(password, organizer.password)
-  if (!isAuthenticated) {
-    console.log('Does not match: ' + await hash(password))
+  // validate password
+  const passwordIsValid = await verifyPassword(username, password)
+  if (!passwordIsValid) {
     throw new AuthenticationError()
   }
   // Create jwt and refresh token.
