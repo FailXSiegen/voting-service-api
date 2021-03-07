@@ -117,15 +117,13 @@ export async function getPollResultsDetails (eventId) {
 export async function getEventUsersWithVoteCount (eventId) {
   return await query(`
   SELECT
-  event_user.public_name,
-  count(poll_user_voted.id) as Anzahl
-  FROM event_user
-  LEFT JOIN poll_user_voted
-  ON event_user.id = poll_user_voted.event_user_id
-  WHERE event_user.password != '' AND event_user.allow_to_vote = 1 
-  AND event_user.event_id = ?
-  AND poll_user_voted.vote_cycle = 1
-  GROUP BY event_user.id
+  poll_user.public_name,
+  count(poll_user.event_user_id ) as Anzahl
+  FROM poll_user
+  INNER JOIN poll
+  ON poll_user.poll_id = poll.id
+  WHERE poll.event_id = ?
+  GROUP BY poll_user.event_user_id 
   `,
   [eventId])
 }
