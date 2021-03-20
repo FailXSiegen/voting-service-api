@@ -2,6 +2,14 @@
 
 GraphQL API
 
+## Before install
+
+Create a `.env` file and fill out your system variables.
+
+```shell
+mv .env.dist .env
+```
+
 ## Install the application
 
 ````shell script
@@ -17,7 +25,7 @@ npm run build
 ## Run DEV server
 
 ````shell script
-npm run dev
+npm run serve
 ````
 
 ## Application specific CLI scripts
