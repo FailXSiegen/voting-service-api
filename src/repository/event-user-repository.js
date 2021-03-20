@@ -22,7 +22,7 @@ export async function findEventUserByEventId (eventId) {
 }
 
 export async function findOnlineEventUserByEventId (eventId) {
-  return await query('SELECT * FROM event_user WHERE event_id = ? AND online = 1 AND allow_to_vote = 1 ORDER BY public_name ASC', [eventId])
+  return await query('SELECT * FROM event_user WHERE event_id = ? AND verified = 1 AND online = 1 AND allow_to_vote = 1 ORDER BY public_name ASC', [eventId])
 }
 
 export async function toggleUserOnlineStateByRequestToken (token, online) {
