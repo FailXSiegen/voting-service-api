@@ -79,7 +79,7 @@ type Subscription {
     # Notifies about event user online states.
     eventUserLifeCycle: EventUserLifeCyclePayload!
     # Notifies about the count of left poll answers.
-    pollAnswerLifeCycle: PollAnswerLifeCyclePayLoad!
+    pollAnswerLifeCycle(eventId: ID): PollAnswerLifeCyclePayLoad!
 }
 type Organizer {
     id: ID!
@@ -201,6 +201,7 @@ type PollAnswerLifeCyclePayLoad {
     pollAnswersCount: Int!
     pollUserCount: Int!
     pollUserVotedCount: Int!
+    eventId: ID!
 }
 type Result {
     id: ID!
