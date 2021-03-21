@@ -59,9 +59,13 @@ export default {
         }
       }
     }
+    const eventId = await findEventIdByPollResultId(input.pollResultId)
     // Notify the organizer about the current voted count.
     pubsub.publish('pollAnswerLifeCycle', {
-      pollAnswerLifeCycle: leftAnswersDataSet
+      pollAnswerLifeCycle: {
+        ...leftAnswersDataSet,
+        eventId: eventId
+      }
     })
     return true
   }
