@@ -1,8 +1,15 @@
+import { withFilter } from 'graphql-subscriptions'
+
 export default {
   pollAnswerLifeCycle: {
-    // @TODO add filter
-    subscribe (parent, args, { pubsub }) {
-      return pubsub.asyncIterator('pollAnswerLifeCycle')
-    }
+    subscribe: withFilter(
+      (parent, { eventId }, { pubsub }) => pubsub.asyncIterator('pollAnswerLifeCycle'),
+      (payload, variables) => {
+        if (!variables.eventId) {
+          return true
+        }
+        return parseInt(payload.pollAnswerLifeCycle.eventId) === parseInt(variables.eventId)
+      }
+    )
   }
 }
