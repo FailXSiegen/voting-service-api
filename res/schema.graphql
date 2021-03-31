@@ -42,6 +42,8 @@ type Mutation {
     createEvent(input: CreateEventInput!): Event!
     # Creates a new event.
     updateEvent(input: UpdateEventInput!): Event!
+     # removes event.
+    removeEvent(organizerId: ID!, id: ID!): Boolean
     # Create a new poll.
     createPoll(input: CreateNewPollInput!, instantStart: Boolean!): Poll!
     # Update poll.

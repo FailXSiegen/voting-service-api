@@ -70,6 +70,42 @@ export async function update (input) {
   await updateQuery('event', input)
 }
 
-export async function remove (id) {
-  return await removeQuery('event', id)
+export async function remove (organizerId, id) {
+  await query(
+    'DELETE poll_user_voted FROM poll_user_voted INNER JOIN poll_result ON poll_user_voted.poll_result_id = poll_result.id INNER JOIN poll ON poll_result.poll_id = poll.id INNER JOIN event ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?',
+    [organizerId, id]
+  )
+  await query(
+    'DELETE poll_possible_answer FROM poll_possible_answer INNER JOIN poll ON poll_possible_answer.poll_id = poll.id INNER JOIN event ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?',
+    [organizerId, id]
+  )
+  await query(
+    'DELETE poll_answer FROM poll_answer INNER JOIN poll_result ON poll_answer.poll_result_id = poll_result.id INNER JOIN poll ON poll_result.poll_id = poll.id INNER JOIN event ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?',
+    [organizerId, id]
+  )
+  await query(
+    'DELETE poll_user FROM poll_user INNER JOIN poll ON poll_user.poll_id = poll.id INNER JOIN event ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?',
+    [organizerId, id]
+  )
+  await query(
+    'DELETE poll_result FROM poll_result INNER JOIN poll ON poll_result.poll_id = poll.id INNER JOIN event ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?',
+    [organizerId, id]
+  )
+  await query(
+    'DELETE poll FROM poll INNER JOIN event  ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?',
+    [organizerId, id]
+  )
+  await query(
+    'DELETE jwt_refresh_token FROM jwt_refresh_token INNER JOIN event_user ON jwt_refresh_token.event_user_id = event_user.id INNER JOIN event ON event_user.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?',
+    [organizerId, id]
+  )
+  await query(
+    'DELETE event_user FROM event_user INNER JOIN event  ON event_user.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?',
+    [organizerId, id]
+  )
+  await query(
+    'DELETE event FROM event WHERE event.organizer_id = ? AND event.id = ?',
+    [organizerId, id]
+  )
+  return true
 }

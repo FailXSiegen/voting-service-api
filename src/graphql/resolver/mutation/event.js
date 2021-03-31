@@ -1,4 +1,4 @@
-import { create, update, findOneBySlug } from '../../../repository/event-repository'
+import { create, update, findOneBySlug, remove } from '../../../repository/event-repository'
 import SlugAlreadyExistsError
   from '../../../errors/event/SlugAlreadyExistsError'
 
@@ -18,5 +18,8 @@ export default {
     }
     await update(args.input)
     return await findOneBySlug(args.input.slug)
+  },
+  removeEvent: async (_, args, context) => {
+    return await remove(args.organizerId, args.id)
   }
 }
