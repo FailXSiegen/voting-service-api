@@ -30,7 +30,7 @@ export async function findLeftAnswersCount (pollResultId) {
      poll_result.max_votes,
      poll_result.max_vote_cycles,
     (SELECT COALESCE(SUM(poll_user_voted.vote_cycle),0) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_vote_cycles,
-    (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_voted_count,
+    (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id AND poll_user_voted.vote_cycle = 1) AS poll_user_voted_count,
     (SELECT COUNT(*) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS poll_answers_count,
     (SELECT COUNT(poll_user.id) FROM poll_user WHERE poll_user.poll_id = poll_result.poll_id) AS poll_user_count
     FROM poll_result
@@ -71,8 +71,8 @@ export async function getPollOverview (eventId) {
   SELECT
     poll.id, poll.title, poll.max_votes AS 'abzugebende Stimmen',
     (SELECT COUNT(poll_user.id) FROM poll_user WHERE poll_user.poll_id = poll.id) AS Teilnehmer,
-    (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id AND poll_user_voted.vote_cycle = 1) AS Abgestimmt,
-    (SELECT SUM(event_user.vote_amount) FROM event_user INNER JOIN poll_user ON event_user.id = poll_user.event_user_id WHERE event_user.event_id = poll.event_id AND poll_user.poll_id = poll.id) AS 'maximale Stimmanzahl (Faktor abzugebenden Stimmen beachten)',
+    (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS Abgestimmt,
+    poll_result.max_votes AS 'maximale Stimmanzahl (Faktor abzugebenden Stimmen beachten)',
     (SELECT COUNT(poll_answer.id) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS 'abgegebene Stimmen (Delegiert mit Mehrfachstimmen beachten)'
     FROM
     poll

@@ -18,7 +18,7 @@ export async function allowToCreateNewVote (pollResultId, eventUserId) {
     SELECT poll_user_voted.id FROM poll_user_voted
     INNER JOIN event_user
     ON event_user.id = poll_user_voted.event_user_id
-    WHERE poll_user_voted.poll_result_id = ? AND event_user.id = ? AND event_user.vote_amount > poll_user_voted.vote_cycle
+    WHERE poll_user_voted.poll_result_id = ? AND event_user.id = ? AND event_user.online = 1 AND event_user.verified = 1 AND event_user.vote_amount > poll_user_voted.vote_cycle
   `, [pollResultId, eventUserId])
   if (Array.isArray(result)) {
     await query(`
