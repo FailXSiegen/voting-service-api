@@ -6,10 +6,14 @@ import {
   closePollResult
 } from '../../../repository/poll/poll-result-repository'
 import {
-  create as createPollUserVoted,
+  createPollUserVoted,
   existInCurrentVote,
   allowToCreateNewVote
 } from '../../../repository/poll/poll-user-voted-repository'
+import {
+  createPollUserWithPollResultId,
+  existAsPollUserInCurrentVote
+} from '../../../repository/poll/poll-user-repository'
 import { findEventIdByPollResultId } from '../../../repository/event-repository'
 
 async function publishPollLifeCycle (pubsub, pollResultId) {
@@ -26,10 +30,17 @@ async function publishPollLifeCycle (pubsub, pollResultId) {
 async function existsPollUserVoted (pollResultId, eventUserId) {
   const userExists = await existInCurrentVote(pollResultId, eventUserId)
   if (userExists === null) {
-    await createPollUserVoted({ pollResultId: pollResultId, eventUserId: eventUserId, voteCycle: 1 })
+    await createPollUserVoted(pollResultId, eventUserId, 1)
     return true
   }
   return await allowToCreateNewVote(pollResultId, eventUserId)
+}
+
+async function existsPollUser (pollResultId, eventUserId) {
+  const userExists = await existAsPollUserInCurrentVote(pollResultId, eventUserId)
+  if (userExists === null) {
+    await createPollUserWithPollResultId(pollResultId, eventUserId)
+  }
 }
 
 export default {
@@ -49,6 +60,7 @@ export default {
       allowToVote = await existsPollUserVoted(input.pollResultId, input.eventUserId, input.voteCycle)
     }
     if (allowToVote) {
+      await existsPollUser(input.pollResultId, input.eventUserId)
       await insertPollSubmitAnswer(input)
       leftAnswersDataSet = await findLeftAnswersCount(input.pollResultId)
       if (cloneAnswerObject.answerItemLength === cloneAnswerObject.answerItemCount) {
