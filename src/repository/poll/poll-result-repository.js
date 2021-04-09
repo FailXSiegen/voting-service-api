@@ -104,7 +104,8 @@ export async function getPollResultsDetails (eventId) {
     poll.id,
     poll.title AS Abstimmung,
     poll_answer.answer_content AS Antwort,
-    poll_user.public_name AS Person
+    poll_user.public_name AS Person,
+    poll_user.username AS Benutzername
     FROM poll_result
     INNER JOIN poll ON poll_result.poll_id = poll.id
     INNER JOIN poll_answer ON poll_answer.poll_result_id = poll_result.id
@@ -117,7 +118,8 @@ export async function getPollResultsDetails (eventId) {
 export async function getEventUsersWithVoteCount (eventId) {
   return await query(`
   SELECT
-  poll_user.public_name,
+  poll_user.public_name AS Person,
+  poll_user.username AS Benutzername,
   count(poll_user.event_user_id ) as Anzahl
   FROM poll_user
   INNER JOIN poll
