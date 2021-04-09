@@ -34,3 +34,11 @@ export async function findByPollResultId (pollResultId) {
   const result = await query('SELECT * FROM poll_user_voted WHERE poll_result_id = ?', [pollResultId])
   return Array.isArray(result) ? result : []
 }
+
+export async function createPollUserVoted (pollResultId, eventUserId, voteCycle) {
+  const createDatetime = getCurrentUnixTimeStamp()
+  return await query(`
+  INSERT INTO poll_user_voted (event_user_id, username, poll_result_id, vote_cycle, create_datetime)
+  SELECT ?, event_user.username, ?, ?, ? FROM event_user WHERE event_user.id = ? AND event_user.verified = 1 AND event_user.allow_to_vote = 1
+`, [eventUserId, pollResultId, voteCycle, createDatetime, eventUserId])
+}

@@ -3,6 +3,7 @@ import {
   update as updateQuery,
   remove as removeQuery, query
 } from './../../lib/database'
+
 import { getCurrentUnixTimeStamp } from '../../lib/time-stamp'
 
 export async function findByEventId (pollId) {
@@ -26,4 +27,24 @@ export async function update (input) {
 
 export async function remove (id) {
   return await removeQuery('poll_user', id)
+}
+
+export async function existAsPollUserInCurrentVote (pollResultId, eventUserId) {
+  await query(`
+   UPDATE event_user SET online = 1 WHERE id = ?
+  `, [eventUserId])
+  return await query(`
+    SELECT poll_user.id FROM poll_user
+    INNER JOIN poll_result
+    ON poll_result.poll_id = poll_user.poll_id
+    WHERE poll_result.id = ? AND poll_user.event_user_id = ?
+  `, [pollResultId, eventUserId])
+}
+
+export async function createPollUserWithPollResultId (pollResultId, eventUserId) {
+  const createDatetime = getCurrentUnixTimeStamp()
+  return await query(`
+  INSERT INTO poll_user (event_user_id, public_name, username, poll_id, create_datetime)
+  SELECT ?, event_user.public_name, event_user.username, poll_result.poll_id, ? FROM event_user, poll_result WHERE event_user.id = ? AND event_user.verified = 1 AND event_user.allow_to_vote = 1 AND poll_result.id = ?
+`, [eventUserId, createDatetime, eventUserId, pollResultId])
 }
