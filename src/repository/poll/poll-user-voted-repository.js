@@ -31,7 +31,7 @@ export async function allowToCreateNewVote (pollResultId, eventUserId) {
 }
 
 export async function findByPollResultId (pollResultId) {
-  const result = await query('SELECT * FROM poll_user_voted WHERE poll_result_id = ?', [pollResultId])
+  const result = await query('SELECT poll_user_voted.*, event_user.public_name AS publicName FROM poll_user_voted INNER JOIN event_user ON event_user.id = poll_user_voted.event_user_id WHERE poll_user_voted.poll_result_id = ?', [pollResultId])
   return Array.isArray(result) ? result : []
 }
 

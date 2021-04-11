@@ -10,6 +10,15 @@ export async function findOneById (id) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
+export async function updatePollResultMaxVotes (pollResultId, eventUserId) {
+  const maxVotes = await query('SELECT vote_amount FROM event_user WHERE id = ?', [eventUserId])
+  if (!Array.isArray(maxVotes) || maxVotes[0].voteAmount === 0) {
+    return false
+  }
+  await query('UPDATE poll_result SET max_votes = max_votes + ?,  max_vote_cycles = max_vote_cycles + ? WHERE id = ?', [maxVotes[0].voteAmount, maxVotes[0].voteAmount, pollResultId])
+  return true
+}
+
 export async function findClosedPollResults (eventId, page, pageSize) {
   const offset = page * pageSize
   return await query(`
@@ -30,7 +39,7 @@ export async function findLeftAnswersCount (pollResultId) {
      poll_result.max_votes,
      poll_result.max_vote_cycles,
     (SELECT COALESCE(SUM(poll_user_voted.vote_cycle),0) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_vote_cycles,
-    (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id AND poll_user_voted.vote_cycle = 1) AS poll_user_voted_count,
+    (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_voted_count,
     (SELECT COUNT(*) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS poll_answers_count,
     (SELECT COUNT(poll_user.id) FROM poll_user WHERE poll_user.poll_id = poll_result.poll_id) AS poll_user_count
     FROM poll_result
@@ -53,10 +62,10 @@ export async function findActivePoll (eventId) {
   SELECT
     poll_result.id AS id,
     poll.title AS title,
-    poll_result.max_votes,
-    (SELECT COUNT(poll_user.id) FROM poll_user WHERE poll_user.poll_id = poll.id) AS poll_user_count,
-    (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id AND poll_user_voted.vote_cycle = 1) AS poll_user_voted_count,
-    (SELECT COUNT(poll_answer.id) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS poll_answers_count
+    poll_result.max_votes AS maxVotes,
+    (SELECT COUNT(poll_user.event_user_id) FROM poll_user WHERE poll_user.poll_id = poll.id) AS pollUserCount,
+    (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS pollUserVotedCount,
+    (SELECT COUNT(poll_answer.id) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS answerCount
   FROM poll
   INNER JOIN poll_result ON poll.id = poll_result.poll_id
   WHERE poll.event_id = ? AND poll_result.closed = 0
