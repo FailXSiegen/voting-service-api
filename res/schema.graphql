@@ -184,6 +184,7 @@ type PollUserVoted {
     id: ID!
     pollResultId: ID!
     eventUserId: ID!
+    publicName: String
 }
 type PollAnswer {
     id: ID!

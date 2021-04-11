@@ -3,6 +3,7 @@ import {
 } from '../../../repository/poll/poll-answer-repository'
 import {
   findLeftAnswersCount,
+  updatePollResultMaxVotes,
   closePollResult
 } from '../../../repository/poll/poll-result-repository'
 import {
@@ -39,8 +40,13 @@ async function existsPollUserVoted (pollResultId, eventUserId) {
 async function existsPollUser (pollResultId, eventUserId) {
   const userExists = await existAsPollUserInCurrentVote(pollResultId, eventUserId)
   if (userExists === null) {
-    await createPollUserWithPollResultId(pollResultId, eventUserId)
+    const result = await createPollUserWithPollResultId(pollResultId, eventUserId)
+    if (result) {
+      await updatePollResultMaxVotes(pollResultId, eventUserId)
+    }
+    return result
   }
+  return true
 }
 
 export default {
