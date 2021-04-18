@@ -118,7 +118,7 @@ export async function getPollResultsDetails (eventId) {
     FROM poll_result
     INNER JOIN poll ON poll_result.poll_id = poll.id
     INNER JOIN poll_answer ON poll_answer.poll_result_id = poll_result.id
-    INNER JOIN poll_user ON poll_user.id = poll_answer.poll_user_id
+    LEFT JOIN poll_user ON poll_user.id = poll_answer.poll_user_id
     WHERE poll.event_id = ?
   `,
   [eventId])
