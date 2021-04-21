@@ -36,8 +36,8 @@ export async function findClosedPollResults (eventId, page, pageSize) {
 export async function findLeftAnswersCount (pollResultId) {
   const result = await query(`
     SELECT poll_result.id as poll_result_id,
-    (SELECT SUM(event_user.vote_amount) FROM poll INNER JOIN event_user ON poll.event_id = event_user.event_id WHERE poll.id = poll_result.poll_id AND event_user.verified = 1 AND event_user.allow_to_vote = 1 AND event_user.online = 1 ) AS max_votes,
-    (SELECT SUM(event_user.vote_amount) FROM poll INNER JOIN event_user ON poll.event_id = event_user.event_id WHERE poll.id = poll_result.poll_id AND event_user.verified = 1 AND event_user.allow_to_vote = 1 AND event_user.online = 1 ) AS max_vote_cycles,
+    poll_result.max_votes AS max_votes,
+    poll_result.max_vote_cycles AS max_vote_cycles,
     (SELECT COALESCE(SUM(poll_user_voted.vote_cycle),0) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_vote_cycles,
     (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_voted_count,
     (SELECT COUNT(*) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS poll_answers_count,
@@ -62,7 +62,7 @@ export async function findActivePoll (eventId) {
   SELECT
     poll_result.id AS id,
     poll.title AS title,
-    (SELECT SUM(event_user.vote_amount) FROM poll INNER JOIN event_user ON poll.event_id = event_user.event_id WHERE poll.id = poll_result.poll_id AND event_user.verified = 1 AND event_user.allow_to_vote = 1 AND event_user.online = 1 ) AS max_votes,
+    poll_result.max_votes AS max_votes,
     (SELECT COUNT(poll_user.event_user_id) FROM poll_user WHERE poll_user.poll_id = poll.id) AS pollUserCount,
     (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS pollUserVotedCount,
     (SELECT COUNT(poll_answer.id) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS answerCount
@@ -78,7 +78,9 @@ export async function findActivePoll (eventId) {
 export async function getPollOverview (eventId) {
   return await query(`
   SELECT
-    poll.id, poll.title, poll.max_votes AS 'abzugebende Stimmen',
+    poll.id, 
+    poll.title, 
+    poll.max_votes AS 'abzugebende Stimmen',
     (SELECT COUNT(poll_user.id) FROM poll_user WHERE poll_user.poll_id = poll.id) AS Teilnehmer,
     (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS Abgestimmt,
     poll_result.max_votes AS 'maximale Stimmanzahl (Faktor abzugebenden Stimmen beachten)',
