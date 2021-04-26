@@ -70,7 +70,6 @@ export default {
     if (allowToVote) {
       await existsPollUser(input.pollResultId, input.eventUserId)
       const multivoteType = await getMultivoteType(eventId)
-      console.log(input.multivote)
       if (multivoteType === 2 || input.multivote) {
         const eventUser = await findOneById(input.eventUserId)
         const voteCountFromUser = eventUser.voteAmount
