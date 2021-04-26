@@ -108,6 +108,7 @@ type Event {
     organizer: Organizer
     lobbyOpen: Boolean
     active: Boolean
+    multivoteType: Int
 }
 type EventUser {
     id: ID!
@@ -239,6 +240,7 @@ input CreateEventInput {
     organizerId: ID!
     lobbyOpen: Boolean!
     active: Boolean!
+    multivoteType: Int!
 }
 input UpdateEventInput {
     id: ID!
@@ -248,6 +250,7 @@ input UpdateEventInput {
     scheduledDatetime: Int!
     lobbyOpen: Boolean!
     active: Boolean!
+    multivoteType: Int!
 }
 input CreateEventUserInput {
     eventId: ID!
@@ -303,6 +306,7 @@ input PollSubmitAnswerInput {
     voteCycle: Int!
     answerItemLength: Int!
     answerItemCount: Int!
+    multivote: Boolean!
 }
 input PollUserVotedInput {
     pollResultId: ID!

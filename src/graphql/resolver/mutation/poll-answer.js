@@ -15,7 +15,8 @@ import {
   createPollUserWithPollResultId,
   existAsPollUserInCurrentVote
 } from '../../../repository/poll/poll-user-repository'
-import { findEventIdByPollResultId } from '../../../repository/event-repository'
+import { findEventIdByPollResultId, getMultivoteType } from '../../../repository/event-repository'
+import { findOneById } from '../../../repository/event-user-repository'
 
 async function publishPollLifeCycle (pubsub, pollResultId) {
   await closePollResult(pollResultId)
@@ -52,6 +53,7 @@ async function existsPollUser (pollResultId, eventUserId) {
 export default {
   createPollSubmitAnswer: async (_, { input }, { pubsub }) => {
     const cloneAnswerObject = {}
+    const eventId = await findEventIdByPollResultId(input.pollResultId)
     Object.assign(cloneAnswerObject, input)
     delete input.answerItemCount
     delete input.answerItemLength
@@ -67,7 +69,18 @@ export default {
     }
     if (allowToVote) {
       await existsPollUser(input.pollResultId, input.eventUserId)
-      await insertPollSubmitAnswer(input)
+      const multivoteType = await getMultivoteType(eventId)
+      console.log(input.multivote)
+      if (multivoteType === 2 || input.multivote) {
+        const eventUser = await findOneById(input.eventUserId)
+        const voteCountFromUser = eventUser.voteAmount
+        var index
+        for (index = 1; index <= voteCountFromUser; ++index) {
+          await insertPollSubmitAnswer(input)
+        }
+      } else {
+        await insertPollSubmitAnswer(input)
+      }
       leftAnswersDataSet = await findLeftAnswersCount(input.pollResultId)
       if (cloneAnswerObject.answerItemLength === cloneAnswerObject.answerItemCount) {
         // Again check if there are votes left.
@@ -77,7 +90,7 @@ export default {
         }
       }
     }
-    const eventId = await findEventIdByPollResultId(input.pollResultId)
+
     if (leftAnswersDataSet) {
       // Notify the organizer about the current voted count.
       pubsub.publish('pollAnswerLifeCycle', {
