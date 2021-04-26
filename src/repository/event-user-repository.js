@@ -6,6 +6,8 @@ import {
 } from './../lib/database'
 import { hash } from '../lib/crypto'
 import { getCurrentUnixTimeStamp } from '../lib/time-stamp'
+import { findActivePollByUserId, updatePollResultMaxVotes } from './poll/poll-result-repository'
+import { createPollUserWithPollResultId, existAsPollUserInCurrentVote } from './poll/poll-user-repository'
 
 export async function findOneById (id) {
   const result = await query('SELECT * FROM event_user WHERE id = ?', [id])
@@ -37,6 +39,16 @@ export async function toggleUserOnlineStateByRequestToken (token, online) {
   await query(sql, [online, token])
   // Fetch event user id for further processing.
   const result = await query('SELECT event_user_id FROM jwt_refresh_token WHERE token = ?', [token])
+  const pollResultId = await findActivePollByUserId(result[0].eventUserId)
+  if (pollResultId) {
+    const userExists = await existAsPollUserInCurrentVote(pollResultId.id, result[0].eventUserId)
+    if (userExists === null) {
+      const newPollUser = await createPollUserWithPollResultId(pollResultId.id, result[0].eventUserId)
+      if (newPollUser) {
+        await updatePollResultMaxVotes(pollResultId.id, result[0].eventUserId)
+      }
+    }
+  }
 
   return Array.isArray(result) ? result[0] || null : null
 }
@@ -53,6 +65,7 @@ export async function update (input) {
   if (input.password) {
     input.password = await hash((input.password))
   }
+  input.online = 1
   await updateQuery('event_user', input)
 }
 

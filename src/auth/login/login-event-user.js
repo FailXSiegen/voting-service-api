@@ -18,7 +18,7 @@ async function buildNewEventUserObject (username, password, email, displayName, 
     email: typeof email === 'string' ? email : '',
     publicName: displayName,
     allowToVote: false,
-    online: false,
+    online: true,
     coorganizer: false,
     verified: false,
     eventId
