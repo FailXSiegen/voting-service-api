@@ -26,6 +26,14 @@ export async function findEventIdByPollResultId (pollResultId) {
   return Array.isArray(result) ? result[0].eventId || null : null
 }
 
+export async function getMultivoteType (eventId) {
+  const result = await query(
+    'SELECT event.multivote_type FROM event WHERE event.id = ?',
+    [eventId]
+  )
+  return Array.isArray(result) ? result[0].multivoteType : 1
+}
+
 export async function eventIsActive (eventId) {
   const result = await query(
     'SELECT event.active FROM event WHERE event.id = ?',

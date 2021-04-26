@@ -9,5 +9,8 @@ export default {
   },
   active: async ({ active }) => {
     return active === 1 || active === true
+  },
+  multivoteType: async ({ multivoteType }) => {
+    return parseInt(multivoteType)
   }
 }
