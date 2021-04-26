@@ -75,6 +75,20 @@ export async function findActivePoll (eventId) {
   return Array.isArray(result) ? result[0] || null : null
 }
 
+export async function findActivePollByUserId (eventUserId) {
+  const result = await query(`
+  SELECT
+    poll_result.id AS id
+  FROM poll
+  INNER JOIN poll_result ON poll.id = poll_result.poll_id
+  INNER JOIN event_user ON poll.event_id = event_user.event_id
+  WHERE event_user.id = ? AND poll_result.closed = 0
+  GROUP BY poll.id
+  `,
+  [eventUserId])
+  return Array.isArray(result) ? result[0] || null : null
+}
+
 export async function getPollOverview (eventId) {
   return await query(`
   SELECT
