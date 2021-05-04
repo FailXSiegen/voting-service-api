@@ -65,7 +65,6 @@ export async function update (input) {
   if (input.password) {
     input.password = await hash((input.password))
   }
-  input.online = 1
   await updateQuery('event_user', input)
 }
 
