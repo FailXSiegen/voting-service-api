@@ -3,12 +3,14 @@ import eventUserQueries from './resolver/queries/event-user'
 import pollQueries from './resolver/queries/poll'
 import pollResultQueries from './resolver/queries/poll-result'
 import organizerQueries from './resolver/queries/organizer'
+import zoomMeetingQueries from './resolver/queries/zoom-meeting'
 import organizerMutations from './resolver/mutation/organizer'
 import eventMutations from './resolver/mutation/event'
 import eventUserMutations from './resolver/mutation/event-user'
 import pollMutations from './resolver/mutation/poll'
 import pollAnswerMutations from './resolver/mutation/poll-answer'
 import pollUserVotedMutations from './resolver/mutation/poll-user-voted'
+import zoomMeetingMutations from './resolver/mutation/zoom-meeting'
 import activePollEventUser from './resolver/active-poll-event-user/active-poll-event-user'
 import pollResolvers from './resolver/poll/poll'
 import eventResolvers from './resolver/event/event'
@@ -25,7 +27,8 @@ export default {
     ...eventUserQueries,
     ...pollQueries,
     ...pollResultQueries,
-    ...organizerQueries
+    ...organizerQueries,
+    ...zoomMeetingQueries
   },
   Mutation: {
     ...organizerMutations,
@@ -33,7 +36,8 @@ export default {
     ...pollMutations,
     ...pollAnswerMutations,
     ...eventUserMutations,
-    ...pollUserVotedMutations
+    ...pollUserVotedMutations,
+    ...zoomMeetingMutations
   },
   ActivePollEventUser: {
     ...activePollEventUser

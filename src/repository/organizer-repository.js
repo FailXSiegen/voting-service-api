@@ -8,29 +8,41 @@ import { hash } from '../lib/crypto'
 import { getCurrentUnixTimeStamp } from '../lib/time-stamp'
 import { validateEmail } from '../lib/validator'
 import InvalidEmailFormatError from '../errors/InvalidEmailFormatError'
+import { findByOrganizerId } from './meeting/zoom-meeting-repository'
 
 export async function findOneByEmail (email) {
   const result = await query('SELECT * FROM organizer WHERE email = ?', [email])
-  return Array.isArray(result) ? result[0] || null : null
+  const organizer = Array.isArray(result) ? result[0] || null : null
+  return enrichRelations(organizer)
 }
 
 export async function findOneByUsername (username) {
   const result = await query('SELECT * FROM organizer WHERE username = ?', [username])
-  return Array.isArray(result) ? result[0] || null : null
+  const organizer = Array.isArray(result) ? result[0] || null : null
+  return enrichRelations(organizer)
 }
 
 export async function findOneById (id) {
   const result = await query('SELECT * FROM organizer WHERE id = ?', [id])
-  return Array.isArray(result) ? result[0] || null : null
+  const organizer = Array.isArray(result) ? result[0] || null : null
+  return enrichRelations(organizer)
 }
 
 export async function findOneByHash (hash) {
   const result = await query('SELECT * FROM organizer WHERE hash = ?', [hash])
-  return Array.isArray(result) ? result[0] || null : null
+  const organizer = Array.isArray(result) ? result[0] || null : null
+  return enrichRelations(organizer)
 }
 
 export async function findOrganizers () {
-  return await query('SELECT * FROM organizer')
+  const organizers = await query('SELECT * FROM organizer')
+  if (!Array.isArray(organizers)) {
+    return []
+  }
+  for (let i = 0; i < organizers.length; i++) {
+    organizers[i] = enrichRelations(organizers[i])
+  }
+  return organizers
 }
 
 export async function create (input) {
@@ -55,4 +67,18 @@ export async function update (input) {
 export async function remove (id) {
   await query('DELETE FROM jwt_refresh_token WHERE organizer_id = ?', id)
   return await removeQuery('organizer', id)
+}
+
+async function enrichRelations (organizer) {
+  // First check, if we really received an organizer record.
+  if (organizer === null) {
+    return null
+  }
+  organizer = enrichZoomMeetings(organizer)
+  return organizer
+}
+
+async function enrichZoomMeetings (organizer) {
+  organizer.zoomMeetings = await findByOrganizerId(organizer.id)
+  return organizer
 }

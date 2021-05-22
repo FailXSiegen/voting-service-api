@@ -16,7 +16,7 @@ type Query {
     allUpcomingEvents: [Event]
     # Fetches current organizer.
     organizer(organizerId: ID): Organizer
-     # Fetches a list of all organizers.
+    # Fetches a list of all organizers.
     organizers: [Organizer]
     # Fetches a list of evnet users by event id.
     eventUsers(eventId: ID): [EventUser]
@@ -30,6 +30,8 @@ type Query {
     activePollEventUser(eventId: ID): ActivePollEventUser
     # Fetches all poll results by event id.
     pollResult(eventId: ID, page: Int, pageSize: Int): [PollResult]
+    # Fetches a zoom meeting by id
+    zoomMeeting(id: ID!): ZoomMeeting
 }
 type Mutation {
     # Create a new organizer.
@@ -42,7 +44,7 @@ type Mutation {
     createEvent(input: CreateEventInput!): Event!
     # Creates a new event.
     updateEvent(input: UpdateEventInput!): Event!
-     # removes event.
+    # removes event.
     removeEvent(organizerId: ID!, id: ID!): Boolean
     # Create a new poll.
     createPoll(input: CreateNewPollInput!, instantStart: Boolean!): Poll!
@@ -70,6 +72,12 @@ type Mutation {
     updateUserToParticipant(eventUserId: ID!): EventUser!
     # Create pollUserVoted entry for each voting cycle an eventuser has
     createPollUserVoted(input: PollUserVotedInput!): Boolean
+    # Create a new zoom meeting.
+    createZoomMeeting(input: CreateZoomMeetingInput!): ZoomMeeting!
+    # Update a zoom meeting.
+    updateZoomMeeting(input: UpdateZoomMeetingInput!): ZoomMeeting!
+    # Delete a zoom meeting
+    deleteZoomMeeting(id: ID!): Boolean
 }
 type Subscription {
     # Notifies about user access rights updates.
@@ -96,6 +104,7 @@ type Organizer {
     superAdmin: Boolean!
     verified: Boolean!
     hash: String
+    zoomMeetings: [ZoomMeeting]
 }
 type Event {
     id: ID!
@@ -212,6 +221,14 @@ type Result {
     pollId: ID!
     content: String!
 }
+type ZoomMeeting {
+    id: ID!
+    title: String!
+    apiKey: String!
+    apiSecret: String!
+    meetingId: String!
+    meetingPassword: String
+}
 input PollPossibleAnswerInput {
     content: String!
 }
@@ -312,4 +329,20 @@ input PollUserVotedInput {
     pollResultId: ID!
     eventUserId: ID!
     voteCycle: Int!
+}
+input CreateZoomMeetingInput {
+    organizerId: ID!
+    title: String!
+    apiKey: String!
+    apiSecret: String!
+    meetingId: String!
+    meetingPassword: String
+}
+input UpdateZoomMeetingInput {
+    id: ID!
+    title: String
+    apiKey: String
+    apiSecret: String
+    meetingId: String
+    meetingPassword: String
 }
