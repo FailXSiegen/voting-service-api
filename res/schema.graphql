@@ -7,6 +7,9 @@ enum PollType {
     SECRET
     PUBLIC
 }
+enum VideoConferenceType {
+    ZOOM
+}
 type Query {
     # Fetches a list of upcoming events by organizer id.
     upcomingEvents(organizerId: ID): [Event]
@@ -118,6 +121,7 @@ type Event {
     lobbyOpen: Boolean
     active: Boolean
     multivoteType: Int
+    zoomMeeting: ZoomMeeting
 }
 type EventUser {
     id: ID!
@@ -258,6 +262,7 @@ input CreateEventInput {
     lobbyOpen: Boolean!
     active: Boolean!
     multivoteType: Int!
+    meeting: AbstractMeetingInput
 }
 input UpdateEventInput {
     id: ID!
@@ -268,6 +273,7 @@ input UpdateEventInput {
     lobbyOpen: Boolean!
     active: Boolean!
     multivoteType: Int!
+    meeting: AbstractMeetingInput
 }
 input CreateEventUserInput {
     eventId: ID!
@@ -345,4 +351,8 @@ input UpdateZoomMeetingInput {
     apiSecret: String
     meetingId: String
     meetingPassword: String
+}
+input AbstractMeetingInput {
+    meetingId: ID!
+    meetingType: VideoConferenceType!
 }

@@ -22,6 +22,9 @@ import poolAnswerSubscriptionResolvers
   from './resolver/subscription/poll-answer'
 
 export default {
+  VideoConferenceType: {
+    ZOOM: 1
+  },
   Query: {
     ...eventQueries,
     ...eventUserQueries,
