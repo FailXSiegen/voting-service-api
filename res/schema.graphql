@@ -17,6 +17,8 @@ type Query {
     expiredEvents(organizerId: ID!): [Event]
     # Fetches a list of expired events by organizer id.
     allUpcomingEvents: [Event]
+     # Fetches a list of expired events by organizer id.
+    allPastEvents(page: Int, pageSize: Int): [Event]
     # Fetches current organizer.
     organizer(organizerId: ID): Organizer
     # Fetches a list of all organizers.
@@ -45,9 +47,11 @@ type Mutation {
     deleteOrganizer(id: ID!): Boolean
     # Creates a new event.
     createEvent(input: CreateEventInput!): Event!
-    # Creates a new event.
+    # Updates an event.
     updateEvent(input: UpdateEventInput!): Event!
-    # removes event.
+    # Updates an event status.
+    updateEventStatus(input: UpdateEventStatusInput!): Boolean
+    # Removes an event.
     removeEvent(organizerId: ID!, id: ID!): Boolean
     # Create a new poll.
     createPoll(input: CreateNewPollInput!, instantStart: Boolean!): Poll!
@@ -274,6 +278,10 @@ input UpdateEventInput {
     active: Boolean!
     multivoteType: Int!
     meeting: AbstractMeetingInput
+}
+input UpdateEventStatusInput {
+    id: ID!
+    active: Boolean!
 }
 input CreateEventUserInput {
     eventId: ID!

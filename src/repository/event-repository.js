@@ -66,6 +66,15 @@ export async function findAllUpcomingEvents () {
   )
 }
 
+export async function findAllPastEvents (page, pageSize) {
+  const currentTimestamp = getCurrentUnixTimeStamp()
+  const offset = page * pageSize
+  return await query(
+    'SELECT * FROM event WHERE event.deleted = 0 AND event.scheduled_datetime <= ? ORDER BY event.scheduled_datetime ASC LIMIT ? OFFSET ?',
+    [currentTimestamp, pageSize, offset]
+  )
+}
+
 export async function create (input) {
   const currentTime = getCurrentUnixTimeStamp()
   input.createDatetime = currentTime

@@ -25,6 +25,10 @@ export default {
     await update(input)
     return await findOneBySlug(input.slug)
   },
+  updateEventStatus: async (_, { input }, context) => {
+    await update(input)
+    return true
+  },
   removeEvent: async (_, { organizerId, id }) => {
     return await remove(organizerId, id)
   }
