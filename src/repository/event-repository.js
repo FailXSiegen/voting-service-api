@@ -1,8 +1,7 @@
 import {
   query,
   insert,
-  update as updateQuery,
-  remove as removeQuery
+  update as updateQuery
 } from './../lib/database'
 import { getCurrentUnixTimeStamp } from '../lib/time-stamp'
 
