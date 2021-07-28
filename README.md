@@ -36,6 +36,9 @@ You need to provide a .env file with all required data. Only run scripts from wi
 ### Create SQL schema
 
 ```shell script
+
+npm install -g nodemon
+
 npm run create-schema
 ```
 
