@@ -15,9 +15,9 @@ type Query {
     upcomingEvents(organizerId: ID): [Event]
     # Fetches a list of expired events by organizer id.
     expiredEvents(organizerId: ID!): [Event]
-    # Fetches a list of expired events by organizer id.
+    # Fetches a list of expired events.
     allUpcomingEvents: [Event]
-     # Fetches a list of expired events by organizer id.
+     # Fetches a list of expired events.
     allPastEvents(page: Int, pageSize: Int): [Event]
     # Fetches current organizer.
     organizer(organizerId: ID): Organizer
@@ -266,18 +266,18 @@ input CreateEventInput {
     lobbyOpen: Boolean!
     active: Boolean!
     multivoteType: Int!
-    meeting: AbstractMeetingInput
+    videoConferenceConfig: String
 }
 input UpdateEventInput {
     id: ID!
     title: String!
     slug: String!
     description: String
-    scheduledDatetime: Int!
-    lobbyOpen: Boolean!
-    active: Boolean!
-    multivoteType: Int!
-    meeting: AbstractMeetingInput
+    scheduledDatetime: Int
+    lobbyOpen: Boolean
+    active: Boolean
+    multivoteType: Int
+    videoConferenceConfig: String
 }
 input UpdateEventStatusInput {
     id: ID!
@@ -349,18 +349,10 @@ input CreateZoomMeetingInput {
     title: String!
     apiKey: String!
     apiSecret: String!
-    meetingId: String!
-    meetingPassword: String
 }
 input UpdateZoomMeetingInput {
     id: ID!
     title: String
     apiKey: String
     apiSecret: String
-    meetingId: String
-    meetingPassword: String
-}
-input AbstractMeetingInput {
-    meetingId: ID!
-    meetingType: VideoConferenceType!
 }

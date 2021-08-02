@@ -15,10 +15,30 @@ export default {
   multivoteType: async ({ multivoteType }) => {
     return parseInt(multivoteType)
   },
-  zoomMeeting: async ({ meetingId, meetingType }) => {
-    if (!meetingId || meetingType !== VideoConferenceType.ZOOM) {
+  zoomMeeting: async ({ videoConferenceConfig }) => {
+    if (typeof videoConferenceConfig !== 'string' || videoConferenceConfig.length === 0) {
       return null
     }
-    return await findOneZoomMeetingById(meetingId)
+
+    const config = JSON.parse(videoConferenceConfig)
+
+    if (typeof config.id !== 'number') {
+      return null
+    }
+
+    if (config.type !== VideoConferenceType.ZOOM) {
+      return null
+    }
+
+    const record = await findOneZoomMeetingById(config.id)
+
+    if (record === null) {
+      return null
+    }
+
+    record.meetingId = config.credentials.id ?? ''
+    record.meetingPassword = config.credentials.password ?? ''
+
+    return record
   }
 }

@@ -2,15 +2,18 @@ import { VideoConferenceType } from '../../enum'
 import { findOneById as findOneZoomMeetingById } from '../../repository/meeting/zoom-meeting-repository'
 
 export default async function (event) {
-  switch (event.meetingType) {
+  const config = JSON.parse(event.videoConferenceConfig)
+  switch (config.type) {
     case VideoConferenceType.ZOOM:
-      return await resolveZoomMeeting(event)
+      return await resolveZoomMeeting(event, config)
     default:
       return event
   }
 }
 
-async function resolveZoomMeeting (event) {
-  event.meeting = await findOneZoomMeetingById(event.meetingId)
+async function resolveZoomMeeting (event, config) {
+  event.meeting = await findOneZoomMeetingById(config.id)
+  event.meeting.credentials = config.credentials
+
   return event
 }
