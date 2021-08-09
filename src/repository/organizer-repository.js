@@ -39,9 +39,6 @@ export async function findOrganizers () {
   if (!Array.isArray(organizers)) {
     return []
   }
-  for (let i = 0; i < organizers.length; i++) {
-    organizers[i] = enrichRelations(organizers[i])
-  }
   return organizers
 }
 
