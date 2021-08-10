@@ -234,8 +234,6 @@ type ZoomMeeting {
     title: String!
     apiKey: String!
     apiSecret: String!
-    meetingId: String!
-    meetingPassword: String
 }
 input PollPossibleAnswerInput {
     content: String!
