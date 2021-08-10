@@ -17,7 +17,6 @@ export default {
     if (existingEvent && parseInt(existingEvent.id) !== parseInt(input.id)) {
       throw new SlugAlreadyExistsError()
     }
-    input = convertMeetingInput(input)
     await update(input)
     return await findOneBySlug(input.slug)
   },
@@ -28,27 +27,4 @@ export default {
   removeEvent: async (_, { organizerId, id }) => {
     return await remove(organizerId, id)
   }
-}
-
-function convertMeetingInput (input) {
-  if (!input.meeting) {
-    input.meetingId = 0
-    input.meetingType = 0
-    return input
-  }
-
-  const meetingId = input.meeting.meetingId
-  const meetingType = input.meeting.meetingType
-
-  // Validate input.
-  if (!meetingId || !meetingType) {
-    delete input.meeting
-    input.meetingId = 0
-    input.meetingType = 0
-    return input
-  }
-  delete input.meeting
-  input.meetingId = meetingId
-  input.meetingType = meetingType
-  return input
 }
