@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS event (
     slug varchar(150) DEFAULT '' NOT NULL,
     multivote_type int(4) DEFAULT 1 NOT NULL,
     video_conference_config text,
+    delete_datetime int(11) DEFAULT 0 NOT NULL,
+    delete_planned int(4) DEFAULT 0 NOT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY (slug),
     FOREIGN KEY (organizer_id) REFERENCES organizer (id)
