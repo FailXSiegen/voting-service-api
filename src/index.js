@@ -8,6 +8,7 @@ import cors from 'cors'
 import { formatError } from 'apollo-errors'
 import cookieParser from 'cookie-parser'
 import authenticate from './middleware/authenticate'
+import cleanUp from './request/cleanup'
 import loginRequest from './request/login'
 import loginRefreshRequest from './request/login/refresh'
 import verifySlug from './request/event/verify-slug'
@@ -128,6 +129,9 @@ server.express.get('/logout', async (req, res) => {
 })
 server.express.post('/create', async (req, res) => {
   await createOrganizer(req, res)
+})
+server.express.post('/cleanup', async (req, res) => {
+  await cleanUp(req, res)
 })
 // Start the server.
 server.start(options, ({ port }) => {

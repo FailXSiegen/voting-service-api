@@ -74,6 +74,29 @@ export async function findAllPastEvents (page, pageSize) {
     [currentTimestamp, pageSize, offset]
   )
 }
+export async function findAllExpired () {
+  const timestampExpired = Math.floor(Date.now() / 1000 - (60 * 60 * 24 * 180))
+  return await query(
+    'SELECT * FROM event WHERE scheduled_datetime <= ? AND delete_planned = 0 AND delete_datetime = 0',
+    [timestampExpired]
+  )
+}
+export async function markToDelete () {
+  const timestampExpired = Math.floor(Date.now() / 1000 - (60 * 60 * 24 * 180))
+  const timestampToDelete = Math.floor(Date.now() / 1000 + (60 * 60 * 24 * 3))
+  return await query(
+    'UPDATE event SET delete_planned = 1, delete_datetime = ? WHERE scheduled_datetime <= ? AND delete_planned = 0',
+    [timestampToDelete, timestampExpired]
+  )
+}
+
+export async function findAllMarkedDelete () {
+  const currentTimestamp = getCurrentUnixTimeStamp()
+  return await query(
+    'SELECT * FROM event WHERE delete_planned = 1 AND delete_datetime <= ?',
+    [currentTimestamp]
+  )
+}
 
 export async function create (input) {
   const currentTime = getCurrentUnixTimeStamp()
