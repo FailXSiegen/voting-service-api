@@ -8,7 +8,6 @@ export default {
     if (existingEvent) {
       throw new SlugAlreadyExistsError()
     }
-    input = convertMeetingInput(input)
     await create(input)
     return await findOneBySlug(input.slug)
   },
