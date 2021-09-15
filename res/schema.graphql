@@ -7,18 +7,21 @@ enum PollType {
     SECRET
     PUBLIC
 }
+enum VideoConferenceType {
+    ZOOM
+}
 type Query {
     # Fetches a list of upcoming events by organizer id.
     upcomingEvents(organizerId: ID): [Event]
     # Fetches a list of expired events by organizer id.
     expiredEvents(organizerId: ID!): [Event]
-    # Fetches a list of expired events by organizer id.
+    # Fetches a list of expired events.
     allUpcomingEvents: [Event]
-     # Fetches a list of expired events by organizer id.
+     # Fetches a list of expired events.
     allPastEvents(page: Int, pageSize: Int): [Event]
     # Fetches current organizer.
     organizer(organizerId: ID): Organizer
-     # Fetches a list of all organizers.
+    # Fetches a list of all organizers.
     organizers: [Organizer]
     # Fetches a list of evnet users by event id.
     eventUsers(eventId: ID): [EventUser]
@@ -32,6 +35,8 @@ type Query {
     activePollEventUser(eventId: ID): ActivePollEventUser
     # Fetches all poll results by event id.
     pollResult(eventId: ID, page: Int, pageSize: Int): [PollResult]
+    # Fetches a zoom meeting by id
+    zoomMeeting(id: ID!): ZoomMeeting
 }
 type Mutation {
     # Create a new organizer.
@@ -42,11 +47,11 @@ type Mutation {
     deleteOrganizer(id: ID!): Boolean
     # Creates a new event.
     createEvent(input: CreateEventInput!): Event!
-    # Creates a new event.
+    # Updates an event.
     updateEvent(input: UpdateEventInput!): Event!
-    # Creates a new event.
+    # Updates an event status.
     updateEventStatus(input: UpdateEventStatusInput!): Boolean
-     # removes event.
+    # Removes an event.
     removeEvent(organizerId: ID!, id: ID!): Boolean
     # Create a new poll.
     createPoll(input: CreateNewPollInput!, instantStart: Boolean!): Poll!
@@ -74,6 +79,12 @@ type Mutation {
     updateUserToParticipant(eventUserId: ID!): EventUser!
     # Create pollUserVoted entry for each voting cycle an eventuser has
     createPollUserVoted(input: PollUserVotedInput!): Boolean
+    # Create a new zoom meeting.
+    createZoomMeeting(input: CreateZoomMeetingInput!): ZoomMeeting!
+    # Update a zoom meeting.
+    updateZoomMeeting(input: UpdateZoomMeetingInput!): ZoomMeeting!
+    # Delete a zoom meeting
+    deleteZoomMeeting(id: ID!): Boolean
 }
 type Subscription {
     # Notifies about user access rights updates.
@@ -100,6 +111,7 @@ type Organizer {
     superAdmin: Boolean!
     verified: Boolean!
     hash: String
+    zoomMeetings: [ZoomMeeting]
 }
 type Event {
     id: ID!
@@ -113,6 +125,7 @@ type Event {
     lobbyOpen: Boolean
     active: Boolean
     multivoteType: Int
+    zoomMeeting: ZoomMeeting
 }
 type EventUser {
     id: ID!
@@ -216,6 +229,12 @@ type Result {
     pollId: ID!
     content: String!
 }
+type ZoomMeeting {
+    id: ID!
+    title: String!
+    apiKey: String!
+    apiSecret: String!
+}
 input PollPossibleAnswerInput {
     content: String!
 }
@@ -245,16 +264,18 @@ input CreateEventInput {
     lobbyOpen: Boolean!
     active: Boolean!
     multivoteType: Int!
+    videoConferenceConfig: String
 }
 input UpdateEventInput {
     id: ID!
     title: String!
     slug: String!
     description: String
-    scheduledDatetime: Int!
-    lobbyOpen: Boolean!
-    active: Boolean!
-    multivoteType: Int!
+    scheduledDatetime: Int
+    lobbyOpen: Boolean
+    active: Boolean
+    multivoteType: Int
+    videoConferenceConfig: String
 }
 input UpdateEventStatusInput {
     id: ID!
@@ -320,4 +341,16 @@ input PollUserVotedInput {
     pollResultId: ID!
     eventUserId: ID!
     voteCycle: Int!
+}
+input CreateZoomMeetingInput {
+    organizerId: ID!
+    title: String!
+    apiKey: String!
+    apiSecret: String!
+}
+input UpdateZoomMeetingInput {
+    id: ID!
+    title: String
+    apiKey: String
+    apiSecret: String
 }

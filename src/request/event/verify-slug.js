@@ -1,4 +1,5 @@
 import { findOneBySlug } from '../../repository/event-repository'
+import resolveMeeting from './meeting-resolver'
 
 export default async function verifySlug (req, res) {
   res.setHeader('content-type', 'application/json')
@@ -7,10 +8,11 @@ export default async function verifySlug (req, res) {
     if (!requestArguments.slug) {
       throw new Error('Missing slug')
     }
-    const event = await findOneBySlug(requestArguments.slug)
+    let event = await findOneBySlug(requestArguments.slug)
     if (event === null) {
       throw new Error('slug not found')
     }
+    event = await resolveMeeting(event)
     res.send(JSON.stringify({
       event,
       success: true
