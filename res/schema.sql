@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS event (
     image_path varchar(255) DEFAULT '' NOT NULL,
     slug varchar(150) DEFAULT '' NOT NULL,
     multivote_type int(4) DEFAULT 1 NOT NULL,
+    video_conference_config text,
     delete_datetime int(11) DEFAULT 0 NOT NULL,
     delete_planned int(4) DEFAULT 0 NOT NULL,
     PRIMARY KEY (id),
@@ -124,4 +125,13 @@ CREATE TABLE IF NOT EXISTS jwt_refresh_token (
     create_datetime int(11) DEFAULT 0,
     PRIMARY KEY (id),
     FOREIGN KEY (organizer_id) REFERENCES organizer (id)
+);
+CREATE TABLE IF NOT EXISTS zoom_meeting (
+    id int(11) NOT NULL AUTO_INCREMENT,
+    title varchar(255) DEFAULT '' NOT NULL,
+    organizer_id int(11) DEFAULT NULL,
+    api_key varchar(255) DEFAULT '' NOT NULL,
+    api_secret varchar(255) DEFAULT '' NOT NULL,
+    PRIMARY KEY (id),
+    FOREIGN KEY (organizer_id) REFERENCES organizer(id)
 );
