@@ -1,21 +1,25 @@
-import { withFilter } from 'graphql-subscriptions'
+import { pubsub } from '../../../index'
+import { filter, pipe } from '@graphql-yoga/node'
 
 export default {
   updateEventUserAccessRights: {
-    subscribe: withFilter(
-      (parent, { eventId }, { pubsub }) => pubsub.asyncIterator('updateEventUserAccessRights'),
-      (payload, variables) => {
-        if (!variables.eventUserId) {
-          return true // Allow organizers to get notified without eventUserId variable.
-        }
-        return payload.updateEventUserAccessRights.eventUserId === parseInt(variables.eventUserId)
-      }
-    )
+    subscribe: (_, args) =>
+      pipe(
+        pubsub.subscribe('updateEventUserAccessRights'),
+        filter((payload) => {
+          if (!args.eventUserId) {
+            return true // Allow organizers to get notified without eventUserId variable.
+          }
+          return parseInt(payload.eventUserId) === parseInt(args.eventUserId)
+        })
+      ),
+    resolve: (payload) => payload
   },
   newEventUser: {
-    subscribe (parent, args, { pubsub }) {
-      return pubsub.asyncIterator('newEventUser')
-    }
+    subscribe: () => {
+      return pubsub.subscribe('newEventUser')
+    },
+    resolve: (payload) => payload
   },
   eventUserLifeCycle: {
     // @TODO add filter

@@ -1,35 +1,45 @@
-import { findOneById, findOneByUsernameAndEventId, update, create, remove } from '../../../repository/event-user-repository'
+// import { findOneById, findOneByUsernameAndEventId, update, create, remove } from '../../../repository/event-user-repository'
+import { findOneById, update, remove } from '../../../repository/event-user-repository'
+import { pubsub } from '../../../index'
 
 export default {
-  createEventUser: async (_, args, { pubsub }) => {
-    const eventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
-    if (eventUser) {
-      throw new Error('EventUser already exists')
+  createEventUser: async (_, args) => {
+    const name = (Math.random() + 1).toString(36).substring(7)
+    const testUser = {
+      id: 123,
+      publicName: 'Dummy',
+      verified: true,
+      allowToVote: true,
+      online: true,
+      username: name,
+      voteAmount: 3,
+      eventId: 234
     }
-    await create(args.input)
-    const newEventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
+    // const eventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
+    // if (eventUser) {
+    //   throw new Error('EventUser already exists')
+    // }
+    // await create(args.input)
+    // const newEventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
     pubsub.publish('newEventUser', {
-      newEventUser: {
-        ...newEventUser
-      }
+      ...testUser
     })
-    return newEventUser
+
+    return testUser
   },
-  updateEventUser: async (_, args, { pubsub }) => {
+  updateEventUser: async (_, args) => {
     let eventUser = await findOneById(args.input.id)
     if (!eventUser) {
       throw new Error('EventUser not found')
     }
-    await update(args.input)
+    // await update(args.input)
     eventUser = await findOneById(args.input.id)
     pubsub.publish('updateEventUserAccessRights', {
-      updateEventUserAccessRights: {
-        eventId: eventUser.eventId,
-        eventUserId: eventUser.id,
-        verified: eventUser.verified,
-        allowToVote: eventUser.allowToVote,
-        voteAmount: eventUser.voteAmount
-      }
+      eventId: eventUser.eventId,
+      eventUserId: eventUser.id,
+      verified: eventUser.verified,
+      allowToVote: eventUser.allowToVote,
+      voteAmount: eventUser.voteAmount
     })
     return eventUser
   },
