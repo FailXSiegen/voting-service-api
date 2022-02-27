@@ -1,40 +1,32 @@
-// import { findOneById, findOneByUsernameAndEventId, update, create, remove } from '../../../repository/event-user-repository'
-import { findOneById, update, remove } from '../../../repository/event-user-repository'
+import {
+  findOneById,
+  findOneByUsernameAndEventId,
+  update,
+  create,
+  remove
+} from '../../../repository/event-user-repository'
 import { pubsub } from '../../../index'
+import { UPDATE_EVENT_USER_ACCESS_RIGHTS, NEW_EVENT_USER } from '../subscription/subscription-types'
 
 export default {
   createEventUser: async (_, args) => {
-    const name = (Math.random() + 1).toString(36).substring(7)
-    const testUser = {
-      id: 123,
-      publicName: 'Dummy',
-      verified: true,
-      allowToVote: true,
-      online: true,
-      username: name,
-      voteAmount: 3,
-      eventId: 234
+    const eventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
+    if (eventUser) {
+      throw new Error('EventUser already exists')
     }
-    // const eventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
-    // if (eventUser) {
-    //   throw new Error('EventUser already exists')
-    // }
-    // await create(args.input)
-    // const newEventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
-    pubsub.publish('newEventUser', {
-      ...testUser
-    })
-
-    return testUser
+    await create(args.input)
+    const newEventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId)
+    pubsub.publish(NEW_EVENT_USER, { ...newEventUser })
+    return newEventUser
   },
-  updateEventUser: async (_, args) => {
-    let eventUser = await findOneById(args.input.id)
+  updateEventUser: async (_, { input }) => {
+    let eventUser = await findOneById(input.id)
     if (!eventUser) {
       throw new Error('EventUser not found')
     }
-    // await update(args.input)
-    eventUser = await findOneById(args.input.id)
-    pubsub.publish('updateEventUserAccessRights', {
+    await update(input)
+    eventUser = await findOneById(input.id)
+    pubsub.publish(UPDATE_EVENT_USER_ACCESS_RIGHTS, {
       eventId: eventUser.eventId,
       eventUserId: eventUser.id,
       verified: eventUser.verified,
@@ -43,31 +35,28 @@ export default {
     })
     return eventUser
   },
-  updateUserToGuest: async (_, args, { pubsub }) => {
-    const eventUser = await findOneById(args.eventUserId)
+  updateUserToGuest: async (_, { eventUserId }) => {
+    const eventUser = await findOneById(eventUserId)
     if (!eventUser) {
       throw new Error('EventUser not found')
     }
-
     // Define guest access rights.
     eventUser.verified = true
     eventUser.allowToVote = false
     eventUser.voteAmount = 0
     delete eventUser.password
     await update(eventUser)
-    pubsub.publish('updateEventUserAccessRights', {
-      updateEventUserAccessRights: {
-        eventId: eventUser.eventId,
-        eventUserId: eventUser.id,
-        verified: eventUser.verified,
-        allowToVote: eventUser.allowToVote,
-        voteAmount: eventUser.voteAmount
-      }
+    pubsub.publish(UPDATE_EVENT_USER_ACCESS_RIGHTS, {
+      eventId: eventUser.eventId,
+      eventUserId: eventUser.id,
+      verified: eventUser.verified,
+      allowToVote: eventUser.allowToVote,
+      voteAmount: eventUser.voteAmount
     })
     return eventUser
   },
-  updateUserToParticipant: async (_, args, { pubsub }) => {
-    const eventUser = await findOneById(args.eventUserId)
+  updateUserToParticipant: async (_, { eventUserId }) => {
+    const eventUser = await findOneById(eventUserId)
     if (!eventUser) {
       throw new Error('EventUser not found')
     }
@@ -77,22 +66,20 @@ export default {
     eventUser.voteAmount = 1
     delete eventUser.password
     await update(eventUser)
-    pubsub.publish('updateEventUserAccessRights', {
-      updateEventUserAccessRights: {
-        eventId: eventUser.eventId,
-        eventUserId: eventUser.id,
-        verified: eventUser.verified,
-        allowToVote: eventUser.allowToVote,
-        voteAmount: eventUser.voteAmount
-      }
+    pubsub.publish(UPDATE_EVENT_USER_ACCESS_RIGHTS, {
+      eventId: eventUser.eventId,
+      eventUserId: eventUser.id,
+      verified: eventUser.verified,
+      allowToVote: eventUser.allowToVote,
+      voteAmount: eventUser.voteAmount
     })
     return eventUser
   },
-  deleteEventUser: async (_, args, context) => {
-    const existingUser = await findOneById(args.eventUserId)
+  deleteEventUser: async (_, { eventUserId }) => {
+    const existingUser = await findOneById(eventUserId)
     if (!existingUser) {
       throw new Error('EventUser not found')
     }
-    return await remove(parseInt(args.eventUserId))
+    return await remove(parseInt(eventUserId))
   }
 }

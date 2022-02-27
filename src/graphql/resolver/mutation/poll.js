@@ -7,9 +7,11 @@ import {
 } from '../../../repository/poll/poll-result-repository'
 import { create as createPollUser } from '../../../repository/poll/poll-user-repository'
 import { findOnlineEventUserByEventId } from '../../../repository/event-user-repository'
+import { pubsub } from '../../../index'
+import { POLL_LIFE_CYCLE } from '../subscription/subscription-types'
 
 export default {
-  createPoll: async (_, args, { pubsub }) => {
+  createPoll: async (_, args) => {
     const poll = args.input
     const possibleAnswers = args.input.possibleAnswers
     delete poll.possibleAnswers
@@ -21,19 +23,17 @@ export default {
     if (args.instantStart) {
       const pollResultId = await createPollDependencies(pollRecord)
       if (pollResultId) {
-        pubsub.publish('pollLifeCycle', {
-          pollLifeCycle: {
-            eventId: poll.eventId,
-            state: 'new',
-            poll: pollRecord,
-            pollResultId: pollResultId
-          }
+        pubsub.publish(POLL_LIFE_CYCLE, {
+          eventId: poll.eventId,
+          state: 'new',
+          poll: pollRecord,
+          pollResultId: pollResultId
         })
       }
     }
     return pollRecord
   },
-  updatePoll: async (_, args, { pubsub }) => {
+  updatePoll: async (_, args) => {
     const poll = args.input
     const possibleAnswers = args.input.possibleAnswers
     delete poll.possibleAnswers
@@ -46,37 +46,33 @@ export default {
     if (args.instantStart) {
       const pollResultId = await createPollDependencies(pollRecord)
       if (pollResultId) {
-        pubsub.publish('pollLifeCycle', {
-          pollLifeCycle: {
-            eventId: poll.eventId,
-            state: 'new',
-            poll: pollRecord,
-            pollResultId: pollResultId
-          }
+        pubsub.publish(POLL_LIFE_CYCLE, {
+          eventId: poll.eventId,
+          state: 'new',
+          poll: pollRecord,
+          pollResultId: pollResultId
         })
       }
     }
     return pollRecord
   },
-  startPoll: async (_, { id }, { pubsub }) => {
+  startPoll: async (_, { id }) => {
     const poll = await findOneById(id)
     if (poll === null) {
       throw new Error(`Poll with id ${id} not found!`)
     }
     const pollResultId = await createPollDependencies(poll)
     if (pollResultId) {
-      pubsub.publish('pollLifeCycle', {
-        pollLifeCycle: {
-          eventId: poll.eventId,
-          state: 'new',
-          poll,
-          pollResultId
-        }
+      pubsub.publish(POLL_LIFE_CYCLE, {
+        eventId: poll.eventId,
+        state: 'new',
+        poll,
+        pollResultId
       })
     }
     return poll
   },
-  stopPoll: async (_, { id }, { pubsub }) => {
+  stopPoll: async (_, { id }) => {
     const pollResult = await findOnePollResultById(id)
     if (pollResult === null) {
       throw new Error(`Poll result with id ${id} not found!`)
@@ -86,16 +82,14 @@ export default {
       throw new Error(`Poll with id ${pollResult.pollId} not found!`)
     }
     await closePollResult(id)
-    pubsub.publish('pollLifeCycle', {
-      pollLifeCycle: {
-        eventId: poll.eventId,
-        state: 'closed'
-      }
+    pubsub.publish(POLL_LIFE_CYCLE, {
+      eventId: poll.eventId,
+      state: 'closed'
     })
     return true
   },
-  removePoll: async (_, args, context) => {
-    return await removePoll(args.id)
+  removePoll: async (_, { id }) => {
+    return await removePoll(id)
   }
 }
 
