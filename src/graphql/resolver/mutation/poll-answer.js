@@ -17,15 +17,15 @@ import {
 } from '../../../repository/poll/poll-user-repository'
 import { findEventIdByPollResultId, getMultivoteType } from '../../../repository/event-repository'
 import { findOneById } from '../../../repository/event-user-repository'
+import { pubsub } from '../../../index'
+import { POLL_ANSWER_LIFE_CYCLE, POLL_LIFE_CYCLE } from '../subscription/subscription-types'
 
-async function publishPollLifeCycle (pubsub, pollResultId) {
+async function publishPollLifeCycle (pollResultId) {
   await closePollResult(pollResultId)
   const eventId = await findEventIdByPollResultId(pollResultId)
-  pubsub.publish('pollLifeCycle', {
-    pollLifeCycle: {
-      eventId: eventId,
-      state: 'closed'
-    }
+  pubsub.publish(POLL_LIFE_CYCLE, {
+    eventId: eventId,
+    state: 'closed'
   })
 }
 
@@ -51,7 +51,7 @@ async function existsPollUser (pollResultId, eventUserId) {
 }
 
 export default {
-  createPollSubmitAnswer: async (_, { input }, { pubsub }) => {
+  createPollSubmitAnswer: async (_, { input }) => {
     const cloneAnswerObject = {}
     const eventId = await findEventIdByPollResultId(input.pollResultId)
     Object.assign(cloneAnswerObject, input)
@@ -62,7 +62,7 @@ export default {
     if (cloneAnswerObject.answerItemLength === cloneAnswerObject.answerItemCount) {
       leftAnswersDataSet = await findLeftAnswersCount(input.pollResultId)
       if (leftAnswersDataSet === null) {
-        await publishPollLifeCycle(pubsub, input.pollResultId)
+        await publishPollLifeCycle(input.pollResultId)
         return false
       }
       allowToVote = await existsPollUserVoted(input.pollResultId, input.eventUserId, input.voteCycle)
@@ -73,7 +73,7 @@ export default {
       if (multivoteType === 2 || input.multivote) {
         const eventUser = await findOneById(input.eventUserId)
         const voteCountFromUser = eventUser.voteAmount
-        var index
+        let index
         for (index = 1; index <= voteCountFromUser; ++index) {
           await insertPollSubmitAnswer(input)
         }
@@ -84,7 +84,7 @@ export default {
       if (cloneAnswerObject.answerItemLength === cloneAnswerObject.answerItemCount) {
         // Again check if there are votes left.
         if (leftAnswersDataSet === null) {
-          await publishPollLifeCycle(pubsub, input.pollResultId)
+          await publishPollLifeCycle(input.pollResultId)
           return true
         }
       }
@@ -92,11 +92,9 @@ export default {
 
     if (leftAnswersDataSet) {
       // Notify the organizer about the current voted count.
-      pubsub.publish('pollAnswerLifeCycle', {
-        pollAnswerLifeCycle: {
-          ...leftAnswersDataSet,
-          eventId: eventId
-        }
+      pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
+        ...leftAnswersDataSet,
+        eventId: eventId
       })
     }
     return true
