@@ -7,7 +7,7 @@ import {
 } from '../../../repository/poll/poll-result-repository'
 import { create as createPollUser } from '../../../repository/poll/poll-user-repository'
 import { findOnlineEventUserByEventId } from '../../../repository/event-user-repository'
-import { pubsub } from '../../../index'
+import { pubsub } from '../../../server/graphql'
 import { POLL_LIFE_CYCLE } from '../subscription/subscription-types'
 
 export default {

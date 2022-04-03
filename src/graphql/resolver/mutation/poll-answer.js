@@ -17,7 +17,7 @@ import {
 } from '../../../repository/poll/poll-user-repository'
 import { findEventIdByPollResultId, getMultivoteType } from '../../../repository/event-repository'
 import { findOneById } from '../../../repository/event-user-repository'
-import { pubsub } from '../../../index'
+import { pubsub } from '../../../server/graphql'
 import { POLL_ANSWER_LIFE_CYCLE, POLL_LIFE_CYCLE } from '../subscription/subscription-types'
 
 async function publishPollLifeCycle (pollResultId) {

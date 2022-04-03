@@ -39,6 +39,11 @@ export async function toggleUserOnlineStateByRequestToken (token, online) {
   await query(sql, [online, token])
   // Fetch event user id for further processing.
   const result = await query('SELECT event_user_id FROM jwt_refresh_token WHERE token = ?', [token])
+
+  if (!result) {
+    return
+  }
+
   const pollResultId = await findActivePollByUserId(result[0].eventUserId)
   if (pollResultId) {
     const userExists = await existAsPollUserInCurrentVote(pollResultId.id, result[0].eventUserId)

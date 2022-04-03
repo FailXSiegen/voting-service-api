@@ -1,6 +1,6 @@
 import { extractCookieValueByHeader } from '../lib/cookie-from-string-util'
 import { query } from '../lib/database'
-import { pubsub } from '../index'
+import { pubsub } from '../server/graphql'
 import { EVENT_USER_LIFE_CYCLE } from '../graphql/resolver/subscription/subscription-types'
 
 export default async function logoutRequest (req, res) {
