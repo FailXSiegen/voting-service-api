@@ -5,7 +5,7 @@ import {
   create,
   remove
 } from '../../../repository/event-user-repository'
-import { pubsub } from '../../../index'
+import { pubsub } from '../../../server/graphql'
 import { UPDATE_EVENT_USER_ACCESS_RIGHTS, NEW_EVENT_USER } from '../subscription/subscription-types'
 
 export default {

@@ -1,4 +1,4 @@
-import { pubsub } from '../../../index'
+import { pubsub } from '../../../server/graphql'
 import { filter, pipe } from '@graphql-yoga/node'
 import { POLL_LIFE_CYCLE } from './subscription-types'
 

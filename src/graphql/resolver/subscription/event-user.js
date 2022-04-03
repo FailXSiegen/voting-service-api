@@ -1,4 +1,4 @@
-import { pubsub } from '../../../index'
+import { pubsub } from '../../../server/graphql'
 import { filter, pipe } from '@graphql-yoga/node'
 import { UPDATE_EVENT_USER_ACCESS_RIGHTS, NEW_EVENT_USER, EVENT_USER_LIFE_CYCLE } from './subscription-types'
 
@@ -22,8 +22,7 @@ export default {
     resolve: (payload) => payload
   },
   [EVENT_USER_LIFE_CYCLE]: {
-    // @TODO add filter
-    subscribe (parent, args, { pubsub }) {
+    subscribe () {
       return pubsub.asyncIterator(EVENT_USER_LIFE_CYCLE)
     },
     resolve: (payload) => payload
