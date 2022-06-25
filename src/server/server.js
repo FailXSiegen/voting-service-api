@@ -15,7 +15,11 @@ export default function () {
   const app = express()
 
   // Add middlewares.
-  app.use(cors({ credentials: true, origin: process.env.CORS_ORIGIN }))
+  app.use(cors({
+    credentials: true,
+    origin: process.env.CORS_ORIGIN,
+    methods: ['GET', 'POST']
+  }))
   app.use((req, res, next) => {
     context.req = req
     next()
@@ -26,7 +30,7 @@ export default function () {
   // Additional routes.
   addStandaloneRequests(app)
 
-  app.use('/graphql', graphQlserver.requestListener)
+  app.use('/graphql', graphQlserver)
 
   app.get('/sse', sse)
 
@@ -36,7 +40,7 @@ export default function () {
     console.log('----------------------------')
     console.log('Voting service API')
     console.log('----------------------------')
-    console.log(`Running API at http://localhost:${options.port}/graphql`)
+    console.log(`Running API at https://localhost:${options.port}/graphql`)
   })
 }
 
