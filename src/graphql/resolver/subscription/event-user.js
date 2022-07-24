@@ -22,7 +22,7 @@ export default {
     resolve: (payload) => payload
   },
   [EVENT_USER_LIFE_CYCLE]: {
-    subscribe () {
+    subscribe: async function* (_) {
       return pubsub.asyncIterator(EVENT_USER_LIFE_CYCLE)
     },
     resolve: (payload) => payload

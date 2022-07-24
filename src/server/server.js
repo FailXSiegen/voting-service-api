@@ -4,14 +4,14 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { query } from '../lib/database'
-import * as http from 'http'
-import sse from './sse'
+// import * as http from 'http'
 import addStandaloneRequests from './standalone-requests'
-import { context, graphQlserver, options } from './graphql'
+import { context, graphQlserver, options, schema } from './graphql'
+import { createHandler } from 'graphql-sse';
 
 export default function () {
   resetEventUserOnlineState()
-
+  const sseHandler = createHandler({ schema });
   const app = express()
 
   // Add middlewares.
@@ -29,18 +29,19 @@ export default function () {
 
   // Additional routes.
   addStandaloneRequests(app)
-
+  app.use('/sse', sseHandler);
   app.use('/graphql', graphQlserver)
 
-  app.get('/sse', sse)
+  // app.get('/sse', sse)
 
-  const server = http.createServer(app)
+  // const server = http.createServer(app)
 
-  server.listen(options.port, () => {
+  app.listen(options.port, () => {
     console.log('----------------------------')
     console.log('Voting service API')
     console.log('----------------------------')
-    console.log(`Running API at https://localhost:${options.port}/graphql`)
+    console.log(`Running API at http://localhost:${options.port}/graphql`)
+    console.log(`Running API at http://localhost:${options.port}/sse`)
   })
 }
 

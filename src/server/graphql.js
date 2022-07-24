@@ -19,7 +19,7 @@ export const options = {
   plugins: [useExtendContext(() => ({ pubsub }))],
 }
 
-const schema = makeExecutableSchema({
+export const schema = makeExecutableSchema({
   typeDefs,
   resolvers,
   resolverValidationOptions: {},
