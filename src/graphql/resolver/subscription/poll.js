@@ -14,5 +14,12 @@ export default {
       })
     ),
     resolve: (payload) => payload
+  },
+  greetings: {
+    subscribe: async function* () {
+      for (const hi of ['Hi', 'Bonjour', 'Hola', 'Ciao', 'Zdravo']) {
+        yield { greetings: hi }
+      }
+    }
   }
 }
