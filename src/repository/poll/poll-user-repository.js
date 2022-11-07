@@ -47,9 +47,15 @@ export async function createPollUserWithPollResultId (pollResultId, eventUserId)
   SELECT event_user.public_name, event_user.username FROM event_user WHERE event_user.id = ? AND event_user.verified = 1 AND event_user.allow_to_vote = 1
   `, [eventUserId])
   if (Array.isArray(userInformation)) {
+    const userAlreadyExists = await query(`
+      SELECT * FROM poll_result WHERE  poll_user.event_user_id = ? AND poll_user.poll_id = ?;
+    `, [eventUserId, pollResultId])
+    if (Array.isArray(userAlreadyExists)) {
+      return false
+    }
     await query(`
     INSERT INTO poll_user (event_user_id, public_name, username, poll_id, create_datetime)
-    SELECT ?, ?, ?, poll_result.poll_id, ? FROM poll_result WHERE poll_result.id = ?
+    SELECT ?, ?, ?, poll_result.poll_id, ? FROM poll_result WHERE poll_result.id = ?;
   `, [eventUserId, userInformation[0].publicName, userInformation[0].username, createDatetime, pollResultId])
     return true
   }
