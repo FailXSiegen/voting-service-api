@@ -1,6 +1,7 @@
 import { pubsub } from '../../../server/graphql'
-import { filter, pipe } from '@graphql-yoga/node'
+import { filter, pipe } from 'graphql-yoga'
 import { UPDATE_EVENT_USER_ACCESS_RIGHTS, NEW_EVENT_USER, EVENT_USER_LIFE_CYCLE } from './subscription-types'
+import { re } from '@babel/core/lib/vendor/import-meta-resolve'
 
 export default {
   [UPDATE_EVENT_USER_ACCESS_RIGHTS]: {
@@ -22,9 +23,14 @@ export default {
     resolve: (payload) => payload
   },
   [EVENT_USER_LIFE_CYCLE]: {
-    subscribe: async function* (_) {
-      return pubsub.asyncIterator(EVENT_USER_LIFE_CYCLE)
+    subscribe: () => {
+      console.log('EVENT_USER_LIFE_CYCLE subscribe')
+      return pubsub.subscribe(EVENT_USER_LIFE_CYCLE)
     },
-    resolve: (payload) => payload
+    resolve: (payload) => {
+      console.log('EVENT_USER_LIFE_CYCLE payload')
+
+      return payload
+    }
   }
 }
