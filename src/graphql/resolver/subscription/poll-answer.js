@@ -1,6 +1,6 @@
-import { pubsub } from '../../../index'
-import { filter, pipe } from '@graphql-yoga/node'
+import { filter, pipe } from 'graphql-yoga'
 import { POLL_ANSWER_LIFE_CYCLE } from './subscription-types'
+import { pubsub } from '../../../server/graphql'
 
 export default {
   [POLL_ANSWER_LIFE_CYCLE]: {

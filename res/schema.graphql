@@ -97,8 +97,6 @@ type Subscription {
     eventUserLifeCycle: EventUserLifeCyclePayload!
     # Notifies about the count of left poll answers.
     pollAnswerLifeCycle(eventId: ID): PollAnswerLifeCyclePayLoad!
-
-    greetings: String!
 }
 type Organizer {
     id: ID!

@@ -1,5 +1,5 @@
 import { pubsub } from '../../../server/graphql'
-import { filter, pipe } from '@graphql-yoga/node'
+import { filter, pipe } from 'graphql-yoga'
 import { POLL_LIFE_CYCLE } from './subscription-types'
 
 export default {
@@ -13,13 +13,8 @@ export default {
         return parseInt(payload.eventId) === parseInt(args.eventId)
       })
     ),
-    resolve: (payload) => payload
-  },
-  greetings: {
-    subscribe: async function* () {
-      for (const hi of ['Hi', 'Bonjour', 'Hola', 'Ciao', 'Zdravo']) {
-        yield { greetings: hi }
-      }
+    resolve: (payload) => {
+      return payload
     }
   }
 }

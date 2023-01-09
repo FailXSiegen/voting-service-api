@@ -2,22 +2,9 @@ import { makeExecutableSchema } from '@graphql-tools/schema'
 import typeDefs from '../../res/schema.graphql'
 import resolvers from '../graphql/resolvers'
 import authenticate from '../middleware/authenticate'
-import { createServer, useExtendContext, createPubSub } from '@graphql-yoga/node'
+import { createYoga, useExtendContext, createPubSub } from 'graphql-yoga'
 
-
-
-// Configure and create the server instance.
 export const pubsub = createPubSub()
-
-
-export const options = {
-  port: process.env.APP_PORT,
-  hostname: process.env.APP_DOMAIN,
-  // endpoint: process.env.GRAPHQL_ENDPOINT, // new yoga version does not like this option
-  logging: true,
-  maskedErrors: false,
-  plugins: [useExtendContext(() => ({ pubsub }))],
-}
 
 export const schema = makeExecutableSchema({
   typeDefs,
@@ -29,8 +16,16 @@ export const schema = makeExecutableSchema({
 
 export const context = { pubsub }
 
-export const graphQlserver = createServer({
+export const yoga = createYoga({
   schema,
   authenticate,
-  ...options
+  port: process.env.APP_PORT,
+  hostname: process.env.APP_DOMAIN,
+  logging: true,
+  maskedErrors: false,
+  plugins: [useExtendContext(() => ({ pubsub }))],
+  graphqlEndpoint: process.env.GRAPHQL_ENDPOINT,
+  graphiql: {
+    subscriptionsProtocol: 'WS'
+  }
 })
