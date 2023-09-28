@@ -24,12 +24,9 @@ export default {
   },
   [EVENT_USER_LIFE_CYCLE]: {
     subscribe: () => {
-      console.log('EVENT_USER_LIFE_CYCLE subscribe')
       return pubsub.subscribe(EVENT_USER_LIFE_CYCLE)
     },
     resolve: (payload) => {
-      console.log('EVENT_USER_LIFE_CYCLE payload')
-
       return payload
     }
   }

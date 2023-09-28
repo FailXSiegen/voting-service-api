@@ -12,6 +12,8 @@ enum VideoConferenceType {
 }
 type Query {
     # Fetches a list of upcoming events by organizer id.
+    event(id: ID!, organizerId: ID!): Event
+    # Fetches a list of upcoming events by organizer id.
     upcomingEvents(organizerId: ID): [Event]
     # Fetches a list of expired events by organizer id.
     expiredEvents(organizerId: ID!): [Event]
@@ -37,6 +39,8 @@ type Query {
     pollResult(eventId: ID, page: Int, pageSize: Int): [PollResult]
     # Fetches a zoom meeting by id
     zoomMeeting(id: ID!): ZoomMeeting
+    # Fetches a poll by  id.
+    poll(id: ID): Poll
 }
 type Mutation {
     # Create a new organizer.
@@ -126,6 +130,7 @@ type Event {
     active: Boolean
     multivoteType: Int
     zoomMeeting: ZoomMeeting
+    videoConferenceConfig: String
 }
 type EventUser {
     id: ID!
@@ -136,6 +141,7 @@ type EventUser {
     username: String!
     voteAmount: Int!
     eventId: ID!
+    createDatetime: Int!
 }
 type EventUserAccessRights {
     eventId: ID!
@@ -234,6 +240,8 @@ type ZoomMeeting {
     title: String!
     apiKey: String!
     apiSecret: String!
+    meetingId: String
+    password: String
 }
 input PollPossibleAnswerInput {
     content: String!

@@ -1,7 +1,5 @@
 import loginOrganizer from '../auth/login/login-organizer'
 import loginEventUser from '../auth/login/login-event-user'
-// import { pubsub } from '../server/graphql'
-// import { EVENT_USER_LIFE_CYCLE } from '../graphql/resolver/subscription/subscription-types'
 
 export default async function loginRequest (req, res) {
   res.setHeader('content-type', 'application/json')
@@ -18,10 +16,6 @@ export default async function loginRequest (req, res) {
         break
       case 'event-user':
         result = await loginEventUser(requestArguments)
-        // pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-        //   online: true,
-        //   eventUserId: result.decodedToken.user.id
-        // })
         break
       default:
         throw new Error('Invalid loginTyp')

@@ -1,6 +1,15 @@
-import { findExpired, findUpcoming, findAllUpcomingEvents, findAllPastEvents } from '../../../repository/event-repository'
+import {
+  findExpired,
+  findUpcoming,
+  findAllUpcomingEvents,
+  findAllPastEvents,
+  findById
+} from '../../../repository/event-repository'
 
 export default {
+  event: async (_, { id, organizerId }, context) => {
+    return await findById(id, organizerId)
+  },
   upcomingEvents: async (_, args, context) => {
     return await findUpcoming(args.organizerId)
   },

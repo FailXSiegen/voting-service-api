@@ -10,6 +10,7 @@ import mailer from '../../../lib/email-util'
 export default {
   updateOrganizer: async (_, args, context) => {
     const existingUser = await findOneById(args.input.id)
+    const origin = context.request.headers.get('origin')
     if (!existingUser) {
       throw new RecordNotFoundError()
     }
@@ -25,7 +26,7 @@ export default {
         ctx: {
           username: updatedUser.username,
           publicname: updatedUser.publicname,
-          host: process.env.CORS_ORIGIN,
+          host: origin,
           organisation: process.env.MAIL_ORGANISATION,
           adminmail: process.env.MAIL_ADMIN_EMAIL,
           dataprotection: process.env.MAIL_LINK_DATAPROTECTION,

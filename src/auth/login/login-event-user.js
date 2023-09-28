@@ -10,6 +10,8 @@ import { addRefreshToken } from './refresh-token'
 import { verify } from '../../lib/crypto'
 import AuthenticationError from '../../errors/AuthenticationError'
 import { eventIsActive } from '../../repository/event-repository'
+import { pubsub } from '../../server/graphql'
+import { EVENT_USER_LIFE_CYCLE, NEW_EVENT_USER } from '../../graphql/resolver/subscription/subscription-types'
 
 async function buildNewEventUserObject (username, password, email, displayName, eventId) {
   return {
@@ -39,6 +41,11 @@ export default async function loginEventUser ({ username, password, email, displ
       if (eventUser === null) {
         throw new Error('Could not create new user!')
       }
+
+      // Notify subscribers for new event user.
+      pubsub.publish(NEW_EVENT_USER, {
+        ...eventUser
+      })
     } else {
       let isAuthenticated = false
       if (eventUser.password === '') {
@@ -61,7 +68,17 @@ export default async function loginEventUser ({ username, password, email, displ
         delete eventUser.password
         await update(eventUser)
       }
+
+      // Notify subscribers for updated event user.
+      pubsub.publish(EVENT_USER_LIFE_CYCLE, {
+        online: true,
+        eventUserId: eventUser.id
+      })
     }
+
+    // Update user as online.
+    await update({ id: eventUser.id, online: true })
+
     // Create jwt and refresh token.
     const refreshToken = await addRefreshToken('event-user', eventUser.id)
     const claims = {

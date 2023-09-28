@@ -1,5 +1,5 @@
 import { findOneByUsername } from '../../repository/organizer-repository'
-import { verify, hash } from '../../lib/crypto'
+import { verify } from '../../lib/crypto'
 
 export default async function verifyPassword (username, password) {
   const organizer = await findOneByUsername(username)
@@ -8,7 +8,6 @@ export default async function verifyPassword (username, password) {
   }
   const isAuthenticated = await verify(password, organizer.password)
   if (!isAuthenticated) {
-    console.log('Does not match: ' + await hash(password))
     return false
   }
   return true
