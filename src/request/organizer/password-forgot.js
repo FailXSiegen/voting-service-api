@@ -1,14 +1,16 @@
 import { findOneByUsername } from '../../repository/organizer-repository'
 import { generateAndSetOrganizerHash } from '../../lib/organizer/optin-util'
 import mailer from '../../lib/email-util'
+import RecordNotFoundError from '../../errors/RecordNotFoundError'
 
 export default async function requestPasswordForgot (req, res) {
   res.setHeader('content-type', 'application/json')
   try {
+    const origin = req.get('origin')
     const data = req.body
     const organizer = await findOneByUsername(data.username)
     if (organizer === null) {
-      throw new Error('organizer with the following username already exists: ' + data.username)
+      throw new RecordNotFoundError('organizer with the following username does not exist: ' + data.username)
     }
     const hash = await generateAndSetOrganizerHash(organizer)
     await mailer.sendMail({
@@ -18,9 +20,9 @@ export default async function requestPasswordForgot (req, res) {
       subject: 'Passwort wiederherstellen für digitalwahl.org',
       template: 'request-new-password',
       ctx: {
-        host: process.env.CORS_ORIGIN,
+        host: origin,
         hash: hash,
-        link: process.env.MAIL_LINK + '/password-forgot/' + hash,
+        link: origin + '/passwort-aendern/' + hash,
         organisation: process.env.MAIL_ORGANISATION,
         adminmail: process.env.MAIL_ADMIN_EMAIL,
         dataprotection: process.env.MAIL_LINK_DATAPROTECTION,
@@ -33,7 +35,7 @@ export default async function requestPasswordForgot (req, res) {
     }))
   } catch (error) {
     res.send(JSON.stringify({
-      error: error.message,
+      error: error,
       success: false
     }))
   }

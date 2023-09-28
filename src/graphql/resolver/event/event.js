@@ -22,9 +22,12 @@ export default {
 
     const config = JSON.parse(videoConferenceConfig)
 
-    if (typeof config.id !== 'number') {
+    if (!config?.id || !config?.type) {
       return null
     }
+
+    config.id = parseInt(config.id, 10)
+    config.type = parseInt(config.type, 10)
 
     if (config.type !== VideoConferenceType.ZOOM) {
       return null

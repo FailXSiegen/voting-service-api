@@ -5,6 +5,11 @@ import {
 } from './../lib/database'
 import { getCurrentUnixTimeStamp } from '../lib/time-stamp'
 
+export async function findById (id, organizerId) {
+  const result = await query('SELECT * FROM event WHERE id = ?  AND organizer_id = ? AND deleted = 0', [id, organizerId])
+  return Array.isArray(result) ? result[0] || null : null
+}
+
 export async function findOneBySlug (slug) {
   const result = await query('SELECT * FROM event WHERE slug = ?  AND deleted = 0', [slug])
   return Array.isArray(result) ? result[0] || null : null
@@ -60,7 +65,7 @@ export async function findExpired (organizerId) {
 export async function findAllUpcomingEvents () {
   const currentTimestamp = getCurrentUnixTimeStamp()
   return await query(
-    'SELECT * FROM event WHERE event.deleted = 0 AND event.active = 1 AND event.scheduled_datetime > ? ORDER BY event.scheduled_datetime ASC',
+    'SELECT * FROM event WHERE event.deleted = 0 AND event.scheduled_datetime > ? ORDER BY event.scheduled_datetime ASC',
     [currentTimestamp]
   )
 }

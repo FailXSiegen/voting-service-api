@@ -5,6 +5,7 @@ import mailer from '../lib/email-util'
 export default async function cleanUp (req, res) {
   res.setHeader('content-type', 'application/json')
   try {
+    const origin = req.get('origin')
     const expiredEvents = await findAllExpired()
     if (expiredEvents !== null) {
       for (const event of expiredEvents) {
@@ -18,7 +19,7 @@ export default async function cleanUp (req, res) {
           ctx: {
             username: organizer.username,
             eventname: event.title,
-            host: process.env.CORS_ORIGIN,
+            host: origin,
             organisation: process.env.MAIL_ORGANISATION,
             adminmail: process.env.MAIL_ADMIN_EMAIL,
             dataprotection: process.env.MAIL_LINK_DATAPROTECTION,

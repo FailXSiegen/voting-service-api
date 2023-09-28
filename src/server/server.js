@@ -11,6 +11,7 @@ import { useServer } from 'graphql-ws/lib/use/ws'
 import { createServer } from 'node:http'
 import { extractCookieValueByHeader } from '../lib/cookie-from-string-util'
 import { toggleUserOnlineStateByRequestToken } from '../repository/event-user-repository'
+import authenticate from '../middleware/authenticate'
 
 export default function () {
   resetEventUserOnlineState()
@@ -21,20 +22,24 @@ export default function () {
   // Add middlewares.
   app.use(cors({
     credentials: true,
-    origin: process.env.CORS_ORIGIN,
+    origin: function (origin, callback) {
+      // We allow all origins to access this server for now.
+      return callback(null, origin)
+    },
     methods: ['GET', 'POST']
   }))
   app.use((req, res, next) => {
     context.req = req
     next()
   })
+  app.use(authenticate)
   app.use(cookieParser(process.env.COOKIE_SIGN_SECRET))
   app.use(express.json())
 
   // Additional routes.
   addStandaloneRequests(app)
 
-  app.use('/graphql', yoga)
+  app.use(process.env.GRAPHQL_ENDPOINT, yoga)
 
   const wsServer = new WebSocketServer({
     server: server,
@@ -76,19 +81,25 @@ export default function () {
         if (!ctx.extra.request.headers.cookie) {
           return
         }
-        const token = extractCookieValueByHeader(ctx.extra.request.headers.cookie,
-          'refreshToken')
+
+        const token = extractCookieValueByHeader(ctx.extra.request.headers.cookie, 'refreshToken')
         if (token === null) {
           return
         }
+
         const tokenRecord = await toggleUserOnlineStateByRequestToken(token, true)
         if (!tokenRecord) {
           return
         }
-        pubsub.publish('eventUserLifeCycle', {
-          online: true,
-          eventUserId: tokenRecord.eventUserId
-        })
+
+        if (tokenRecord.eventUserId) {
+          console.log(tokenRecord, ' eventUserLifeCycle')
+
+          pubsub.publish('eventUserLifeCycle', {
+            online: true,
+            eventUserId: tokenRecord.eventUserId
+          })
+        }
       },
       onDisconnect: async (ctx) => {
         console.log('[INFO] User disconnected!')
@@ -99,15 +110,16 @@ export default function () {
         if (token === null) {
           return
         }
-        const tokenRecord = await toggleUserOnlineStateByRequestToken(token,
-          false)
+        const tokenRecord = await toggleUserOnlineStateByRequestToken(token, false)
         if (!tokenRecord) {
           return
         }
-        pubsub.publish('eventUserLifeCycle', {
-          online: false,
-          eventUserId: tokenRecord.eventUserId
-        })
+        if (tokenRecord.eventUserId) {
+          pubsub.publish('eventUserLifeCycle', {
+            online: false,
+            eventUserId: tokenRecord.eventUserId
+          })
+        }
       }
     },
     wsServer
