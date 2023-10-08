@@ -23,6 +23,10 @@ import { POLL_ANSWER_LIFE_CYCLE, POLL_LIFE_CYCLE } from '../subscription/subscri
 async function publishPollLifeCycle (pollResultId) {
   await closePollResult(pollResultId)
   const eventId = await findEventIdByPollResultId(pollResultId)
+  if (!eventId) {
+    console.warn('Could not execute publishPollLifeCycle. Missing "eventId" or "pollResultId"', { pollResultId, eventId })
+    return
+  }
   pubsub.publish(POLL_LIFE_CYCLE, {
     eventId: eventId,
     state: 'closed'

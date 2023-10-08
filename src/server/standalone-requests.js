@@ -38,7 +38,7 @@ export default function (app) {
   app.get('/logout', async (req, res) => {
     await logoutRequest(req, res)
   })
-  app.post('/create', async (req, res) => {
+  app.post('/organizer/create', async (req, res) => {
     await createOrganizer(req, res)
   })
   app.post('/cleanup', async (req, res) => {
