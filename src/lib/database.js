@@ -36,7 +36,7 @@ export async function baseQuery (sql, params) {
 
 export async function query (sql, params) {
   const result = await baseQuery(sql, params)
-  return result.length > 0 ? humps.camelizeKeys(result) : null
+  return result?.length > 0 ? humps.camelizeKeys(result) : null
 }
 
 export async function insert (table, input) {
