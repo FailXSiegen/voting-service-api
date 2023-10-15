@@ -2,6 +2,7 @@ require('dotenv/config')
 const parseArgs = require('minimist')
 const mysql = require('promise-mysql')
 const humps = require('humps')
+const argon2 = require('argon2')
 
 const config = {
   host: process.env.DATABSE_HOST,
@@ -37,6 +38,8 @@ const config = {
   if (organizer.publicName === null) {
     console.error('Missing argument value of "--public-name".')
   }
+  organizer.password = await argon2.hash((organizer.password))
+
   const input = humps.decamelizeKeys(organizer)
   const properties = []
   const values = []
