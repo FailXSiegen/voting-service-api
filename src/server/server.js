@@ -43,7 +43,7 @@ export default function () {
 
   const wsServer = new WebSocketServer({
     server: server,
-    path: process.env.GRAPHQL_ENDPOINT
+    path: process.env.WEBSOCKET_ENDPOINT
   })
 
   // Integrate Yoga's Envelop instance and NodeJS server with graphql-ws
@@ -130,7 +130,7 @@ export default function () {
     console.log('Voting service API')
     console.log('----------------------------')
     console.log(`Running API Server at http://localhost:${process.env.APP_PORT}${process.env.GRAPHQL_ENDPOINT}`)
-    console.log(`Running WS Server at ws://localhost:${process.env.APP_PORT}${process.env.GRAPHQL_ENDPOINT}`)
+    console.log(`Running WS Server at ws://localhost:${process.env.APP_PORT}${process.env.WEBSOCKET_ENDPOINT}`)
   })
 }
 

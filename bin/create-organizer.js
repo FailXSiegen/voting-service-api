@@ -39,6 +39,10 @@ const config = {
     console.error('Missing argument value of "--public-name".')
   }
   organizer.password = await argon2.hash((organizer.password))
+  organizer.confirmedEmail = true
+  organizer.superAdmin = true
+  organizer.verified = true
+  organizer.createDatetime = Math.floor(Date.now() / 1000)
 
   const input = humps.decamelizeKeys(organizer)
   const properties = []
