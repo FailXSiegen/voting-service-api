@@ -1,19 +1,37 @@
 CREATE TABLE IF NOT EXISTS organizer (
-    id int(11) NOT NULL AUTO_INCREMENT,
+    id INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     username varchar(255) DEFAULT '' NOT NULL,
     email varchar(255) DEFAULT '' NOT NULL,
-    password varchar(255) DEFAULT '' NOT NULL,
+    `password` varchar(255) DEFAULT '' NOT NULL,
     public_name varchar(255) DEFAULT '' NOT NULL,
     public_organisation varchar(255) DEFAULT '' NOT NULL,
     confirmed_email tinyint(2) DEFAULT 0 NOT NULL,
     super_admin tinyint(2) DEFAULT 0 NOT NULL,
     verified tinyint(2) DEFAULT 0 NOT NULL,
-    hash varchar(255) DEFAULT '' NOT NULL,
-    PRIMARY KEY (id)
+    `hash` varchar(255) DEFAULT '' NOT NULL
 );
-CREATE TABLE IF NOT EXISTS event (
-    id int(11) NOT NULL AUTO_INCREMENT,
+
+CREATE TABLE IF NOT EXISTS jwt_refresh_token (
+    id INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
+    token varchar(255) DEFAULT '' NOT NULL,
+    organizer_id int(11) DEFAULT NULL,
+    event_user_id int(11) DEFAULT NULL,
+    create_datetime int(11) DEFAULT 0,
+    FOREIGN KEY (organizer_id) REFERENCES organizer (id)
+);
+
+CREATE TABLE IF NOT EXISTS zoom_meeting (
+    id INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
+    title varchar(255) DEFAULT '' NOT NULL,
+    organizer_id int(11) DEFAULT NULL,
+    api_key varchar(255) DEFAULT '' NOT NULL,
+    api_secret varchar(255) DEFAULT '' NOT NULL,
+    FOREIGN KEY (organizer_id) REFERENCES organizer(id)
+);
+
+CREATE TABLE IF NOT EXISTS `event` (
+    id INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
     organizer_id int(11) DEFAULT 0 NOT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     modified_datetime int(11) DEFAULT 0 NOT NULL,
@@ -24,17 +42,16 @@ CREATE TABLE IF NOT EXISTS event (
     deleted tinyint(2) DEFAULT 0 NOT NULL,
     description text,
     image_path varchar(255) DEFAULT '' NOT NULL,
-    slug varchar(150) DEFAULT '' NOT NULL,
+    slug varchar(150) UNIQUE DEFAULT '' NOT NULL,
     multivote_type int(4) DEFAULT 1 NOT NULL,
     video_conference_config text,
     delete_datetime int(11) DEFAULT 0 NOT NULL,
     delete_planned int(4) DEFAULT 0 NOT NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY (slug),
     FOREIGN KEY (organizer_id) REFERENCES organizer (id)
 );
+
 CREATE TABLE IF NOT EXISTS poll (
-    id int(11) NOT NULL AUTO_INCREMENT,
+    id INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
     event_id int(11) DEFAULT 0 NOT NULL,
     original_id int(11) DEFAULT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
@@ -46,12 +63,12 @@ CREATE TABLE IF NOT EXISTS poll (
     min_votes int(11) DEFAULT 0 NOT NULL,
     max_votes int(11) DEFAULT 1 NOT NULL,
     allow_abstain tinyint(2) DEFAULT 0 NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (event_id) REFERENCES event (id),
+    FOREIGN KEY (event_id) REFERENCES `event` (id),
     FOREIGN KEY (original_id) REFERENCES poll (id)
 );
+
 CREATE TABLE IF NOT EXISTS event_user (
-    id int(11) NOT NULL AUTO_INCREMENT,
+    id INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
     event_id int(11) DEFAULT 0 NOT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     username varchar(255) DEFAULT '' NOT NULL,
@@ -63,75 +80,56 @@ CREATE TABLE IF NOT EXISTS event_user (
     online tinyint(2) DEFAULT 0 NOT NULL,
     coorganizer tinyint(2) DEFAULT 0 NOT NULL,
     verified tinyint(2) DEFAULT 0 NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (event_id) REFERENCES event (id)
+    FOREIGN KEY (event_id) REFERENCES `event` (id)
 );
+
 CREATE TABLE IF NOT EXISTS poll_user (
-    id int(11) NOT NULL AUTO_INCREMENT,
+    id INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
     event_user_id int(11) DEFAULT 0 NOT NULL,
     public_name varchar(255) DEFAULT '' NOT NULL,
     username varchar(255) DEFAULT '' NOT NULL,
     poll_id int(11) DEFAULT 0 NOT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
-    PRIMARY KEY (id),
     FOREIGN KEY (poll_id) REFERENCES poll (id)
 );
+
 CREATE TABLE IF NOT EXISTS poll_possible_answer (
-    id int(11) NOT NULL AUTO_INCREMENT,
+    id INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
     poll_id int(11) DEFAULT 0 NOT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
     content varchar(255) DEFAULT '' NOT NULL,
-    PRIMARY KEY (id),
     FOREIGN KEY (poll_id) REFERENCES poll (id)
 );
+
 CREATE TABLE IF NOT EXISTS poll_result (
-    id int(11) NOT NULL AUTO_INCREMENT,
+    id INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
     poll_id int(11) DEFAULT 0 NOT NULL,
     max_votes int(11) DEFAULT 0 NOT NULL,
     max_vote_cycles int(11) DEFAULT 0 NOT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
-    type tinyint(2) DEFAULT 0 NOT NULL,
+    `type` tinyint(2) DEFAULT 0 NOT NULL,
     closed tinyint(2) DEFAULT 0 NOT NULL,
-    PRIMARY KEY (id),
     FOREIGN KEY (poll_id) REFERENCES poll (id)
 );
+
 CREATE TABLE IF NOT EXISTS poll_answer (
-    id int(11) NOT NULL AUTO_INCREMENT,
+    id INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
     poll_result_id int(11) DEFAULT 0 NOT NULL,
     poll_possible_answer_id int(11) NULL,
     answer_content varchar(255) DEFAULT '' NOT NULL,
     poll_user_id int(11) NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
-    PRIMARY KEY (id),
     FOREIGN KEY (poll_result_id) REFERENCES poll_result (id),
     FOREIGN KEY (poll_possible_answer_id) REFERENCES poll_possible_answer (id),
     FOREIGN KEY (poll_user_id) REFERENCES poll_user (id)
 );
+
 CREATE TABLE IF NOT EXISTS poll_user_voted (
-    id int(11) NOT NULL AUTO_INCREMENT,
+    id INTEGER PRIMARY KEY /*!40101 AUTO_INCREMENT */,
     poll_result_id int(11) DEFAULT 0 NOT NULL,
     event_user_id int(11) DEFAULT 0 NOT NULL,
     username varchar(255) DEFAULT '' NOT NULL,
     vote_cycle INT(11) DEFAULT 0 NOT NULL,
     create_datetime int(11) DEFAULT 0 NOT NULL,
-    PRIMARY KEY (id),
     FOREIGN KEY (poll_result_id) REFERENCES poll_result (id)
-);
-CREATE TABLE IF NOT EXISTS jwt_refresh_token (
-    id int(11) NOT NULL AUTO_INCREMENT,
-    token varchar(255) DEFAULT '' NOT NULL,
-    organizer_id int(11) DEFAULT NULL,
-    event_user_id int(11) DEFAULT NULL,
-    create_datetime int(11) DEFAULT 0,
-    PRIMARY KEY (id),
-    FOREIGN KEY (organizer_id) REFERENCES organizer (id)
-);
-CREATE TABLE IF NOT EXISTS zoom_meeting (
-    id int(11) NOT NULL AUTO_INCREMENT,
-    title varchar(255) DEFAULT '' NOT NULL,
-    organizer_id int(11) DEFAULT NULL,
-    api_key varchar(255) DEFAULT '' NOT NULL,
-    api_secret varchar(255) DEFAULT '' NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (organizer_id) REFERENCES organizer(id)
 );

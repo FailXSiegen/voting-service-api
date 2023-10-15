@@ -1,0 +1,11 @@
+DROP TABLE organizer;
+DROP TABLE `event`;
+DROP TABLE poll;
+DROP TABLE event_user;
+DROP TABLE poll_user;
+DROP TABLE poll_possible_answer;
+DROP TABLE poll_result;
+DROP TABLE poll_answer;
+DROP TABLE poll_user_voted;
+DROP TABLE jwt_refresh_token;
+DROP TABLE zoom_meeting;
