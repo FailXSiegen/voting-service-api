@@ -1,27 +1,42 @@
 import {
   insert,
   update as updateQuery,
-  remove as removeQuery, query
-} from './../../lib/database'
-import { getCurrentUnixTimeStamp } from '../../lib/time-stamp'
+  remove as removeQuery,
+  query,
+} from "./../../lib/database";
+import { getCurrentUnixTimeStamp } from "../../lib/time-stamp";
 
-export async function findOneById (id) {
-  const result = await query('SELECT * FROM poll_result WHERE id = ?', [id])
-  return Array.isArray(result) ? result[0] || null : null
+export async function findOneById(id) {
+  const result = await query("SELECT * FROM poll_result WHERE id = ?", [id]);
+  return Array.isArray(result) ? result[0] || null : null;
 }
 
-export async function updatePollResultMaxVotes (pollResultId, eventUserId) {
-  const maxVotes = await query('SELECT vote_amount FROM event_user WHERE id = ?', [eventUserId])
+export async function findOneByPollId(pollId) {
+  const result = await query("SELECT * FROM poll_result WHERE poll_id = ?", [
+    pollId,
+  ]);
+  return Array.isArray(result) ? result[0] || null : null;
+}
+
+export async function updatePollResultMaxVotes(pollResultId, eventUserId) {
+  const maxVotes = await query(
+    "SELECT vote_amount FROM event_user WHERE id = ?",
+    [eventUserId],
+  );
   if (!Array.isArray(maxVotes) || maxVotes[0].voteAmount === 0) {
-    return false
+    return false;
   }
-  await query('UPDATE poll_result SET max_votes = max_votes + ?,  max_vote_cycles = max_vote_cycles + ? WHERE id = ?', [maxVotes[0].voteAmount, maxVotes[0].voteAmount, pollResultId])
-  return true
+  await query(
+    "UPDATE poll_result SET max_votes = max_votes + ?,  max_vote_cycles = max_vote_cycles + ? WHERE id = ?",
+    [maxVotes[0].voteAmount, maxVotes[0].voteAmount, pollResultId],
+  );
+  return true;
 }
 
-export async function findClosedPollResults (eventId, page, pageSize) {
-  const offset = page * pageSize
-  return await query(`
+export async function findClosedPollResults(eventId, page, pageSize) {
+  const offset = page * pageSize;
+  return await query(
+    `
     SELECT poll_result.*
     FROM poll_result
     INNER JOIN poll ON poll.id = poll_result.poll_id
@@ -30,11 +45,13 @@ export async function findClosedPollResults (eventId, page, pageSize) {
     ORDER BY create_datetime DESC
     LIMIT ? OFFSET ?
   `,
-  [eventId, true, pageSize, offset])
+    [eventId, true, pageSize, offset],
+  );
 }
 
-export async function findLeftAnswersCount (pollResultId) {
-  const result = await query(`
+export async function findLeftAnswersCount(pollResultId) {
+  const result = await query(
+    `
     SELECT poll_result.id as poll_result_id,
     poll_result.max_votes AS max_votes,
     poll_result.max_vote_cycles AS max_vote_cycles,
@@ -46,19 +63,19 @@ export async function findLeftAnswersCount (pollResultId) {
     WHERE poll_result.id = ?
     GROUP BY poll_result_id
     HAVING poll_answers_count < max_votes AND poll_user_vote_cycles < max_vote_cycles
-  `, [pollResultId])
-  return Array.isArray(result) ? result[0] || null : null
+  `,
+    [pollResultId],
+  );
+  return Array.isArray(result) ? result[0] || null : null;
 }
 
-export async function closePollResult (id) {
-  await query(
-    'UPDATE poll_result SET closed = ? WHERE id = ?',
-    [1, id]
-  )
+export async function closePollResult(id) {
+  await query("UPDATE poll_result SET closed = ? WHERE id = ?", [1, id]);
 }
 
-export async function findActivePoll (eventId) {
-  const result = await query(`
+export async function findActivePoll(eventId) {
+  const result = await query(
+    `
   SELECT
     poll_result.id AS id,
     poll.title AS title,
@@ -71,12 +88,14 @@ export async function findActivePoll (eventId) {
   WHERE poll.event_id = ? AND poll_result.closed = 0
   GROUP BY poll.id
   `,
-  [eventId])
-  return Array.isArray(result) ? result[0] || null : null
+    [eventId],
+  );
+  return Array.isArray(result) ? result[0] || null : null;
 }
 
-export async function findActivePollByUserId (eventUserId) {
-  const result = await query(`
+export async function findActivePollByUserId(eventUserId) {
+  const result = await query(
+    `
   SELECT
     poll_result.id AS id
   FROM poll
@@ -85,12 +104,14 @@ export async function findActivePollByUserId (eventUserId) {
   WHERE event_user.id = ? AND poll_result.closed = 0
   GROUP BY poll.id
   `,
-  [eventUserId])
-  return Array.isArray(result) ? result[0] || null : null
+    [eventUserId],
+  );
+  return Array.isArray(result) ? result[0] || null : null;
 }
 
-export async function getPollOverview (eventId) {
-  return await query(`
+export async function getPollOverview(eventId) {
+  return await query(
+    `
   SELECT
     poll.id, 
     poll.title, 
@@ -104,11 +125,13 @@ export async function getPollOverview (eventId) {
     INNER JOIN poll_result ON poll_result.poll_id = poll.id
     WHERE poll.event_id = ?
   `,
-  [eventId])
+    [eventId],
+  );
 }
 
-export async function getPollResults (eventId) {
-  return await query(`
+export async function getPollResults(eventId) {
+  return await query(
+    `
     SELECT
     poll.id,
     poll.title AS Abstimmung,
@@ -120,11 +143,13 @@ export async function getPollResults (eventId) {
     WHERE poll.event_id = ?
     GROUP BY poll_result.id, poll_answer.answer_content
   `,
-  [eventId])
+    [eventId],
+  );
 }
 
-export async function getPollResultsDetails (eventId) {
-  return await query(`
+export async function getPollResultsDetails(eventId) {
+  return await query(
+    `
     SELECT
     poll.id,
     poll.title AS Abstimmung,
@@ -137,11 +162,13 @@ export async function getPollResultsDetails (eventId) {
     LEFT JOIN poll_user ON poll_user.id = poll_answer.poll_user_id
     WHERE poll.event_id = ?
   `,
-  [eventId])
+    [eventId],
+  );
 }
 
-export async function getEventUsersWithVoteCount (eventId) {
-  return await query(`
+export async function getEventUsersWithVoteCount(eventId) {
+  return await query(
+    `
   SELECT
   poll_user.public_name AS Person,
   poll_user.username AS Benutzername,
@@ -152,31 +179,34 @@ export async function getEventUsersWithVoteCount (eventId) {
   WHERE poll.event_id = ?
   GROUP BY poll_user.event_user_id 
   `,
-  [eventId])
+    [eventId],
+  );
 }
 
-export async function findActivePollEventUser (eventId) {
-  const result = await query(`
+export async function findActivePollEventUser(eventId) {
+  const result = await query(
+    `
   SELECT 'new' AS state, poll.id AS poll, poll_result.id AS poll_result_id
   FROM poll
   INNER JOIN poll_result ON poll.id = poll_result.poll_id
   WHERE poll.event_id = ? AND poll_result.closed = 0
   GROUP BY poll.id
   `,
-  [eventId])
-  return Array.isArray(result) ? result[0] || null : null
+    [eventId],
+  );
+  return Array.isArray(result) ? result[0] || null : null;
 }
 
-export async function create (input) {
-  input.createDatetime = getCurrentUnixTimeStamp()
-  return await insert('poll_result', input)
+export async function create(input) {
+  input.createDatetime = getCurrentUnixTimeStamp();
+  return await insert("poll_result", input);
 }
 
-export async function update (input) {
-  input.modifiedDatetime = getCurrentUnixTimeStamp()
-  await updateQuery('poll_result', input)
+export async function update(input) {
+  input.modifiedDatetime = getCurrentUnixTimeStamp();
+  await updateQuery("poll_result", input);
 }
 
-export async function remove (id) {
-  return await removeQuery('poll_result', id)
+export async function remove(id) {
+  return await removeQuery("poll_result", id);
 }
