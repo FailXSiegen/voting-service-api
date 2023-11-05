@@ -1,0 +1,1 @@
+DROP TABLE `event_user_auth_token`;

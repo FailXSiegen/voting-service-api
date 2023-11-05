@@ -1,116 +1,128 @@
-import { create as createPoll, remove as removePoll, update as updatePoll, findOneById } from '../../../repository/poll/poll-repository'
-import { create as createPossibleAnswer } from '../../../repository/poll/poll-possible-answer-repository'
+import {
+  create as createPoll,
+  remove as removePoll,
+  update as updatePoll,
+  findOneById,
+} from "../../../repository/poll/poll-repository";
+import { create as createPossibleAnswer } from "../../../repository/poll/poll-possible-answer-repository";
 import {
   closePollResult,
   create as createPollResult,
-  findOneById as findOnePollResultById
-} from '../../../repository/poll/poll-result-repository'
-import { create as createPollUser } from '../../../repository/poll/poll-user-repository'
-import { findOnlineEventUserByEventId } from '../../../repository/event-user-repository'
-import { pubsub } from '../../../server/graphql'
-import { POLL_LIFE_CYCLE } from '../subscription/subscription-types'
+  findOneById as findOnePollResultById,
+} from "../../../repository/poll/poll-result-repository";
+import { create as createPollUser } from "../../../repository/poll/poll-user-repository";
+import { findOnlineEventUserByEventId } from "../../../repository/event-user-repository";
+import { pubsub } from "../../../server/graphql";
+import { POLL_LIFE_CYCLE } from "../subscription/subscription-types";
 
 export default {
   createPoll: async (_, args) => {
-    const poll = args.input
-    const possibleAnswers = args.input.possibleAnswers
-    delete poll.possibleAnswers
-    const pollId = await createPoll(poll)
+    const poll = args.input;
+    const possibleAnswers = args.input.possibleAnswers;
+    delete poll.possibleAnswers;
+    const pollId = await createPoll(poll);
     for await (const answerInput of possibleAnswers) {
-      await createPossibleAnswer({ pollId, content: answerInput.content })
+      await createPossibleAnswer({ pollId, content: answerInput.content });
     }
-    const pollRecord = await findOneById(pollId)
+    const pollRecord = await findOneById(pollId);
     if (args.instantStart) {
-      const pollResultId = await createPollDependencies(pollRecord)
+      const pollResultId = await createPollDependencies(pollRecord);
       if (pollResultId) {
         pubsub.publish(POLL_LIFE_CYCLE, {
           eventId: poll.eventId,
-          state: 'new',
+          state: "new",
           poll: pollRecord,
-          pollResultId: pollResultId
-        })
+          pollResultId: pollResultId,
+        });
       }
     }
-    return pollRecord
+    return pollRecord;
   },
   updatePoll: async (_, args) => {
-    const poll = args.input
-    const possibleAnswers = args.input.possibleAnswers
-    delete poll.possibleAnswers
-    const pollId = poll.id
-    await updatePoll(poll)
+    const poll = args.input;
+    const possibleAnswers = args.input.possibleAnswers;
+    delete poll.possibleAnswers;
+    const pollId = poll.id;
+    await updatePoll(poll);
     for await (const answerInput of possibleAnswers) {
-      await createPossibleAnswer({ pollId, content: answerInput.content })
+      await createPossibleAnswer({ pollId, content: answerInput.content });
     }
-    const pollRecord = await findOneById(pollId)
+    const pollRecord = await findOneById(pollId);
     if (args.instantStart) {
-      const pollResultId = await createPollDependencies(pollRecord)
+      const pollResultId = await createPollDependencies(pollRecord);
       if (pollResultId) {
         pubsub.publish(POLL_LIFE_CYCLE, {
           eventId: poll.eventId,
-          state: 'new',
+          state: "new",
           poll: pollRecord,
-          pollResultId: pollResultId
-        })
+          pollResultId: pollResultId,
+        });
       }
     }
-    return pollRecord
+    return pollRecord;
   },
   startPoll: async (_, { id }) => {
-    const poll = await findOneById(id)
+    const poll = await findOneById(id);
     if (poll === null) {
-      throw new Error(`Poll with id ${id} not found!`)
+      throw new Error(`Poll with id ${id} not found!`);
     }
-    const pollResultId = await createPollDependencies(poll)
+    const pollResultId = await createPollDependencies(poll);
     if (pollResultId) {
       pubsub.publish(POLL_LIFE_CYCLE, {
         eventId: poll.eventId,
-        state: 'new',
+        state: "new",
         poll,
-        pollResultId
-      })
+        pollResultId,
+      });
     }
-    return poll
+    return poll;
   },
   stopPoll: async (_, { id }) => {
-    const pollResult = await findOnePollResultById(id)
+    const pollResult = await findOnePollResultById(id);
     if (pollResult === null) {
-      throw new Error(`Poll result with id ${id} not found!`)
+      throw new Error(`Poll result with id ${id} not found!`);
     }
-    const poll = await findOneById(pollResult.pollId)
+    const poll = await findOneById(pollResult.pollId);
     if (poll === null) {
-      throw new Error(`Poll with id ${pollResult.pollId} not found!`)
+      throw new Error(`Poll with id ${pollResult.pollId} not found!`);
     }
-    await closePollResult(id)
+    await closePollResult(id);
     pubsub.publish(POLL_LIFE_CYCLE, {
       eventId: poll.eventId,
-      state: 'closed'
-    })
-    return true
+      state: "closed",
+    });
+    return true;
   },
   removePoll: async (_, { id }) => {
-    return await removePoll(id)
-  }
-}
+    return await removePoll(id);
+  },
+};
 
-async function createPollDependencies (pollRecord) {
-  let maxPollVotes = 0
-  const onlineEventUsers = await findOnlineEventUserByEventId(pollRecord.eventId)
+async function createPollDependencies(pollRecord) {
+  let maxPollVotes = 0;
+  const onlineEventUsers = await findOnlineEventUserByEventId(
+    pollRecord.eventId,
+  );
   if (onlineEventUsers === null) {
-    throw new Error('No online users found!')
+    throw new Error("No online users found!");
   }
   for await (const onlineEventUser of onlineEventUsers) {
-    maxPollVotes += onlineEventUser.voteAmount
+    maxPollVotes += onlineEventUser.voteAmount;
     const pollUser = {
       eventUserId: onlineEventUser.id,
       publicName: onlineEventUser.publicName,
       username: onlineEventUser.username,
-      pollId: pollRecord.id
-    }
-    await createPollUser(pollUser)
+      pollId: pollRecord.id,
+    };
+    await createPollUser(pollUser);
   }
-  const maxPollVoteCycles = maxPollVotes
-  maxPollVotes = pollRecord.maxVotes * maxPollVotes
-  const pollResult = { pollId: pollRecord.id, type: pollRecord.type, maxVotes: maxPollVotes, maxVoteCycles: maxPollVoteCycles }
-  return await createPollResult(pollResult)
+  const maxPollVoteCycles = maxPollVotes;
+  maxPollVotes = pollRecord.maxVotes * maxPollVotes;
+  const pollResult = {
+    pollId: pollRecord.id,
+    type: pollRecord.type,
+    maxVotes: maxPollVotes,
+    maxVoteCycles: maxPollVoteCycles,
+  };
+  return await createPollResult(pollResult);
 }

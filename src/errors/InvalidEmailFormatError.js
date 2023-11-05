@@ -1,7 +1,7 @@
-import { createError } from 'apollo-errors'
+import { createError } from "apollo-errors";
 
-const InvalidEmailFormatError = createError('InvalidEmailFormatError', {
-  message: 'The provided email has an invalid format.'
-})
+const InvalidEmailFormatError = createError("InvalidEmailFormatError", {
+  message: "The provided email has an invalid format.",
+});
 
-export default InvalidEmailFormatError
+export default InvalidEmailFormatError;

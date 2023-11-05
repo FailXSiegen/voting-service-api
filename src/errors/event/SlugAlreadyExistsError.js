@@ -1,7 +1,7 @@
-import { createError } from 'apollo-errors'
+import { createError } from "apollo-errors";
 
-const SlugAlreadyExistsError = createError('SlugAlreadyExistsError', {
-  message: 'The provided slug already exists.'
-})
+const SlugAlreadyExistsError = createError("SlugAlreadyExistsError", {
+  message: "The provided slug already exists.",
+});
 
-export default SlugAlreadyExistsError
+export default SlugAlreadyExistsError;

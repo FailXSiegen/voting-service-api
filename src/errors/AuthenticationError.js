@@ -1,7 +1,7 @@
-import { createError } from 'apollo-errors'
+import { createError } from "apollo-errors";
 
-const AuthenticationError = createError('AuthenticationError', {
-  message: 'Not authorized.'
-})
+const AuthenticationError = createError("AuthenticationError", {
+  message: "Not authorized.",
+});
 
-export default AuthenticationError
+export default AuthenticationError;

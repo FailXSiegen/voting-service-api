@@ -7,7 +7,9 @@
     "serve": "babel-watch ./src",
     "copy": "cp -avr src/lib/emails/ dist/lib/",
     "build": "babel src --out-dir dist && npm run copy",
-    "db:migrate": "node_modules/.bin/db-migrate up"
+    "db:migrate": "node_modules/.bin/db-migrate up",
+    "lint": "eslint --ext .js,.vue --ignore-path .gitignore --fix src",
+    "format": "prettier src --write"
   },
   "keywords": [],
   "author": "Wolf Utz",
@@ -44,12 +46,12 @@
     "babel-plugin-import-graphql": "^2.7.0",
     "babel-watch": "^7.8.1",
     "cross-env": "^5.2.0",
-    "eslint": "^7.6.0",
-    "eslint-config-standard": "^14.1.1",
+    "eslint": "^8.51.0",
+    "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-import": "^2.22.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-standard": "^4.0.1"
+    "prettier": "^3.0.3"
   },
   "overrides": {
     "cross-undici-fetch": "0.4.8"
