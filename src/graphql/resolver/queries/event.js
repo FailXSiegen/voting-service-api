@@ -3,23 +3,23 @@ import {
   findUpcoming,
   findAllUpcomingEvents,
   findAllPastEvents,
-  findById,
+  findByIdAndOrganizerId,
 } from "../../../repository/event-repository";
 
 export default {
-  event: async (_, { id, organizerId }, context) => {
-    return await findById(id, organizerId);
+  event: async (_, { id, organizerId }) => {
+    return await findByIdAndOrganizerId(id, organizerId);
   },
-  upcomingEvents: async (_, args, context) => {
+  upcomingEvents: async (_, args) => {
     return await findUpcoming(args.organizerId);
   },
-  expiredEvents: async (_, args, context) => {
+  expiredEvents: async (_, args) => {
     return await findExpired(args.organizerId);
   },
-  allUpcomingEvents: async (_, args, context) => {
+  allUpcomingEvents: async () => {
     return await findAllUpcomingEvents();
   },
-  allPastEvents: async (_, { page, pageSize }, context) => {
+  allPastEvents: async (_, { page, pageSize }) => {
     return await findAllPastEvents(page, pageSize);
   },
 };

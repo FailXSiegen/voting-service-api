@@ -9,6 +9,9 @@ import updateOrganizerPassword from "../request/organizer/update-password";
 import logoutRequest from "../request/logout";
 import createOrganizer from "../request/organizer/create";
 import cleanUp from "../request/cleanup";
+import fetchEventById from "../request/event/fetch-event";
+import activateEventUserAuthToken from "../request/login/activate-event-user-auth-token";
+import loginByEventUserAuthToken from "../request/login/login-by-event-user-auth-token";
 
 export default function (app) {
   app.post("/login", async (req, res) => {
@@ -19,6 +22,15 @@ export default function (app) {
   });
   app.post("/login/password-verify", async (req, res) => {
     await requestVerifyPassword(req, res);
+  });
+  app.post("/login/activate-event-user-auth-token", async (req, res) => {
+    await activateEventUserAuthToken(req, res);
+  });
+  app.post("/login/event-user-auth-token", async (req, res) => {
+    await loginByEventUserAuthToken(req, res);
+  });
+  app.get("/event/:id", async (req, res) => {
+    await fetchEventById(req, res);
   });
   app.post("/event/verify-slug", async (req, res) => {
     await verifySlug(req, res);
