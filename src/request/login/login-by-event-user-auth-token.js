@@ -1,19 +1,22 @@
-import {
-  addRefreshToken,
-  fetchRefreshToken,
-} from "../../auth/login/refresh-token";
+import { addRefreshToken } from "../../auth/login/refresh-token";
 import { generateJwt } from "../../lib/jwt-auth";
 import * as jwt from "jsonwebtoken";
+import { findOneByToken } from "../../repository/event-user-auth-token-repository";
+import { findOneById } from "../../repository/event-user-repository";
 
-export default async function loginRefreshRequest(req, res) {
+export default async function loginByEventUserAuthToken(req, res) {
   res.setHeader("content-type", "application/json");
   try {
-    const signedCookies = req.signedCookies;
-    if (!signedCookies.refreshToken) {
-      throw new Error("Could not fetch refreshToken cookie");
+    const { eventUserAuthToken } = req.signedCookies;
+    if (!eventUserAuthToken) {
+      throw new Error("Could not fetch eventUserAuthToken cookie");
     }
-    const tokenRecord = await fetchRefreshToken(signedCookies.refreshToken);
-    if (!tokenRecord) {
+
+    const tokenRecord = await findOneByToken(eventUserAuthToken);
+    const eventUser = await findOneById(tokenRecord?.eventUserId);
+
+    if (!tokenRecord || !eventUser) {
+      // Token record not found...
       res.status(200);
       res.send(
         JSON.stringify({
@@ -22,22 +25,14 @@ export default async function loginRefreshRequest(req, res) {
       );
       return;
     }
-    const type = tokenRecord.organizerId > 0 ? "organizer" : "event-user";
-    const id =
-      type === "organizer" ? tokenRecord.organizerId : tokenRecord.eventUserId;
-    if (id === "undefined") {
-      res.status(200);
-      res.send(
-        JSON.stringify({
-          success: false,
-        }),
-      );
-      return;
-    }
-    const verified = tokenRecord.verified;
+
     const claims = {
-      user: { id, type, verified },
-      role: type,
+      user: {
+        id: tokenRecord.eventUserId,
+        type: "event-user",
+        verified: eventUser.verified == true,
+      },
+      role: "event-user",
     };
     const token = await generateJwt(claims);
     const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
@@ -45,6 +40,7 @@ export default async function loginRefreshRequest(req, res) {
       decodedToken.user.type,
       decodedToken.user.id,
     );
+
     res.status(201);
     res.cookie("refreshToken", refreshToken, {
       httpOnly: process.env.NODE_ENV === "production",

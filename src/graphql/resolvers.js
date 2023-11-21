@@ -11,6 +11,7 @@ import pollMutations from "./resolver/mutation/poll";
 import pollAnswerMutations from "./resolver/mutation/poll-answer";
 import pollUserVotedMutations from "./resolver/mutation/poll-user-voted";
 import zoomMeetingMutations from "./resolver/mutation/zoom-meeting";
+import eventUserAuthTokenMutations from "./resolver/mutation/event-user-auth-token";
 import activePollEventUser from "./resolver/active-poll-event-user/active-poll-event-user";
 import pollResolvers from "./resolver/poll/poll";
 import eventResolvers from "./resolver/event/event";
@@ -40,6 +41,7 @@ export default {
     ...eventUserMutations,
     ...pollUserVotedMutations,
     ...zoomMeetingMutations,
+    ...eventUserAuthTokenMutations,
   },
   ActivePollEventUser: {
     ...activePollEventUser,

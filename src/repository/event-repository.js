@@ -1,7 +1,15 @@
 import { query, insert, update as updateQuery } from "./../lib/database";
 import { getCurrentUnixTimeStamp } from "../lib/time-stamp";
 
-export async function findById(id, organizerId) {
+export async function findById(id) {
+  const result = await query(
+    "SELECT * FROM event WHERE id = ? AND deleted = 0",
+    [id],
+  );
+  return Array.isArray(result) ? result[0] || null : null;
+}
+
+export async function findByIdAndOrganizerId(id, organizerId) {
   const result = await query(
     "SELECT * FROM event WHERE id = ?  AND organizer_id = ? AND deleted = 0",
     [id, organizerId],
