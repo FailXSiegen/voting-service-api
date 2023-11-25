@@ -1,19 +1,9 @@
 import { insertPollSubmitAnswer } from "../../../repository/poll/poll-answer-repository";
 import {
   findLeftAnswersCount,
-  updatePollResultMaxVotes,
   closePollResult,
   findOneByPollId,
 } from "../../../repository/poll/poll-result-repository";
-import {
-  createPollUserVoted,
-  existInCurrentVote,
-  allowToCreateNewVote,
-} from "../../../repository/poll/poll-user-voted-repository";
-import {
-  createPollUserWithPollResultId,
-  existAsPollUserInCurrentVote,
-} from "../../../repository/poll/poll-user-repository";
 import {
   findEventIdByPollResultId,
   getMultivoteType,
@@ -24,6 +14,10 @@ import {
   POLL_ANSWER_LIFE_CYCLE,
   POLL_LIFE_CYCLE,
 } from "../subscription/subscription-types";
+import {
+  createPollUserIfNeeded,
+  existsPollUserVoted,
+} from "../../../service/poll-service";
 
 async function publishPollLifeCycle(pollResultId) {
   await closePollResult(pollResultId);
@@ -41,38 +35,11 @@ async function publishPollLifeCycle(pollResultId) {
   });
 }
 
-async function existsPollUserVoted(pollResultId, eventUserId) {
-  const userExists = await existInCurrentVote(pollResultId, eventUserId);
-  if (userExists === null) {
-    await createPollUserVoted(pollResultId, eventUserId, 1);
-    return true;
-  }
-  return await allowToCreateNewVote(pollResultId, eventUserId);
-}
-
-async function existsPollUser(pollResultId, eventUserId) {
-  const userExists = await existAsPollUserInCurrentVote(
-    pollResultId,
-    eventUserId,
-  );
-  if (userExists === null) {
-    const result = await createPollUserWithPollResultId(
-      pollResultId,
-      eventUserId,
-    );
-    if (result) {
-      await updatePollResultMaxVotes(pollResultId, eventUserId);
-    }
-    return result;
-  }
-  return true;
-}
-
 export default {
+  // todo refactor + document the logic here.
   createPollSubmitAnswer: async (_, { input }) => {
     const cloneAnswerObject = {};
     const pollResult = await findOneByPollId(input.pollId);
-    console.log(pollResult);
     if (!pollResult) {
       throw Error("Missing poll result record!");
     }
@@ -80,7 +47,7 @@ export default {
     if (!pollResult) {
       throw Error("Missing related event record!");
     }
-    input.pollResultId = pollResult.id; // todo Qucik fix. Should be refactorer.
+    input.pollResultId = pollResult.id; // fixme This is a quick fix because the following code relies on the now missing input.pollResultId.
     Object.assign(cloneAnswerObject, input);
     delete input.answerItemCount;
     delete input.answerItemLength;
@@ -94,14 +61,10 @@ export default {
         await publishPollLifeCycle(pollResult.id);
         return false;
       }
-      allowToVote = await existsPollUserVoted(
-        pollResult.id,
-        input.eventUserId,
-        input.voteCycle,
-      );
+      allowToVote = await existsPollUserVoted(pollResult.id, input.eventUserId);
     }
     if (allowToVote) {
-      await existsPollUser(pollResult.id, input.eventUserId);
+      await createPollUserIfNeeded(pollResult.id, input.eventUserId);
       const multivoteType = await getMultivoteType(eventId);
       if (multivoteType === 2 || input.multivote) {
         const eventUser = await findOneById(input.eventUserId);

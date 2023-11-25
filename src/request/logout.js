@@ -27,7 +27,6 @@ export default async function logoutRequest(req, res) {
       online: false,
       eventUserId: tokenRecord.eventUserId,
     });
-    console.log("logout");
   }
   await query("DELETE FROM jwt_refresh_token WHERE token = ?", [token]);
   res.send(

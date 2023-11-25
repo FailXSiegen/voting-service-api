@@ -48,7 +48,7 @@ function exportFile(relPath, absPath, responseData, res) {
   ws.on("finish", () => {
     res.download(absPath, function () {
       fs.unlink(absPath, (error) => {
-        console.log(error);
+        console.error(error);
       });
     });
   });

@@ -30,15 +30,15 @@ export default {
       });
     }
 
-    await this.transport.verify(function (error, success) {
+    await this.transport.verify((error) => {
       if (error) {
         console.error(
-          "ERROR: Server is unable to send mails. Error message: " +
+          "[ERROR] Server is unable to send mails. Error message: " +
             error.message,
         );
-      } else {
-        console.log("INFO: Server is ready to send mails.");
+        return;
       }
+      console.info("[INFO] Server is ready to send mails.");
     });
     this.transport.use(
       "compile",
@@ -55,12 +55,12 @@ export default {
     await this.transport.sendMail(config, function (error, info) {
       if (error) {
         console.error(
-          "ERROR: Server is unable to send mails. Error message: " +
+          "[ERROR] Server is unable to send mails. Error message: " +
             error.message,
         );
       }
       if (info && process.env.ENABLE_DEBUG === "1") {
-        console.log(info);
+        console.debug(info);
       }
     });
   },
