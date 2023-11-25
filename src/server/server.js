@@ -5,13 +5,16 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { query } from "../lib/database";
 import addStandaloneRequests from "./standalone-requests";
-import { context, pubsub, yoga } from "./graphql";
+import { context, yoga } from "./graphql";
 import { WebSocketServer } from "ws";
 import { useServer } from "graphql-ws/lib/use/ws";
 import { createServer } from "node:http";
-import { extractCookieValueByHeader } from "../lib/cookie-from-string-util";
-import { toggleUserOnlineStateByRequestToken } from "../repository/event-user-repository";
 import authenticate from "../middleware/authenticate";
+import {
+  onConnectWebsocket,
+  onDisconnectWebsocket,
+  onSubscribeWebsocket,
+} from "../auth/websocket-events";
 
 export default function () {
   resetEventUserOnlineState();
@@ -53,100 +56,21 @@ export default function () {
     {
       execute: (args) => args.rootValue.execute(args),
       subscribe: (args) => args.rootValue.subscribe(args),
-      onSubscribe: async (ctx, msg) => {
-        const { schema, execute, subscribe, contextFactory, parse, validate } =
-          yoga.getEnveloped({
-            ...ctx,
-            req: ctx.extra.request,
-            socket: ctx.extra.socket,
-            params: msg.payload,
-          });
-
-        const args = {
-          schema,
-          operationName: msg.payload.operationName,
-          document: parse(msg.payload.query),
-          variableValues: msg.payload.variables,
-          contextValue: await contextFactory(),
-          rootValue: {
-            execute,
-            subscribe,
-          },
-        };
-
-        const errors = validate(args.schema, args.document);
-        if (errors.length) return errors;
-        return args;
-      },
-      onConnect: async (ctx) => {
-        console.log("[INFO] User connected");
-        if (!ctx.extra.request.headers.cookie) {
-          return;
-        }
-
-        const token = extractCookieValueByHeader(
-          ctx.extra.request.headers.cookie,
-          "refreshToken",
-        );
-        if (token === null) {
-          return;
-        }
-
-        const tokenRecord = await toggleUserOnlineStateByRequestToken(
-          token,
-          true,
-        );
-        if (!tokenRecord) {
-          return;
-        }
-
-        if (tokenRecord.eventUserId) {
-          console.log(tokenRecord, " eventUserLifeCycle");
-
-          pubsub.publish("eventUserLifeCycle", {
-            online: true,
-            eventUserId: tokenRecord.eventUserId,
-          });
-        }
-      },
-      onDisconnect: async (ctx) => {
-        console.log("[INFO] User disconnected!");
-        if (!ctx.extra.request.headers.cookie) {
-          return;
-        }
-        const token = extractCookieValueByHeader(
-          ctx.extra.request.headers.cookie,
-          "refreshToken",
-        );
-        if (token === null) {
-          return;
-        }
-        const tokenRecord = await toggleUserOnlineStateByRequestToken(
-          token,
-          false,
-        );
-        if (!tokenRecord) {
-          return;
-        }
-        if (tokenRecord.eventUserId) {
-          pubsub.publish("eventUserLifeCycle", {
-            online: false,
-            eventUserId: tokenRecord.eventUserId,
-          });
-        }
-      },
+      onSubscribe: onSubscribeWebsocket,
+      onConnect: onConnectWebsocket,
+      onDisconnect: onDisconnectWebsocket,
     },
     wsServer,
   );
 
   server.listen(process.env.APP_PORT, () => {
-    console.log("----------------------------");
-    console.log("Voting service API");
-    console.log("----------------------------");
-    console.log(
+    console.info("----------------------------");
+    console.info("Voting service API");
+    console.info("----------------------------");
+    console.info(
       `Running API Server at http://localhost:${process.env.APP_PORT}${process.env.GRAPHQL_ENDPOINT}`,
     );
-    console.log(
+    console.info(
       `Running WS Server at ws://localhost:${process.env.APP_PORT}${process.env.WEBSOCKET_ENDPOINT}`,
     );
   });

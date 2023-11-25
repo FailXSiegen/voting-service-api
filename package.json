@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "serve": "babel-watch ./src",
+    "dev": "babel-watch ./src",
     "copy": "cp -avr src/lib/emails/ dist/lib/",
     "build": "babel src --out-dir dist && npm run copy",
     "db:migrate": "node_modules/.bin/db-migrate up",

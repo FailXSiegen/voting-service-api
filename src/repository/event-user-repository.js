@@ -6,14 +6,6 @@ import {
 } from "./../lib/database";
 import { hash } from "../lib/crypto";
 import { getCurrentUnixTimeStamp } from "../lib/time-stamp";
-import {
-  findActivePollByUserId,
-  updatePollResultMaxVotes,
-} from "./poll/poll-result-repository";
-import {
-  createPollUserWithPollResultId,
-  existAsPollUserInCurrentVote,
-} from "./poll/poll-user-repository";
 
 export async function findOneById(id) {
   const result = await query("SELECT * FROM event_user WHERE id = ?", [id]);
@@ -42,6 +34,9 @@ export async function findOnlineEventUserByEventId(eventId) {
   );
 }
 
+/**
+ * todo refactor to two methods. one fetching the token record. the other triggers the online state.
+ */
 export async function toggleUserOnlineStateByRequestToken(token, online) {
   const sql = `
     UPDATE event_user
@@ -50,36 +45,9 @@ export async function toggleUserOnlineStateByRequestToken(token, online) {
     SET event_user.online = ?
     WHERE jwt_refresh_token.token = ?
   `;
+
   // Update online state.
   await query(sql, [online, token]);
-  // Fetch event user id for further processing.
-  const result = await query(
-    "SELECT event_user_id FROM jwt_refresh_token WHERE token = ?",
-    [token],
-  );
-
-  if (!result) {
-    return;
-  }
-
-  const pollResultId = await findActivePollByUserId(result[0].eventUserId);
-  if (pollResultId) {
-    const userExists = await existAsPollUserInCurrentVote(
-      pollResultId.id,
-      result[0].eventUserId,
-    );
-    if (userExists === null) {
-      const newPollUser = await createPollUserWithPollResultId(
-        pollResultId.id,
-        result[0].eventUserId,
-      );
-      if (newPollUser) {
-        await updatePollResultMaxVotes(pollResultId.id, result[0].eventUserId);
-      }
-    }
-  }
-
-  return Array.isArray(result) ? result[0] || null : null;
 }
 
 export async function create(input) {

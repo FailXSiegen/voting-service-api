@@ -15,10 +15,10 @@ function logQuery(sql, params) {
   if (process.env.LOG_QUERIES_TO_CONSOLE !== "1") {
     return;
   }
-  console.log("BEGIN-------------------------------------");
-  console.log("SQL:", sql);
-  console.log("PARAMS:", JSON.stringify(params));
-  console.log("END---------------------------------------");
+  console.debug("BEGIN-------------------------------------");
+  console.debug("SQL:", sql);
+  console.debug("PARAMS:", JSON.stringify(params));
+  console.debug("END---------------------------------------");
 }
 
 export async function baseQuery(sql, params) {

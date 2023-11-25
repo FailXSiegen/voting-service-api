@@ -16,6 +16,7 @@ export async function existInCurrentVote(pollResultId, eventUserId) {
   );
 }
 
+// todo refactor this method.
 export async function allowToCreateNewVote(pollResultId, eventUserId) {
   const result = await query(
     `
