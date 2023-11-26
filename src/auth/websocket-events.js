@@ -10,8 +10,6 @@ import { yoga, pubsub } from "./../server/graphql";
 import { findOneByRefreshToken } from "../repository/jwt-refresh-token-repository";
 import { createPollUserIfNeeded } from "../service/poll-service";
 
-// todo handle event user auth token too!
-
 export async function onSubscribeWebsocket(ctx, msg) {
   const { schema, execute, subscribe, contextFactory, parse, validate } =
     yoga.getEnveloped({

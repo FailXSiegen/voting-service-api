@@ -1,4 +1,8 @@
 import {
+  findOneByEventUserId,
+  remove as removeEventUSerAuthToken,
+} from "../../../repository/event-user-auth-token-repository";
+import {
   findOneById,
   findOneByUsernameAndEventId,
   update,
@@ -89,6 +93,12 @@ export default {
     if (!existingUser) {
       throw new Error("EventUser not found");
     }
+
+    const eventUserAuthToken = await findOneByEventUserId(existingUser.id);
+    if (eventUserAuthToken) {
+      await removeEventUSerAuthToken(eventUserAuthToken.id);
+    }
+
     return await remove(parseInt(eventUserId));
   },
 };
