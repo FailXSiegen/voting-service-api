@@ -11,7 +11,7 @@ export default {
   interval: "*/15 * * * * *",
   active: true,
   execute: async () => {
-    console.log("[cron] Check for async events to close");
+    console.info("[cron] Check for async events to close");
     try {
       await processEvents((await findAllUnfinishedPassedAsyncEvents()) ?? []);
     } catch (error) {

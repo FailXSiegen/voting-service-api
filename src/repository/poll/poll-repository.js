@@ -65,8 +65,6 @@ export async function findPollsByEventId(eventId) {
 
 async function deltePollReferences(pollId) {
   const pollResult = await findOnePollResultByPollId(pollId);
-  console.log(pollResult);
-  console.log("pollId", pollId);
   if (pollResult) {
     await query("DELETE FROM poll_user_voted WHERE poll_result_id = ?", [
       pollResult.id,

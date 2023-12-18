@@ -21,11 +21,10 @@ export default {
     if (existingEvent && parseInt(existingEvent.id) !== parseInt(input.id)) {
       throw new SlugAlreadyExistsError();
     }
-    console.log(input);
     await update(input);
     return await findOneBySlug(input.slug);
   },
-  updateEventStatus: async (_, { input }, context) => {
+  updateEventStatus: async (_, { input }) => {
     await update(input);
     return true;
   },
