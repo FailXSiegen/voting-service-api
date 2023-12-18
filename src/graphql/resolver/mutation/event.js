@@ -12,6 +12,7 @@ export default {
     if (existingEvent) {
       throw new SlugAlreadyExistsError();
     }
+
     await create(input);
     return await findOneBySlug(input.slug);
   },
@@ -20,6 +21,7 @@ export default {
     if (existingEvent && parseInt(existingEvent.id) !== parseInt(input.id)) {
       throw new SlugAlreadyExistsError();
     }
+    console.log(input);
     await update(input);
     return await findOneBySlug(input.slug);
   },

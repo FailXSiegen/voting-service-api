@@ -73,6 +73,21 @@ export async function closePollResult(id) {
   await query("UPDATE poll_result SET closed = ? WHERE id = ?", [1, id]);
 }
 
+export async function closeAllPollResultsByEventId(eventId) {
+  await query(
+    `
+    UPDATE poll_result
+    INNER JOIN poll 
+      ON poll.id = poll_result.poll_id
+    INNER JOIN event 
+      ON event.id = poll.event_id
+    SET poll_result.closed = 1
+    WHERE event.id = ?
+  `,
+    [eventId],
+  );
+}
+
 export async function findActivePoll(eventId) {
   const result = await query(
     `

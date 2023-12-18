@@ -6,7 +6,7 @@ import {
 } from "./../../lib/database";
 import { getCurrentUnixTimeStamp } from "../../lib/time-stamp";
 import { pollTypeConverterToString } from "../../graphql/resolver/poll/poll";
-import { removeByPoll } from "./poll-possible-answer-repository";
+import { findOneByPollId as findOnePollResultByPollId } from "./poll-result-repository";
 
 export async function findOneById(id) {
   const result = await query("SELECT * FROM poll WHERE id = ?", [id]);
@@ -33,14 +33,14 @@ export async function create(input) {
 }
 
 export async function update(input) {
-  await removeByPoll(input.id);
+  await deltePollReferences(input.id);
   input.createDatetime = getCurrentUnixTimeStamp();
   input.type = pollTypeConverterToString(input.type);
   await updateQuery("poll", input);
 }
 
 export async function remove(id) {
-  await removeByPoll(id);
+  await deltePollReferences(id);
   return await removeQuery("poll", id);
 }
 
@@ -55,4 +55,24 @@ export async function findPollsWithNoResults(eventId) {
   `,
     [eventId],
   );
+}
+
+export async function findPollsByEventId(eventId) {
+  return await query("SELECT poll.* FROM poll WHERE poll.event_id = ?", [
+    eventId,
+  ]);
+}
+
+async function deltePollReferences(pollId) {
+  const pollResult = await findOnePollResultByPollId(pollId);
+  console.log(pollResult);
+  console.log("pollId", pollId);
+  if (pollResult) {
+    await query("DELETE FROM poll_user_voted WHERE poll_result_id = ?", [
+      pollResult.id,
+    ]);
+    await query("DELETE FROM poll_result WHERE poll_id = ?", [pollId]);
+  }
+  await query("DELETE FROM poll_possible_answer WHERE poll_id = ?", [pollId]);
+  await query("DELETE FROM poll_user WHERE poll_id = ?", [pollId]);
 }

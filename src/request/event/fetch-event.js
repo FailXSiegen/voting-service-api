@@ -12,6 +12,7 @@ export default async function fetchEventById(req, res) {
     if (null === event) {
       throw new RecordNotFoundError("Event not found.");
     }
+    console.log(event);
     res.send(
       JSON.stringify({
         event,

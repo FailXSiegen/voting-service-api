@@ -1,3 +1,4 @@
+import { findById as findOneEventById } from "../../../repository/event-repository";
 import {
   create as createPoll,
   remove as removePoll,
@@ -11,7 +12,10 @@ import {
   findOneById as findOnePollResultById,
 } from "../../../repository/poll/poll-result-repository";
 import { create as createPollUser } from "../../../repository/poll/poll-user-repository";
-import { findOnlineEventUserByEventId } from "../../../repository/event-user-repository";
+import {
+  findOnlineEventUserByEventId,
+  findVotableEventUserByEventId,
+} from "../../../repository/event-user-repository";
 import { pubsub } from "../../../server/graphql";
 import { POLL_LIFE_CYCLE } from "../subscription/subscription-types";
 
@@ -24,9 +28,13 @@ export default {
     for await (const answerInput of possibleAnswers) {
       await createPossibleAnswer({ pollId, content: answerInput.content });
     }
+    const event = await findOneEventById(poll.eventId);
     const pollRecord = await findOneById(pollId);
     if (args.instantStart) {
-      const pollResultId = await createPollDependencies(pollRecord);
+      const pollResultId = await createPollDependencies(
+        pollRecord,
+        await findOnlineEventUserByEventId(pollRecord.eventId),
+      );
       if (pollResultId) {
         pubsub.publish(POLL_LIFE_CYCLE, {
           eventId: poll.eventId,
@@ -35,7 +43,13 @@ export default {
           pollResultId: pollResultId,
         });
       }
+    } else if (event?.async) {
+      await createPollDependencies(
+        pollRecord,
+        await findVotableEventUserByEventId(pollRecord.eventId),
+      );
     }
+
     return pollRecord;
   },
   updatePoll: async (_, args) => {
@@ -49,7 +63,10 @@ export default {
     }
     const pollRecord = await findOneById(pollId);
     if (args.instantStart) {
-      const pollResultId = await createPollDependencies(pollRecord);
+      const pollResultId = await createPollDependencies(
+        pollRecord,
+        await findOnlineEventUserByEventId(pollRecord.eventId),
+      );
       if (pollResultId) {
         pubsub.publish(POLL_LIFE_CYCLE, {
           eventId: poll.eventId,
@@ -62,20 +79,23 @@ export default {
     return pollRecord;
   },
   startPoll: async (_, { id }) => {
-    const poll = await findOneById(id);
-    if (poll === null) {
+    const pollRecord = await findOneById(id);
+    if (pollRecord === null) {
       throw new Error(`Poll with id ${id} not found!`);
     }
-    const pollResultId = await createPollDependencies(poll);
+    const pollResultId = await createPollDependencies(
+      pollRecord,
+      await findOnlineEventUserByEventId(pollRecord.eventId),
+    );
     if (pollResultId) {
       pubsub.publish(POLL_LIFE_CYCLE, {
-        eventId: poll.eventId,
+        eventId: pollRecord.eventId,
         state: "new",
-        poll,
+        pollRecord,
         pollResultId,
       });
     }
-    return poll;
+    return pollRecord;
   },
   stopPoll: async (_, { id }) => {
     const pollResult = await findOnePollResultById(id);
@@ -98,31 +118,26 @@ export default {
   },
 };
 
-async function createPollDependencies(pollRecord) {
+async function createPollDependencies(pollRecord, eventUsers) {
   let maxPollVotes = 0;
-  const onlineEventUsers = await findOnlineEventUserByEventId(
-    pollRecord.eventId,
-  );
-  if (onlineEventUsers === null) {
-    throw new Error("No online users found!");
+  if (!eventUsers || !eventUsers?.length > 0) {
+    throw new Error("No event users found!");
   }
-  for await (const onlineEventUser of onlineEventUsers) {
-    maxPollVotes += onlineEventUser.voteAmount;
-    const pollUser = {
-      eventUserId: onlineEventUser.id,
-      publicName: onlineEventUser.publicName,
-      username: onlineEventUser.username,
+  for await (const eventUser of eventUsers) {
+    maxPollVotes += eventUser.voteAmount;
+    await createPollUser({
+      eventUserId: eventUser.id,
+      publicName: eventUser.publicName,
+      username: eventUser.username,
       pollId: pollRecord.id,
-    };
-    await createPollUser(pollUser);
+    });
   }
   const maxPollVoteCycles = maxPollVotes;
   maxPollVotes = pollRecord.maxVotes * maxPollVotes;
-  const pollResult = {
+  return await createPollResult({
     pollId: pollRecord.id,
     type: pollRecord.type,
     maxVotes: maxPollVotes,
     maxVoteCycles: maxPollVoteCycles,
-  };
-  return await createPollResult(pollResult);
+  });
 }
