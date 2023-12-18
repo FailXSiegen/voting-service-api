@@ -34,6 +34,7 @@
     "jsonwebtoken": "^9.0.2",
     "md5": "^2.3.0",
     "minimist": "^1.2.5",
+    "node-cron": "^3.0.3",
     "nodemailer": "^6.4.16",
     "nodemailer-pug-engine": "^2.0.1",
     "promise-mysql": "^4.1.3",

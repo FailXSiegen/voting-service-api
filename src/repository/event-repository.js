@@ -112,6 +112,13 @@ export async function findAllMarkedDelete() {
   );
 }
 
+export async function findAllUnfinishedPassedAsyncEvents() {
+  return await query(
+    "SELECT * FROM event WHERE async = 1 AND deleted = 0 AND finished = 0 AND end_datetime <= ? ORDER BY end_datetime ASC",
+    [getCurrentUnixTimeStamp()],
+  );
+}
+
 export async function create(input) {
   const currentTime = getCurrentUnixTimeStamp();
   input.createDatetime = currentTime;

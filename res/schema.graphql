@@ -30,6 +30,8 @@ type Query {
   # Fetches an event user by id.
   eventUser(id: ID): EventUser
   # Fetches all polls by event id.
+  polls(eventId: ID): [Poll]
+  # Fetches all polls with no results by event id.
   pollsWithNoResults(eventId: ID): [Poll]
   # Fetches all open polls by event id.
   activePoll(eventId: ID): OpenPollWithResult
@@ -133,6 +135,9 @@ type Event {
   multivoteType: Int
   zoomMeeting: ZoomMeeting
   videoConferenceConfig: String
+  async: Boolean!
+  finished: Boolean!
+  endDatetime: Int
 }
 type EventUser {
   id: ID!
@@ -275,6 +280,9 @@ input CreateEventInput {
   active: Boolean!
   multivoteType: Int!
   videoConferenceConfig: String
+  async: Boolean!
+  finished: Boolean!
+  endDatetime: Int
 }
 input UpdateEventInput {
   id: ID!
@@ -286,6 +294,9 @@ input UpdateEventInput {
   active: Boolean
   multivoteType: Int
   videoConferenceConfig: String
+  async: Boolean!
+  finished: Boolean!
+  endDatetime: Int
 }
 input UpdateEventStatusInput {
   id: ID!
@@ -325,6 +336,8 @@ input CreateNewPollInput {
   minVotes: Int
   maxVotes: Int
   allowAbstain: Boolean
+  startDatetime: Int
+  endDatetime: Int
 }
 input UpdatePollInput {
   id: ID!
@@ -337,6 +350,8 @@ input UpdatePollInput {
   minVotes: Int
   maxVotes: Int
   allowAbstain: Boolean
+  startDatetime: Int
+  endDatetime: Int
 }
 input PollInput {
   id: ID!
