@@ -13,8 +13,6 @@ export default async function verifySlug(req, res) {
       throw new Error("slug not found");
     }
     event = await resolveMeeting(event);
-    console.log(event);
-
     res.send(
       JSON.stringify({
         event,
