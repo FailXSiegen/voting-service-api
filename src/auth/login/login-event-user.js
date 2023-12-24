@@ -105,6 +105,7 @@ export async function loginEventUser({
     const claims = {
       user: {
         id: eventUser.id,
+        eventId,
         type: "event-user",
         verified: eventUser.verified,
       },
