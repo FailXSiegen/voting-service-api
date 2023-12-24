@@ -29,6 +29,13 @@ export default async function logoutRequest(req, res) {
     });
   }
   await query("DELETE FROM jwt_refresh_token WHERE token = ?", [token]);
+  await query("DELETE FROM event_user_auth_token WHERE event_user_id = ?", [
+    tokenRecord.eventUserId,
+  ]);
+
+  res.clearCookie("refreshToken");
+  res.clearCookie("eventUserAuthToken");
+
   res.send(
     JSON.stringify({
       success: true,
