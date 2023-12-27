@@ -281,7 +281,7 @@ input CreateEventInput {
   multivoteType: Int!
   videoConferenceConfig: String
   async: Boolean!
-  finished: Boolean!
+  finished: Boolean
   endDatetime: Int
 }
 input UpdateEventInput {
@@ -295,7 +295,7 @@ input UpdateEventInput {
   multivoteType: Int
   videoConferenceConfig: String
   async: Boolean!
-  finished: Boolean!
+  finished: Boolean
   endDatetime: Int
 }
 input UpdateEventStatusInput {
