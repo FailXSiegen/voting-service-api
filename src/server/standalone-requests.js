@@ -12,6 +12,7 @@ import cleanUp from "../request/cleanup";
 import fetchEventById from "../request/event/fetch-event";
 import activateEventUserAuthToken from "../request/login/activate-event-user-auth-token";
 import loginByEventUserAuthToken from "../request/login/login-by-event-user-auth-token";
+import zoomAuthToken from "../request/zoom/zoom-auth-token";
 
 export default function (app) {
   app.post("/login", async (req, res) => {
@@ -56,4 +57,5 @@ export default function (app) {
   app.post("/cleanup", async (req, res) => {
     await cleanUp(req, res);
   });
+  app.post("/zoom/auth/token", zoomAuthToken);
 }
