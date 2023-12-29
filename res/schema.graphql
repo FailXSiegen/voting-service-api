@@ -245,8 +245,8 @@ type Result {
 type ZoomMeeting {
   id: ID!
   title: String!
-  apiKey: String!
-  apiSecret: String!
+  sdkKey: String!
+  sdkSecret: String!
   meetingId: String
   password: String
 }
@@ -377,12 +377,12 @@ input PollUserVotedInput {
 input CreateZoomMeetingInput {
   organizerId: ID!
   title: String!
-  apiKey: String!
-  apiSecret: String!
+  sdkKey: String!
+  sdkSecret: String!
 }
 input UpdateZoomMeetingInput {
   id: ID!
   title: String
-  apiKey: String
-  apiSecret: String
+  sdkKey: String
+  sdkSecret: String
 }
