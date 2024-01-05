@@ -3,8 +3,8 @@ import { pugEngine } from "nodemailer-pug-engine";
 
 export default {
   transport: null,
-  async init() {
-    if (process.NODE_ENV !== "development") {
+  async init () {
+    if (process.env.NODE_ENV !== "development") {
       let config = {
         host: process.env.MAIL_HOST,
         port: process.env.MAIL_PORT,
@@ -34,7 +34,7 @@ export default {
       if (error) {
         console.error(
           "[ERROR] Server is unable to send mails. Error message: " +
-            error.message,
+          error.message,
         );
         return;
       }
@@ -48,7 +48,7 @@ export default {
       }),
     );
   },
-  async sendMail(config) {
+  async sendMail (config) {
     if (!this.transport) {
       await this.init();
     }
@@ -56,7 +56,7 @@ export default {
       if (error) {
         console.error(
           "[ERROR] Server is unable to send mails. Error message: " +
-            error.message,
+          error.message,
         );
       }
       if (info && process.env.ENABLE_DEBUG === "1") {
