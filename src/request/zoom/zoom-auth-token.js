@@ -5,33 +5,34 @@ import { findOneById as findOneZoomMeetingById } from "../../repository/meeting/
 
 // todo: refactor this!
 export default async function (req, res) {
-  const { sdkKey, sdkSecret } = await fetchZoomMeetingRecordByAuthHeader(
-    req.headers.authorization,
-  );
+  try {
+    const { sdkKey, sdkSecret } = await fetchZoomMeetingRecordByAuthHeader(
+      req.headers.authorization,
+    );
 
-  const iat = Math.round(new Date().getTime() / 1000) - 30;
-  const exp = iat + 60 * 60 * 2;
+    const iat = Math.round(new Date().getTime() / 1000) - 30;
+    const exp = iat + 60 * 60 * 2;
+    const header = JSON.stringify({ alg: "HS256", typ: "JWT" });
+    const payload = JSON.stringify({
+      sdkKey,
+      mn: req.body.meetingNumber,
+      role: req.body.role,
+      iat: iat,
+      exp: exp,
+      appKey: sdkKey,
+      tokenExp: iat + 60 * 60 * 2,
+    });
 
-  const oHeader = { alg: "HS256", typ: "JWT" };
-
-  const oPayload = {
-    sdkKey,
-    mn: req.body.meetingNumber,
-    role: req.body.role,
-    iat: iat,
-    exp: exp,
-    appKey: sdkKey,
-    tokenExp: iat + 60 * 60 * 2,
-  };
-
-  const sHeader = JSON.stringify(oHeader);
-  const sPayload = JSON.stringify(oPayload);
-  const signature = KJUR.jws.JWS.sign("HS256", sHeader, sPayload, sdkSecret);
-
-  res.json({
-    success: true,
-    signature: signature,
-  });
+    res.json({
+      success: true,
+      signature: KJUR.jws.JWS.sign("HS256", header, payload, sdkSecret),
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error,
+    });
+  }
 }
 
 /**
