@@ -1,4 +1,3 @@
-
 export const VideoConferenceType = {
-  ZOOM: 1
-}
+  ZOOM: 1,
+};

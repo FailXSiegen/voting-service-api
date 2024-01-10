@@ -1,15 +1,21 @@
-import { withFilter } from 'graphql-subscriptions'
+import { pubsub } from "../../../server/graphql";
+import { filter, pipe } from "graphql-yoga";
+import { POLL_LIFE_CYCLE } from "./subscription-types";
 
 export default {
-  pollLifeCycle: {
-    subscribe: withFilter(
-      (parent, { eventId }, { pubsub }) => pubsub.asyncIterator('pollLifeCycle'),
-      (payload, variables) => {
-        if (!variables.eventId) {
-          return true
-        }
-        return parseInt(payload.pollLifeCycle.eventId) === parseInt(variables.eventId)
-      }
-    )
-  }
-}
+  [POLL_LIFE_CYCLE]: {
+    subscribe: (_, args) =>
+      pipe(
+        pubsub.subscribe(POLL_LIFE_CYCLE),
+        filter((payload) => {
+          if (!args.eventId) {
+            return true;
+          }
+          return parseInt(payload.eventId) === parseInt(args.eventId);
+        }),
+      ),
+    resolve: (payload) => {
+      return payload;
+    },
+  },
+};

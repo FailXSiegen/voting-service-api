@@ -1,13 +1,16 @@
 {
   "name": "voting-service-api",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "description": "Voting service API",
   "main": "main.js",
   "scripts": {
-    "create-schema": "nodemon ./src/console/create-schema.js --exec babel-node",
-    "serve": "rm -rf ./node_modules/.cache/* && nodemon --signal SIGINT --watch ./src -e js,graphql --exec babel-node src/index.js",
+    "serve": "babel-watch ./src",
+    "dev": "babel-watch ./src",
     "copy": "cp -avr src/lib/emails/ dist/lib/",
-    "build": "babel src --out-dir dist && npm run copy"
+    "build": "babel src --out-dir dist && npm run copy",
+    "db:migrate": "node_modules/.bin/db-migrate up",
+    "lint": "eslint --ext .js,.vue --ignore-path .gitignore --fix src",
+    "format": "prettier src --write"
   },
   "keywords": [],
   "author": "Wolf Utz",
@@ -17,36 +20,48 @@
     "apollo-errors": "^1.9",
     "argon2": "^0.27",
     "aws-lambda": "^1.0.7",
+    "body-parser": "^1.20.2",
     "caniuse-lite": "^1.0.30001228",
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
+    "db-migrate": "^0.11.14",
+    "db-migrate-mysql": "^2.3.2",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "fast-csv": "^4.3.6",
-    "graphql": "^14",
-    "graphql-playground-html": "^1.6.30",
-    "graphql-subscriptions": "^1",
-    "graphql-yoga": "^1.18.3",
+    "graphql-ws": "^5.11.2",
+    "graphql-yoga": "^3.1.1",
     "humps": "^2.0.1",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.2",
+    "jsrsasign": "^10.9.0",
     "md5": "^2.3.0",
     "minimist": "^1.2.5",
+    "node-cron": "^3.0.3",
     "nodemailer": "^6.4.16",
     "nodemailer-pug-engine": "^2.0.1",
-    "promise-mysql": "^4.1.3"
+    "promise-mysql": "^4.1.3",
+    "uuid": "^9.0.1",
+    "ws": "^8.9.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.14.5",
     "@babel/node": "^7.10.5",
     "@babel/preset-env": "^7.11.0",
     "babel-plugin-import-graphql": "^2.7.0",
+    "babel-watch": "^7.8.1",
     "cross-env": "^5.2.0",
-    "eslint": "^7.6.0",
-    "eslint-config-standard": "^14.1.1",
+    "eslint": "^8.51.0",
+    "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-import": "^2.22.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-standard": "^4.0.1",
-    "nodemon": "^2.0.15"
+    "prettier": "^3.0.3"
+  },
+  "overrides": {
+    "cross-undici-fetch": "0.4.8"
+  },
+  "engines": {
+    "npm": ">=8.19.2",
+    "node": ">=16.16.0"
   }
 }

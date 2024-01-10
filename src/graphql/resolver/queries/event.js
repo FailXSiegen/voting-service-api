@@ -1,16 +1,25 @@
-import { findExpired, findUpcoming, findAllUpcomingEvents, findAllPastEvents } from '../../../repository/event-repository'
+import {
+  findExpired,
+  findUpcoming,
+  findAllUpcomingEvents,
+  findAllPastEvents,
+  findByIdAndOrganizerId,
+} from "../../../repository/event-repository";
 
 export default {
-  upcomingEvents: async (_, args, context) => {
-    return await findUpcoming(args.organizerId)
+  event: async (_, { id, organizerId }) => {
+    return await findByIdAndOrganizerId(id, organizerId);
   },
-  expiredEvents: async (_, args, context) => {
-    return await findExpired(args.organizerId)
+  upcomingEvents: async (_, args) => {
+    return await findUpcoming(args.organizerId);
   },
-  allUpcomingEvents: async (_, args, context) => {
-    return await findAllUpcomingEvents()
+  expiredEvents: async (_, args) => {
+    return await findExpired(args.organizerId);
   },
-  allPastEvents: async (_, { page, pageSize }, context) => {
-    return await findAllPastEvents(page, pageSize)
-  }
-}
+  allUpcomingEvents: async () => {
+    return await findAllUpcomingEvents();
+  },
+  allPastEvents: async (_, { page, pageSize }) => {
+    return await findAllPastEvents(page, pageSize);
+  },
+};
