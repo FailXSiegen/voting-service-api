@@ -99,3 +99,6 @@ typings/
 dist/
 /deploy_rsa
 /deploy_rsa.pub
+
+# DB
+*.sqlite3

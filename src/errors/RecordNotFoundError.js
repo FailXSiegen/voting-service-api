@@ -1,7 +1,8 @@
-import { createError } from 'apollo-errors'
+import { createError } from "apollo-errors";
 
-const RecordNotFoundError = createError('RecordNotFoundError', {
-  message: 'Could not find the requested record.'
-})
+const RecordNotFoundError = createError("RecordNotFoundError", {
+  message: "Could not find the requested record.",
+  name: "RecordNotFoundError",
+});
 
-export default RecordNotFoundError
+export default RecordNotFoundError;

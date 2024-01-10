@@ -1,356 +1,388 @@
 schema {
-    query: Query
-    mutation: Mutation
-    subscription: Subscription
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
 }
 enum PollType {
-    SECRET
-    PUBLIC
+  SECRET
+  PUBLIC
 }
 enum VideoConferenceType {
-    ZOOM
+  ZOOM
 }
 type Query {
-    # Fetches a list of upcoming events by organizer id.
-    upcomingEvents(organizerId: ID): [Event]
-    # Fetches a list of expired events by organizer id.
-    expiredEvents(organizerId: ID!): [Event]
-    # Fetches a list of expired events.
-    allUpcomingEvents: [Event]
-     # Fetches a list of expired events.
-    allPastEvents(page: Int, pageSize: Int): [Event]
-    # Fetches current organizer.
-    organizer(organizerId: ID): Organizer
-    # Fetches a list of all organizers.
-    organizers: [Organizer]
-    # Fetches a list of evnet users by event id.
-    eventUsers(eventId: ID): [EventUser]
-    # Fetches an event user by id.
-    eventUser(id: ID): EventUser
-    # Fetches all polls by event id.
-    pollsWithNoResults(eventId: ID): [Poll]
-    # Fetches all open polls by event id.
-    activePoll(eventId: ID): OpenPollWithResult
-    #fetch active poll for eventUser
-    activePollEventUser(eventId: ID): ActivePollEventUser
-    # Fetches all poll results by event id.
-    pollResult(eventId: ID, page: Int, pageSize: Int): [PollResult]
-    # Fetches a zoom meeting by id
-    zoomMeeting(id: ID!): ZoomMeeting
+  # Fetches a list of upcoming events by organizer id.
+  event(id: ID!, organizerId: ID!): Event
+  # Fetches a list of upcoming events by organizer id.
+  upcomingEvents(organizerId: ID): [Event]
+  # Fetches a list of expired events by organizer id.
+  expiredEvents(organizerId: ID!): [Event]
+  # Fetches a list of expired events.
+  allUpcomingEvents: [Event]
+  # Fetches a list of expired events.
+  allPastEvents(page: Int, pageSize: Int): [Event]
+  # Fetches current organizer.
+  organizer(organizerId: ID): Organizer
+  # Fetches a list of all organizers.
+  organizers: [Organizer]
+  # Fetches a list of evnet users by event id.
+  eventUsers(eventId: ID): [EventUser]
+  # Fetches an event user by id.
+  eventUser(id: ID): EventUser
+  # Fetches all polls by event id.
+  polls(eventId: ID): [Poll]
+  # Fetches all polls with no results by event id.
+  pollsWithNoResults(eventId: ID): [Poll]
+  # Fetches all open polls by event id.
+  activePoll(eventId: ID): OpenPollWithResult
+  #fetch active poll for eventUser
+  activePollEventUser(eventId: ID): ActivePollEventUser
+  # Fetches all poll results by event id.
+  pollResult(eventId: ID, page: Int, pageSize: Int): [PollResult]
+  # Fetches a zoom meeting by id
+  zoomMeeting(id: ID!): ZoomMeeting
+  # Fetches a poll by  id.
+  poll(id: ID): Poll
 }
 type Mutation {
-    # Create a new organizer.
-    createOrganizer(input: CreateOrganizerInput!): Organizer!
-    # Update an organizer.
-    updateOrganizer(input: UpdateOrganizerInput!): Organizer!
-    # Delete an organizer.
-    deleteOrganizer(id: ID!): Boolean
-    # Creates a new event.
-    createEvent(input: CreateEventInput!): Event!
-    # Updates an event.
-    updateEvent(input: UpdateEventInput!): Event!
-    # Updates an event status.
-    updateEventStatus(input: UpdateEventStatusInput!): Boolean
-    # Removes an event.
-    removeEvent(organizerId: ID!, id: ID!): Boolean
-    # Create a new poll.
-    createPoll(input: CreateNewPollInput!, instantStart: Boolean!): Poll!
-    # Update poll.
-    updatePoll(input: UpdatePollInput!, instantStart: Boolean!): Poll!
-    # Delete a poll.
-    removePoll(id: ID!): Boolean!
-    # Delete a poll.
-    startPoll(id: ID!): Poll!
-    # Delete a poll.
-    stopPoll(id: ID!): Boolean!
-    # Create poll answer on poll submit.
-    createPollSubmitAnswer(input: PollSubmitAnswerInput!): Boolean
-    # Create a new poll answer.
-    createPollAnswer(input: PollPossibleAnswerInput!): PollPossibleAnswer!
-    # Create a new event user for an event.
-    createEventUser(input: CreateEventUserInput!): EventUser!
-    # Delete an EventUser.
-    deleteEventUser(eventUserId: ID!): Boolean
-    # Update EventUser
-    updateEventUser(input: UpdateEventUserInput!): EventUser!
-    # Update event user to guest (verfied: true, allowToVote: false).
-    updateUserToGuest(eventUserId: ID!): EventUser!
-    # Update event user to participant (verfied: true, allowToVote: true).
-    updateUserToParticipant(eventUserId: ID!): EventUser!
-    # Create pollUserVoted entry for each voting cycle an eventuser has
-    createPollUserVoted(input: PollUserVotedInput!): Boolean
-    # Create a new zoom meeting.
-    createZoomMeeting(input: CreateZoomMeetingInput!): ZoomMeeting!
-    # Update a zoom meeting.
-    updateZoomMeeting(input: UpdateZoomMeetingInput!): ZoomMeeting!
-    # Delete a zoom meeting
-    deleteZoomMeeting(id: ID!): Boolean
+  # Create a new organizer.
+  createOrganizer(input: CreateOrganizerInput!): Organizer!
+  # Update an organizer.
+  updateOrganizer(input: UpdateOrganizerInput!): Organizer!
+  # Delete an organizer.
+  deleteOrganizer(id: ID!): Boolean
+  # Creates a new event.
+  createEvent(input: CreateEventInput!): Event!
+  # Updates an event.
+  updateEvent(input: UpdateEventInput!): Event!
+  # Updates an event status.
+  updateEventStatus(input: UpdateEventStatusInput!): Boolean
+  # Removes an event.
+  removeEvent(organizerId: ID!, id: ID!): Boolean
+  # Create a new poll.
+  createPoll(input: CreateNewPollInput!, instantStart: Boolean!): Poll!
+  # Updates a poll.
+  updatePoll(input: UpdatePollInput!, instantStart: Boolean!): Poll!
+  # Deletes a poll.
+  removePoll(id: ID!): Boolean!
+  # Starts a poll.
+  startPoll(id: ID!): Poll!
+  # Stops a poll.
+  stopPoll(id: ID!): Boolean!
+  # Creates a poll answer on poll submit.
+  createPollSubmitAnswer(input: PollSubmitAnswerInput!): Boolean
+  # Creates a new poll answer.
+  createPollAnswer(input: PollPossibleAnswerInput!): PollPossibleAnswer!
+  # Creates a new event user for an event.
+  createEventUser(input: CreateEventUserInput!): EventUser!
+  # Deletes an event user.
+  deleteEventUser(eventUserId: ID!): Boolean
+  # Updates an event user.
+  updateEventUser(input: UpdateEventUserInput!): EventUser!
+  # Updates an event user to guest (verfied: true, allowToVote: false).
+  updateUserToGuest(eventUserId: ID!): EventUser!
+  # Updates an event user to participant (verfied: true, allowToVote: true).
+  updateUserToParticipant(eventUserId: ID!): EventUser!
+  # Creates a pollUserVoted entry for each voting cycle an eventuser has
+  createPollUserVoted(input: PollUserVotedInput!): Boolean
+  # Creates a new zoom meeting.
+  createZoomMeeting(input: CreateZoomMeetingInput!): ZoomMeeting!
+  # Updates a zoom meeting.
+  updateZoomMeeting(input: UpdateZoomMeetingInput!): ZoomMeeting!
+  # Deletes a zoom meeting.
+  deleteZoomMeeting(id: ID!): Boolean
+  # Creates an event user, generates an auth token and sends an email to the target email.
+  createEventUserAuthToken(input: CreateEventUserAuthTokenInput!): Boolean
 }
 type Subscription {
-    # Notifies about user access rights updates.
-    updateEventUserAccessRights(eventUserId: ID): EventUserAccessRights!
-    # Notifies about the life cycle of a poll.
-    pollLifeCycle(eventId: ID): PollLifeCylclePayload!
-    # Notifies about a new event user record.
-    newEventUser: EventUser!
-    # Notifies about event user online states.
-    eventUserLifeCycle: EventUserLifeCyclePayload!
-    # Notifies about the count of left poll answers.
-    pollAnswerLifeCycle(eventId: ID): PollAnswerLifeCyclePayLoad!
+  # Notifies about user access rights updates.
+  updateEventUserAccessRights(eventUserId: ID): EventUserAccessRights!
+  # Notifies about the life cycle of a poll.
+  pollLifeCycle(eventId: ID): PollLifeCylclePayload!
+  # Notifies about a new event user record.
+  newEventUser: EventUser!
+  # Notifies about event user online states.
+  eventUserLifeCycle: EventUserLifeCyclePayload!
+  # Notifies about the count of left poll answers.
+  pollAnswerLifeCycle(eventId: ID): PollAnswerLifeCyclePayLoad!
 }
 type Organizer {
-    id: ID!
-    createDatetime: Int!
-    username: String!
-    email: String!
-    password: String!
-    publicName: String!
-    publicOrganisation: String
-    events: [Event]
-    confirmedEmail: Boolean!
-    superAdmin: Boolean!
-    verified: Boolean!
-    hash: String
-    zoomMeetings: [ZoomMeeting]
+  id: ID!
+  createDatetime: Int!
+  username: String!
+  email: String!
+  password: String!
+  publicName: String!
+  publicOrganisation: String
+  events: [Event]
+  confirmedEmail: Boolean!
+  superAdmin: Boolean!
+  verified: Boolean!
+  hash: String
+  zoomMeetings: [ZoomMeeting]
 }
 type Event {
-    id: ID!
-    createDatetime: Int
-    modifiedDatetime: Int
-    title: String
-    slug: String
-    description: String
-    scheduledDatetime: Int!
-    organizer: Organizer
-    lobbyOpen: Boolean
-    active: Boolean
-    multivoteType: Int
-    zoomMeeting: ZoomMeeting
+  id: ID!
+  createDatetime: Int
+  modifiedDatetime: Int
+  title: String
+  slug: String
+  description: String
+  scheduledDatetime: Int!
+  organizer: Organizer
+  lobbyOpen: Boolean
+  active: Boolean
+  multivoteType: Int
+  zoomMeeting: ZoomMeeting
+  videoConferenceConfig: String
+  async: Boolean!
+  finished: Boolean!
+  endDatetime: Int
 }
 type EventUser {
-    id: ID!
-    publicName: String!
-    verified: Boolean!
-    allowToVote: Boolean!
-    online: Boolean!
-    username: String!
-    voteAmount: Int!
-    eventId: ID!
+  id: ID!
+  publicName: String!
+  verified: Boolean!
+  allowToVote: Boolean!
+  online: Boolean!
+  username: String!
+  voteAmount: Int!
+  eventId: ID!
+  createDatetime: Int!
 }
 type EventUserAccessRights {
-    eventId: ID!
-    eventUserId: ID!
-    verified: Boolean!
-    allowToVote: Boolean!
-    voteAmount: Int!
+  eventId: ID!
+  eventUserId: ID!
+  verified: Boolean!
+  allowToVote: Boolean!
+  voteAmount: Int!
 }
 type EventUserLifeCyclePayload {
-    online: Boolean
-    eventUserId: ID
+  online: Boolean
+  eventUserId: ID
 }
 type Poll {
-    id: ID!
-    eventId: ID!
-    createDatetime: Int
-    title: String!
-    type: PollType!
-    pollAnswer: String
-    list: String
-    possibleAnswers: [PollPossibleAnswer]
-    minVotes: Int
-    maxVotes: Int
-    allowAbstain: Boolean
+  id: ID!
+  eventId: ID!
+  createDatetime: Int
+  title: String!
+  type: PollType!
+  pollAnswer: String
+  list: String
+  possibleAnswers: [PollPossibleAnswer]
+  minVotes: Int
+  maxVotes: Int
+  allowAbstain: Boolean
 }
 type OpenPollWithResult {
-    id: ID!
-    title: String!
-    maxVotes: Int
-    answerCount: Int
-    pollUserCount: Int
-    pollUserVotedCount: Int
+  id: ID!
+  title: String!
+  maxVotes: Int
+  answerCount: Int
+  pollUserCount: Int
+  pollUserVotedCount: Int
 }
 type ActivePollEventUser {
-    state: String!
-    poll: Poll
-    pollResultId: ID
-    pollUserVoted: [PollUserVoted]
-    pollUser: [PollUser]
+  state: String!
+  poll: Poll
+  pollResultId: ID
+  pollUserVoted: [PollUserVoted]
+  pollUser: [PollUser]
 }
 type PollResult {
-    id: ID!
-    maxVotes: Int
-    maxVoteCycles: Int
-    createDatetime: Int
-    type: PollType!
-    poll: Poll!
-    pollUser: [PollUser!]
-    pollAnswer: [PollAnswer!]
-    closed: Boolean!
+  id: ID!
+  maxVotes: Int
+  maxVoteCycles: Int
+  createDatetime: Int
+  type: PollType!
+  poll: Poll!
+  pollUser: [PollUser!]
+  pollAnswer: [PollAnswer!]
+  closed: Boolean!
 }
 type PollPossibleAnswer {
-    id: ID!
-    createDatetime: Int
-    content: String!
+  id: ID!
+  createDatetime: Int
+  content: String!
 }
 type PollUser {
-    id: ID!
-    pollId: ID!
-    eventUserId: ID!
-    publicName: String!
+  id: ID!
+  pollId: ID!
+  eventUserId: ID!
+  publicName: String!
 }
 type PollUserVoted {
-    id: ID!
-    pollResultId: ID!
-    eventUserId: ID!
-    publicName: String
+  id: ID!
+  pollResultId: ID!
+  eventUserId: ID!
+  publicName: String
 }
 type PollAnswer {
-    id: ID!
-    pollResultId: ID!
-    answerContent: String!
-    pollUserId: ID
+  id: ID!
+  pollResultId: ID!
+  answerContent: String!
+  pollUserId: ID
 }
 type PollLifeCylclePayload {
-    state: String!
-    eventId: ID!
-    poll: Poll
-    pollResultId: ID
+  state: String!
+  eventId: ID!
+  poll: Poll
+  pollResultId: ID
 }
 type PollAnswerLifeCyclePayLoad {
-    pollResultId: ID!
-    maxVotes: Int!
-    pollAnswersCount: Int!
-    pollUserCount: Int!
-    pollUserVotedCount: Int!
-    eventId: ID!
+  pollResultId: ID!
+  maxVotes: Int!
+  pollAnswersCount: Int!
+  pollUserCount: Int!
+  pollUserVotedCount: Int!
+  eventId: ID!
 }
 type Result {
-    id: ID!
-    pollId: ID!
-    content: String!
+  id: ID!
+  pollId: ID!
+  content: String!
 }
 type ZoomMeeting {
-    id: ID!
-    title: String!
-    apiKey: String!
-    apiSecret: String!
+  id: ID!
+  title: String!
+  sdkKey: String!
+  sdkSecret: String!
+  meetingId: String
+  password: String
 }
 input PollPossibleAnswerInput {
-    content: String!
+  content: String!
 }
 input CreateOrganizerInput {
-    username: String!
-    email: String!
-    password: String!
-    publicName: String!
-    publicOrganisation: String!
+  username: String!
+  email: String!
+  password: String!
+  publicName: String!
+  publicOrganisation: String!
 }
 input UpdateOrganizerInput {
-    id: ID!
-    email: String
-    password: String
-    publicName: String
-    publicOrganisation: String
-    confirmedEmail: Boolean
-    verified: Boolean
-    superAdmin: Boolean
+  id: ID!
+  email: String
+  password: String
+  publicName: String
+  publicOrganisation: String
+  confirmedEmail: Boolean
+  verified: Boolean
+  superAdmin: Boolean
 }
 input CreateEventInput {
-    title: String!
-    slug: String!
-    description: String
-    scheduledDatetime: Int!
-    organizerId: ID!
-    lobbyOpen: Boolean!
-    active: Boolean!
-    multivoteType: Int!
-    videoConferenceConfig: String
+  title: String!
+  slug: String!
+  description: String
+  scheduledDatetime: Int!
+  organizerId: ID!
+  lobbyOpen: Boolean!
+  active: Boolean!
+  multivoteType: Int!
+  videoConferenceConfig: String
+  async: Boolean!
+  finished: Boolean
+  endDatetime: Int
 }
 input UpdateEventInput {
-    id: ID!
-    title: String!
-    slug: String!
-    description: String
-    scheduledDatetime: Int
-    lobbyOpen: Boolean
-    active: Boolean
-    multivoteType: Int
-    videoConferenceConfig: String
+  id: ID!
+  title: String!
+  slug: String!
+  description: String
+  scheduledDatetime: Int
+  lobbyOpen: Boolean
+  active: Boolean
+  multivoteType: Int
+  videoConferenceConfig: String
+  async: Boolean!
+  finished: Boolean
+  endDatetime: Int
 }
 input UpdateEventStatusInput {
-    id: ID!
-    active: Boolean!
+  id: ID!
+  active: Boolean!
 }
 input CreateEventUserInput {
-    eventId: ID!
-    username: String!
-    verified: Boolean!
-    allowToVote: Boolean!
-    publicName: String
-    voteAmount: Int
+  eventId: ID!
+  username: String!
+  verified: Boolean!
+  allowToVote: Boolean!
+  publicName: String
+  voteAmount: Int
 }
 input UpdateEventUserInput {
-    id: ID!
-    eventId: ID!
-    username: String!
-    verified: Boolean!
-    allowToVote: Boolean!
-    publicName: String
-    voteAmount: Int
+  id: ID!
+  eventId: ID!
+  username: String!
+  verified: Boolean!
+  allowToVote: Boolean!
+  publicName: String
+  voteAmount: Int
+}
+input CreateEventUserAuthTokenInput {
+  eventId: ID!
+  email: String!
+  verified: Boolean!
+  allowToVote: Boolean!
+  voteAmount: Int!
 }
 input CreateNewPollInput {
-    eventId: ID!
-    title: String!
-    type: PollType!
-    pollAnswer: String
-    list: String
-    possibleAnswers: [PollPossibleAnswerInput!]
-    minVotes: Int
-    maxVotes: Int
-    allowAbstain: Boolean
+  eventId: ID!
+  title: String!
+  type: PollType!
+  pollAnswer: String
+  list: String
+  possibleAnswers: [PollPossibleAnswerInput!]
+  minVotes: Int
+  maxVotes: Int
+  allowAbstain: Boolean
+  startDatetime: Int
+  endDatetime: Int
 }
 input UpdatePollInput {
-    id: ID!
-    eventId: ID!
-    title: String!
-    type: PollType!
-    pollAnswer: String
-    list: String
-    possibleAnswers: [PollPossibleAnswerInput!]
-    minVotes: Int
-    maxVotes: Int
-    allowAbstain: Boolean
+  id: ID!
+  eventId: ID!
+  title: String!
+  type: PollType!
+  pollAnswer: String
+  list: String
+  possibleAnswers: [PollPossibleAnswerInput!]
+  minVotes: Int
+  maxVotes: Int
+  allowAbstain: Boolean
+  startDatetime: Int
+  endDatetime: Int
 }
 input PollInput {
-    id: ID!
-    type: PollType!
-    eventId: ID!
+  id: ID!
+  type: PollType!
+  eventId: ID!
 }
 input PollSubmitAnswerInput {
-    answerContent: String!
-    pollResultId: ID!
-    eventUserId: ID
-    type: PollType!
-    possibleAnswerId: ID
-    voteCycle: Int!
-    answerItemLength: Int!
-    answerItemCount: Int!
-    multivote: Boolean!
+  answerContent: String!
+  pollId: ID!
+  eventUserId: ID
+  type: PollType!
+  possibleAnswerId: ID
+  voteCycle: Int!
+  answerItemLength: Int!
+  answerItemCount: Int!
+  multivote: Boolean!
 }
 input PollUserVotedInput {
-    pollResultId: ID!
-    eventUserId: ID!
-    voteCycle: Int!
+  pollResultId: ID!
+  eventUserId: ID!
+  voteCycle: Int!
 }
 input CreateZoomMeetingInput {
-    organizerId: ID!
-    title: String!
-    apiKey: String!
-    apiSecret: String!
+  organizerId: ID!
+  title: String!
+  sdkKey: String!
+  sdkSecret: String!
 }
 input UpdateZoomMeetingInput {
-    id: ID!
-    title: String
-    apiKey: String
-    apiSecret: String
+  id: ID!
+  title: String
+  sdkKey: String
+  sdkSecret: String
 }

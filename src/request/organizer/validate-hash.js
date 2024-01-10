@@ -1,54 +1,65 @@
-import { validate } from '../../lib/organizer/optin-util'
-import { findOneByHash, update } from '../../repository/organizer-repository'
-import mailer from '../../lib/email-util'
+import { validate } from "../../lib/organizer/optin-util";
+import { findOneByHash, update } from "../../repository/organizer-repository";
+import mailer from "../../lib/email-util";
 
-export default async function validateOrganizerHashRequest (req, res) {
-  res.setHeader('content-type', 'application/json')
+export default async function validateOrganizerHashRequest(req, res) {
+  res.setHeader("content-type", "application/json");
   try {
-    const requestArguments = req.body
-    if (!requestArguments.hash) {
-      throw new Error('Missing hash parameter')
+    const { hash } = req.body;
+    if (!hash) {
+      throw new Error("Missing hash parameter");
     }
-    const isValid = await validate(requestArguments.hash)
+    const isValid = await validate(hash);
     if (!isValid) {
-      throw new Error('The given hash is not valid.')
+      throw new Error("The given hash is not valid.");
     }
-    const organizer = await findOneByHash(requestArguments.hash)
+    const organizer = await findOneByHash(hash);
     if (organizer === null) {
-      throw new Error('Organizer with hash "' + requestArguments.hash + '" not found.')
+      throw new Error('Organizer with hash "' + hash + '" not found.');
     }
 
     if (organizer.confirmedEmail) {
-      res.send(JSON.stringify({
-        success: await validate(requestArguments.hash),
-        organizer: organizer
-      }))
-      return
+      res.send(
+        JSON.stringify({
+          success: await validate(hash),
+          organizer: organizer,
+        }),
+      );
+      await update({
+        id: organizer.id,
+        hash: "",
+      });
+      return;
     }
     // Update confirmed_email field of target organizer record.
     await update({
       id: organizer.id,
-      confirmedEmail: true
-    })
+      confirmedEmail: true,
+      hash: "",
+    });
     await mailer.sendMail({
       from: process.env.MAIL_DEFAULT_FROM,
       to: process.env.MAIL_ADMIN_EMAIL,
-      subject: 'Validierung einer E-Mail Adresse',
-      template: 'validate-complete',
+      subject: "Validierung einer E-Mail Adresse",
+      template: "validate-complete",
       ctx: {
         name: organizer.publicName,
         organisation: organizer.publicOrganisation,
         email: organizer.email,
-        id: organizer.id
-      }
-    })
-    res.send(JSON.stringify({
-      success: await validate(requestArguments.hash)
-    }))
+        id: organizer.id,
+      },
+    });
+    res.send(
+      JSON.stringify({
+        success: await validate(hash),
+      }),
+    );
   } catch (error) {
-    res.send(JSON.stringify({
-      error: error.message,
-      success: false
-    }))
+    res.send(
+      JSON.stringify({
+        error: error.message,
+        success: false,
+      }),
+    );
   }
 }
