@@ -1,5 +1,5 @@
 {
-    "prod": {
+    "production": {
         "driver": "mysql",
         "user": {
             "ENV": "DATABSE_USER"
