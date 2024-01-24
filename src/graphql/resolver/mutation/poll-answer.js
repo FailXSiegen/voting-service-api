@@ -61,7 +61,7 @@ export default {
         await publishPollLifeCycle(pollResult.id);
         return false;
       }
-      allowToVote = await existsPollUserVoted(pollResult.id, input.eventUserId);
+      allowToVote = await existsPollUserVoted(pollResult.id, input.eventUserId, input.multivote);
     }
     if (allowToVote) {
       await createPollUserIfNeeded(pollResult.id, input.eventUserId);
