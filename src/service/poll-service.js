@@ -8,9 +8,7 @@ import {
   createPollUserVoted,
   existInCurrentVote,
 } from "../repository/poll/poll-user-voted-repository";
-import {
-  findOneById,
-} from "../repository/event-user-repository";
+import { findOneById } from "../repository/event-user-repository";
 
 /**
  * Creates a new poll user record, if the event-user id does not yet exist.
@@ -35,15 +33,19 @@ export async function createPollUserIfNeeded(pollResultId, eventUserId) {
 
 /**
  * TODO refactor this method...
- *
  * @param {number} pollResultId
  * @param {number} eventUserId
+ * @param {number} multiVote
  * @returns {Boolean}
  */
-export async function existsPollUserVoted(pollResultId, eventUserId, multivote) {
+export async function existsPollUserVoted(
+  pollResultId,
+  eventUserId,
+  multiVote,
+) {
   const userExists = await existInCurrentVote(pollResultId, eventUserId);
   let voteCycle = 1;
-  if (multivote) {
+  if (multiVote) {
     const eventUser = await findOneById(eventUserId);
     voteCycle = eventUser.voteAmount;
   }

@@ -1,6 +1,13 @@
 # voting-service-api
 
-GraphQL API
+GraphQL API for [Voting Service Client](https://github.com/FailXSiegen/voting-service-client-v2).
+
+## System requirements
+
+* node `>=16.16.0`
+* npm `>=8.19.2`
+* mariadb `^10`
+* E-Mail provider
 
 ## Before install
 
@@ -30,9 +37,6 @@ npm run serve
 
 ## Application specific CLI scripts
 
-You need to provide a .env file with all required data. Only run scripts from within the root of the project
-(The place where the .env file resides).
-
 ### Setup and update the database
 
 ```shell script
@@ -40,6 +44,8 @@ npm run db:migrate
 ```
 
 ### Create a new organizer using cli
+
+Make sure that the application is running before you execute this script.
 
 ```shell script
 node bin/create-organizer.js --username="admin" --email="admin@domain.tld" --password="12345678" --public-name="Admin"

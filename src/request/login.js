@@ -16,8 +16,6 @@ export default async function loginRequest(req, res) {
         break;
       case "event-user":
         result = await loginEventUser(requestArguments);
-        // case 'event-user-token':
-        //   result = await loginEventUserWithToken(requestArguments)
         break;
       default:
         throw new Error("Invalid loginTyp");
@@ -32,6 +30,7 @@ export default async function loginRequest(req, res) {
     });
     res.send(
       JSON.stringify({
+        succes: true,
         token: result.token,
         expiresAt: result.decodedToken.exp,
       }),
@@ -39,7 +38,8 @@ export default async function loginRequest(req, res) {
   } catch (error) {
     res.send(
       JSON.stringify({
-        error: error.message,
+        succes: false,
+        error: error,
       }),
     );
   }

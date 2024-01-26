@@ -54,7 +54,7 @@ export default {
     let leftAnswersDataSet = null;
     let allowToVote = true;
     const multivoteType = await getMultivoteType(eventId);
-    const multiVote = (multivoteType === 2 || input.multivote);
+    const multiVote = multivoteType === 2 || input.multivote;
     if (
       cloneAnswerObject.answerItemLength === cloneAnswerObject.answerItemCount
     ) {
@@ -63,7 +63,11 @@ export default {
         await publishPollLifeCycle(pollResult.id);
         return false;
       }
-      allowToVote = await existsPollUserVoted(pollResult.id, input.eventUserId, multiVote);
+      allowToVote = await existsPollUserVoted(
+        pollResult.id,
+        input.eventUserId,
+        multiVote,
+      );
     }
     if (allowToVote) {
       await createPollUserIfNeeded(pollResult.id, input.eventUserId);
