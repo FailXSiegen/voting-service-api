@@ -51,7 +51,7 @@ export default function () {
     path: process.env.WEBSOCKET_ENDPOINT,
   });
 
-  // Integrate Yoga's Envelop instance and NodeJS server with graphql-ws
+  // Integrate Yoga's Envelop instance and Node.js server with graphql-ws
   useServer(
     {
       execute: (args) => args.rootValue.execute(args),

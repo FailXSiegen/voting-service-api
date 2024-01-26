@@ -9,12 +9,15 @@ import * as jwt from "jsonwebtoken";
 import { addRefreshToken } from "./refresh-token";
 import { verify } from "../../lib/crypto";
 import AuthenticationError from "../../errors/AuthenticationError";
-import { eventIsActive } from "../../repository/event-repository";
+import { findById as findOneEventById } from "../../repository/event-repository";
 import { pubsub } from "../../server/graphql";
 import {
   EVENT_USER_LIFE_CYCLE,
   NEW_EVENT_USER,
 } from "../../graphql/resolver/subscription/subscription-types";
+import { InactiveEventLoginError } from "../../errors/event/InactiveEventLoginError";
+import { EventNotFoundError } from "../../errors/event/EventNotFoundError";
+import { InvalidAnonymousLoginError } from "../../errors/event/InvalidAnonymousLoginError";
 
 async function buildNewEventUserObject(
   username,
@@ -43,85 +46,88 @@ export async function loginEventUser({
   displayName,
   eventId,
 }) {
-  if (await eventIsActive(eventId)) {
-    username = username.trim();
-    let eventUser = await findOneByUsernameAndEventId(username, eventId);
-    if (!eventUser) {
-      // create new event user.
-      const newEventUserId = await create(
-        await buildNewEventUserObject(
-          username,
-          password,
-          email,
-          displayName,
-          eventId,
-        ),
-      );
-      // Fetch newly created event user.
-      eventUser = await findOneById(newEventUserId);
-      if (eventUser === null) {
-        throw new Error("Could not create new user!");
-      }
+  const event = await findOneEventById(eventId);
+  if (!event) {
+    throw new EventNotFoundError();
+  }
 
-      // Notify subscribers for new event user.
-      pubsub.publish(NEW_EVENT_USER, {
-        ...eventUser,
-      });
-    } else {
-      let isAuthenticated = false;
-      if (eventUser.password === "") {
-        const eventUserPasswordUpdate = {
-          id: eventUser.id,
-          password: password,
-        };
-        await update(eventUserPasswordUpdate);
-        isAuthenticated = true;
-      } else {
-        // Verify password.
-        isAuthenticated = await verify(password, eventUser.password);
-      }
-      if (!isAuthenticated) {
-        throw new AuthenticationError();
-      }
-      if (eventUser.publicName !== displayName) {
-        // Update display name.
-        eventUser.publicName = displayName;
-        delete eventUser.password;
-        await update(eventUser);
-      }
+  if (!event?.active) {
+    throw new InactiveEventLoginError();
+  }
 
-      // Notify subscribers for updated event user.
-      pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-        online: true,
-        eventUserId: eventUser.id,
-      });
+  username = username.trim();
+  let eventUser = await findOneByUsernameAndEventId(username, eventId);
+  if (!eventUser) {
+    if (!event?.lobbyOpen) {
+      // Do not allow login for anonymous users, if the lobby is closed.
+      throw new InvalidAnonymousLoginError();
     }
 
-    // Update user as online.
-    await update({ id: eventUser.id, online: true });
-
-    // Create jwt and refresh token.
-    const refreshToken = await addRefreshToken("event-user", eventUser.id);
-    const claims = {
-      user: {
-        id: eventUser.id,
+    // create new event user.
+    const newEventUserId = await create(
+      await buildNewEventUserObject(
+        username,
+        password,
+        email,
+        displayName,
         eventId,
-        type: "event-user",
-        verified: eventUser.verified,
-      },
-      role: "event-user",
-    };
-    const token = await generateJwt(claims);
-    const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
-    return { token, decodedToken, refreshToken };
-  } else {
-    throw new Error("Event is not available!");
-  }
-}
+      ),
+    );
+    // Fetch newly created event user.
+    eventUser = await findOneById(newEventUserId);
+    if (eventUser === null) {
+      throw new Error("Could not create new user!");
+    }
 
-/**
- * @param {String} token
- */
-export async function loginEventUserWithToken(token) {
-  throw new Error("Yet not implemented!");
+    // Notify subscribers for new event user.
+    pubsub.publish(NEW_EVENT_USER, {
+      ...eventUser,
+    });
+  } else {
+    let isAuthenticated = false;
+    if (eventUser.password === "") {
+      const eventUserPasswordUpdate = {
+        id: eventUser.id,
+        password: password,
+      };
+      await update(eventUserPasswordUpdate);
+      isAuthenticated = true;
+    } else {
+      // Verify password.
+      isAuthenticated = await verify(password, eventUser.password);
+    }
+    if (!isAuthenticated) {
+      throw new AuthenticationError();
+    }
+    if (eventUser.publicName !== displayName) {
+      // Update display name.
+      eventUser.publicName = displayName;
+      delete eventUser.password;
+      await update(eventUser);
+    }
+
+    // Notify subscribers for updated event user.
+    pubsub.publish(EVENT_USER_LIFE_CYCLE, {
+      online: true,
+      eventUserId: eventUser.id,
+    });
+  }
+
+  // Update user as online.
+  await update({ id: eventUser.id, online: true });
+
+  // Create jwt and refresh token.
+  const refreshToken = await addRefreshToken("event-user", eventUser.id);
+  const claims = {
+    user: {
+      id: eventUser.id,
+      eventId,
+      type: "event-user",
+      verified: eventUser.verified,
+    },
+    role: "event-user",
+  };
+  const token = await generateJwt(claims);
+  const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
+  return { token, decodedToken, refreshToken };
 }
