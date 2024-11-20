@@ -23,7 +23,7 @@
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
     "db-migrate": "^0.11.14",
-    "db-migrate-mysql": "^2.3.2",
+    "db-migrate-mysql": "^3.0",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "fast-csv": "^4.3.6",
@@ -31,7 +31,7 @@
     "graphql-yoga": "^3.1.1",
     "humps": "^2.0.1",
     "jsonwebtoken": "^9.0.2",
-    "jsrsasign": "^10.9.0",
+    "jsrsasign": "^11.0",
     "md5": "^2.3.0",
     "minimist": "^1.2.5",
     "node-cron": "^3.0.3",
@@ -60,7 +60,7 @@
     "cross-undici-fetch": "0.4.8"
   },
   "engines": {
-    "npm": ">=8.19.2",
-    "node": ">=16.16.0"
+    "npm": ">=9.0.0",
+    "node": ">=18.0.0"
   }
 }
