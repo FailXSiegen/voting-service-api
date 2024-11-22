@@ -58,13 +58,11 @@ export async function insertPollSubmitAnswer(input) {
       `
       INSERT INTO poll_answer SET poll_result_id = ?,
       poll_possible_answer_id = ?,
-      answer_content = ?,
-      create_datetime = ?`,
+      answer_content = ?`,
       [
         input.pollResultId,
         input.possibleAnswerId,
         input.answerContent,
-        getCurrentUnixTimeStamp(),
       ],
     );
   }
