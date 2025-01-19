@@ -31,7 +31,7 @@ export default async function validateOrganizerHashRequest(req, res) {
     // Update confirmed_email field of target organizer record.
     await update({
       id: organizer.id,
-      confirmedEmail: true
+      confirmedEmail: true,
     });
     await mailer.sendMail({
       from: process.env.MAIL_DEFAULT_FROM,
