@@ -4,10 +4,10 @@ import {
 } from "../../../repository/organizer-repository";
 
 export default {
-  organizer: async (_, { organizerId }, context) => {
+  organizer: async (_, { organizerId }) => {
     return await findOneById(organizerId);
   },
-  organizers: async (_, args, context) => {
+  organizers: async () => {
     return await findOrganizers();
   },
 };

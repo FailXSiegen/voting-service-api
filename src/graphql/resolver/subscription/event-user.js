@@ -5,7 +5,6 @@ import {
   NEW_EVENT_USER,
   EVENT_USER_LIFE_CYCLE,
 } from "./subscription-types";
-import { re } from "@babel/core/lib/vendor/import-meta-resolve";
 
 export default {
   [UPDATE_EVENT_USER_ACCESS_RIGHTS]: {

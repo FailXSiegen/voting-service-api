@@ -36,7 +36,7 @@ export default {
     }
     return updatedUser;
   },
-  deleteOrganizer: async (_, args, context) => {
+  deleteOrganizer: async (_, args) => {
     const existingUser = await findOneById(args.id);
     if (!existingUser) {
       throw new RecordNotFoundError();
