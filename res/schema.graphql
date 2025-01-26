@@ -136,6 +136,7 @@ type Event {
   zoomMeeting: ZoomMeeting
   videoConferenceConfig: String
   async: Boolean!
+  allowMagicLink: Boolean!
   finished: Boolean!
   endDatetime: Int
 }
@@ -281,6 +282,7 @@ input CreateEventInput {
   multivoteType: Int!
   videoConferenceConfig: String
   async: Boolean!
+  allowMagicLink: Boolean!
   finished: Boolean
   endDatetime: Int
 }
@@ -295,6 +297,7 @@ input UpdateEventInput {
   multivoteType: Int
   videoConferenceConfig: String
   async: Boolean!
+  allowMagicLink: Boolean!
   finished: Boolean
   endDatetime: Int
 }
