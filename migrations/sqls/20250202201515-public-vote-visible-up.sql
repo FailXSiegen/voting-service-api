@@ -1,0 +1,1 @@
+ALTER TABLE `event` ADD `public_vote_visible` TINYINT(1) DEFAULT 0 NOT NULL;
