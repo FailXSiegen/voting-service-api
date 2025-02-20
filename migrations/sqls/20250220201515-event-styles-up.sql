@@ -1,0 +1,1 @@
+ALTER TABLE `event` ADD `styles` text NOT NULL;
