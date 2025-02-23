@@ -129,6 +129,7 @@ type Event {
   slug: String
   description: String
   styles: String
+  logo: String
   scheduledDatetime: Int!
   organizer: Organizer
   lobbyOpen: Boolean
@@ -279,6 +280,7 @@ input CreateEventInput {
   slug: String!
   description: String
   styles: String
+  logo: String
   scheduledDatetime: Int!
   organizerId: ID!
   lobbyOpen: Boolean!
@@ -297,6 +299,7 @@ input UpdateEventInput {
   slug: String!
   description: String
   styles: String
+  logo: String
   scheduledDatetime: Int
   lobbyOpen: Boolean
   active: Boolean
