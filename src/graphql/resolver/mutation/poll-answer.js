@@ -98,7 +98,7 @@ export default {
       // Notify the organizer about the current voted count.
       pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
         ...leftAnswersDataSet,
-        eventId: eventId,
+        eventId: eventId
       });
     }
     return true;

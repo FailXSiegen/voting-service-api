@@ -381,6 +381,7 @@ input PollSubmitAnswerInput {
   answerItemLength: Int!
   answerItemCount: Int!
   multivote: Boolean!
+  browserInstanceId: String
 }
 input PollUserVotedInput {
   pollResultId: ID!
