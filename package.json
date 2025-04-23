@@ -10,7 +10,8 @@
     "build": "babel src --out-dir dist && npm run copy",
     "db:migrate": "node_modules/.bin/db-migrate up",
     "lint": "eslint --ext .js,.vue --ignore-path .gitignore --fix src",
-    "format": "prettier src --write"
+    "format": "prettier src --write",
+    "setup-testdata": "babel-node scripts/test-setup.js"
   },
   "keywords": [],
   "author": "Wolf Utz",
