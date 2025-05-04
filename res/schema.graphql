@@ -43,6 +43,8 @@ type Query {
   zoomMeeting(id: ID!): ZoomMeeting
   # Fetches a poll by  id.
   poll(id: ID): Poll
+  # Fetches the current vote cycle for a user in a specific poll
+  userVoteCycle(eventUserId: ID!, pollId: ID!): UserVoteCycleResult
 }
 type Mutation {
   # Create a new organizer.
@@ -221,6 +223,11 @@ type PollUserVoted {
   pollResultId: ID!
   eventUserId: ID!
   publicName: String
+}
+
+type UserVoteCycleResult {
+  voteCycle: Int!
+  maxVotes: Int!
 }
 type PollAnswer {
   id: ID!

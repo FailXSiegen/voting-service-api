@@ -12,10 +12,22 @@ export async function findOneById(id) {
 }
 
 export async function findOneByPollId(pollId) {
-  const result = await query("SELECT * FROM poll_result WHERE poll_id = ?", [
-    pollId,
-  ]);
-  return Array.isArray(result) ? result[0] || null : null;
+  console.log(`[DEBUG] findOneByPollId: Suche poll_result für poll_id=${pollId}`);
+  try {
+    // Nehmen wir den aktiven (neuesten) poll_result für diesen Poll
+    const result = await query(
+      `SELECT * FROM poll_result 
+       WHERE poll_id = ? 
+       ORDER BY id DESC 
+       LIMIT 1`,
+      [pollId]
+    );
+    console.log(`[DEBUG] findOneByPollId: Ergebnis für poll_id=${pollId}:`, result);
+    return Array.isArray(result) && result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error(`[ERROR] findOneByPollId: Fehler bei Abfrage für poll_id=${pollId}:`, error);
+    return null;
+  }
 }
 
 export async function updatePollResultMaxVotes(pollResultId, eventUserId) {
@@ -49,28 +61,205 @@ export async function findClosedPollResults(eventId, page, pageSize) {
   );
 }
 
+/**
+ * Überprüft, ob in der aktuellen Abstimmung noch Stimmen abgegeben werden können
+ * Berücksichtigt sowohl die Gesamtzahl der möglichen Stimmen als auch die tatsächlich abgegebenen Stimmen
+ * @param {number} pollResultId - ID des Abstimmungsergebnisses
+ * @returns {Promise<Object|null>} - Informationen zu verbleibenden Stimmen oder null wenn keine mehr übrig
+ */
 export async function findLeftAnswersCount(pollResultId) {
-  const result = await query(
-    `
-    SELECT poll_result.id as poll_result_id,
-    poll_result.max_votes AS max_votes,
-    poll_result.max_vote_cycles AS max_vote_cycles,
-    (SELECT COALESCE(SUM(poll_user_voted.vote_cycle),0) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_vote_cycles,
-    (SELECT COUNT(poll_user_voted.id) FROM poll_user_voted WHERE poll_user_voted.poll_result_id = poll_result.id) AS poll_user_voted_count,
-    (SELECT COUNT(*) FROM poll_answer WHERE poll_answer.poll_result_id = poll_result.id) AS poll_answers_count,
-    (SELECT COUNT(event_user.id) FROM poll INNER JOIN event_user ON poll.event_id = event_user.event_id WHERE poll.id = poll_result.poll_id AND event_user.verified = 1 AND event_user.allow_to_vote = 1 AND event_user.online = 1 ) AS poll_user_count
-    FROM poll_result
-    WHERE poll_result.id = ?
-    GROUP BY poll_result_id
-    HAVING poll_answers_count < max_votes AND poll_user_vote_cycles < max_vote_cycles
-  `,
-    [pollResultId],
-  );
-  return Array.isArray(result) ? result[0] || null : null;
+  console.log(`[DEBUG:LEFT_ANSWERS] findLeftAnswersCount: Checking poll ${pollResultId} for remaining votes`);
+
+  try {
+    // Start transaction to ensure consistent read
+    await query("START TRANSACTION");
+
+    try {
+      // Fetch poll_result info with lock
+      const pollInfo = await query(
+        `SELECT id, max_votes AS maxVotes, max_vote_cycles AS maxVoteCycles, poll_id AS pollId, closed
+         FROM poll_result 
+         WHERE id = ? 
+         FOR UPDATE`,
+        [pollResultId]
+      );
+
+      if (!Array.isArray(pollInfo) || pollInfo.length === 0) {
+        console.log(`[DEBUG:LEFT_ANSWERS] Poll result ${pollResultId} not found`);
+        await query("COMMIT");
+        return null;
+      }
+
+      const maxVotes = parseInt(pollInfo[0].maxVotes, 10) || 0;
+      const maxVoteCycles = parseInt(pollInfo[0].maxVoteCycles, 10) || 0;
+      const pollId = pollInfo[0].pollId;
+      const isClosed = pollInfo[0].closed === 1;
+
+      console.log(`[DEBUG:LEFT_ANSWERS] Poll info: maxVotes=${maxVotes}, maxVoteCycles=${maxVoteCycles}, isClosed=${isClosed}`);
+
+      // If poll is already marked as closed, return null
+      if (isClosed) {
+        console.log(`[DEBUG:LEFT_ANSWERS] Poll ${pollResultId} is already closed`);
+        await query("COMMIT");
+        return null;
+      }
+
+      // Get poll type to determine counting method
+      const pollTypeQuery = await query(
+        `SELECT type FROM poll WHERE id = ?`,
+        [pollId]
+      );
+
+      const isPubilc = Array.isArray(pollTypeQuery) && pollTypeQuery.length > 0 && pollTypeQuery[0].type === "PUBLIC";
+      console.log(`[DEBUG:LEFT_ANSWERS] Poll type: ${isPubilc ? "PUBLIC" : "SECRET"}`);
+
+      // Count total answers (votes cast)
+      const answerCountQuery = await query(
+        `SELECT COUNT(*) AS total FROM poll_answer WHERE poll_result_id = ?`,
+        [pollResultId]
+      );
+
+      const totalAnswers = Array.isArray(answerCountQuery) && answerCountQuery.length > 0
+        ? parseInt(answerCountQuery[0].total, 10) || 0
+        : 0;
+
+      console.log(`[DEBUG:LEFT_ANSWERS] Total poll_answer count: ${totalAnswers}/${maxVotes}`);
+
+      // If we've already reached the max votes, close the poll
+      if (totalAnswers >= maxVotes) {
+        console.log(`[DEBUG:LEFT_ANSWERS] Reached or exceeded max votes (${totalAnswers}/${maxVotes}), closing poll`);
+        await query("UPDATE poll_result SET closed = 1 WHERE id = ?", [pollResultId]);
+        await query("COMMIT");
+        return null;
+      }
+
+      // Get total vote cycles used
+      // Wichtig: Direkt camelCase in SQL verwenden
+      const voteCycleQuery = await query(
+        `SELECT COALESCE(SUM(vote_cycle), 0) AS totalCycles,
+                COALESCE(SUM(version), 0) AS totalVersions
+         FROM poll_user_voted
+         WHERE poll_result_id = ?`,
+        [pollResultId]
+      );
+
+      const totalVoteCycles = Array.isArray(voteCycleQuery) && voteCycleQuery.length > 0
+        ? parseInt(voteCycleQuery[0].totalCycles, 10) || 0
+        : 0;
+
+      const totalVersions = Array.isArray(voteCycleQuery) && voteCycleQuery.length > 0
+        ? parseInt(voteCycleQuery[0].totalVersions, 10) || 0
+        : 0;
+
+      // Use the higher value between vote_cycle and version totals for safety
+      const effectiveVoteCycles = Math.max(totalVoteCycles, totalVersions);
+      console.log(`[DEBUG:LEFT_ANSWERS] Total voteCycles=${totalVoteCycles}, versions=${totalVersions}, using max=${effectiveVoteCycles}/${maxVoteCycles}`);
+
+      // If we've reached the max vote cycles, close the poll
+      if (effectiveVoteCycles >= maxVoteCycles) {
+        console.log(`[DEBUG:LEFT_ANSWERS] Reached or exceeded max vote cycles (${effectiveVoteCycles}/${maxVoteCycles}), closing poll`);
+        await query("UPDATE poll_result SET closed = 1 WHERE id = ?", [pollResultId]);
+        await query("COMMIT");
+        return null;
+      }
+
+      // Count users who have voted
+      const votedUsersQuery = await query(
+        `SELECT COUNT(DISTINCT id) AS total FROM poll_user_voted WHERE poll_result_id = ?`,
+        [pollResultId]
+      );
+
+      const votedUsers = Array.isArray(votedUsersQuery) && votedUsersQuery.length > 0
+        ? parseInt(votedUsersQuery[0].total, 10) || 0
+        : 0;
+
+      // Count eligible users
+      const eligibleUsersQuery = await query(
+        `SELECT COUNT(event_user.id) AS total
+         FROM poll 
+         INNER JOIN event_user ON poll.event_id = event_user.event_id
+         WHERE poll.id = ? 
+         AND event_user.verified = 1 
+         AND event_user.allow_to_vote = 1 
+         AND event_user.online = 1`,
+        [pollId]
+      );
+
+      const eligibleUsers = Array.isArray(eligibleUsersQuery) && eligibleUsersQuery.length > 0
+        ? parseInt(eligibleUsersQuery[0].total, 10) || 0
+        : 0;
+
+      console.log(`[DEBUG:LEFT_ANSWERS] Users: ${votedUsers} voted out of ${eligibleUsers} eligible`);
+
+      // Construct the result - WICHTIG: GraphQL erwartet camelCase-Namen
+      const result = {
+        pollResultId: pollResultId,
+        maxVotes: maxVotes, // camelCase statt snake_case
+        maxVoteCycles: maxVoteCycles, // camelCase statt snake_case
+        pollUserVoteCycles: effectiveVoteCycles, // camelCase statt snake_case
+        pollUserVotedCount: votedUsers, // camelCase statt snake_case
+        pollAnswersCount: totalAnswers, // camelCase statt snake_case
+        pollUserCount: eligibleUsers // camelCase statt snake_case
+      };
+
+      // Final check: If answers_count or vote_cycles are at or above max, close poll and return null (no votes left)
+      if (totalAnswers >= maxVotes || effectiveVoteCycles >= maxVoteCycles) {
+        console.log(`[DEBUG:LEFT_ANSWERS] No votes left, closing poll`);
+        await query("UPDATE poll_result SET closed = 1 WHERE id = ?", [pollResultId]);
+        await query("COMMIT");
+        return null;
+      }
+
+      // Commit the transaction
+      await query("COMMIT");
+      console.log(`[DEBUG:LEFT_ANSWERS] Votes still available:`, result);
+      return result;
+    } catch (txError) {
+      await query("ROLLBACK");
+      console.error(`[ERROR:LEFT_ANSWERS] Transaction error:`, txError);
+      throw txError;
+    }
+  } catch (error) {
+    console.error(`[ERROR:LEFT_ANSWERS] Error in findLeftAnswersCount:`, error);
+
+    // Try to rollback if transaction is still open
+    try {
+      await query("ROLLBACK");
+    } catch (e) {
+      // Ignore
+    }
+
+    // Return null on error - treat as no votes left to be safe
+    return null;
+  }
 }
 
 export async function closePollResult(id) {
-  await query("UPDATE poll_result SET closed = ? WHERE id = ?", [1, id]);
+  console.log(`[DEBUG:CLOSE_POLL] Closing poll result with id: ${id}`);
+
+  // First check if it's already closed
+  const checkQuery = await query("SELECT closed FROM poll_result WHERE id = ?", [id]);
+  const isAlreadyClosed = Array.isArray(checkQuery) &&
+    checkQuery.length > 0 &&
+    checkQuery[0].closed === 1;
+
+  if (isAlreadyClosed) {
+    console.log(`[DEBUG:CLOSE_POLL] Poll ${id} is already closed, skipping update`);
+    return true;
+  }
+
+  const result = await query("UPDATE poll_result SET closed = ? WHERE id = ?", [1, id]);
+  console.log(`[DEBUG:CLOSE_POLL] Poll close result:`, result);
+
+  // Verify the update worked
+  const verifyQuery = await query("SELECT closed FROM poll_result WHERE id = ?", [id]);
+  if (Array.isArray(verifyQuery) && verifyQuery.length > 0) {
+    const actualClosed = verifyQuery[0].closed === 1;
+    console.log(`[DEBUG:CLOSE_POLL] Poll ${id} closed status after update: ${actualClosed}`);
+    return actualClosed;
+  }
+
+  return false;
 }
 
 export async function closeAllPollResultsByEventId(eventId) {
