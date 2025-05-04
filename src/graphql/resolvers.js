@@ -4,6 +4,7 @@ import pollQueries from "./resolver/queries/poll";
 import pollResultQueries from "./resolver/queries/poll-result";
 import organizerQueries from "./resolver/queries/organizer";
 import zoomMeetingQueries from "./resolver/queries/zoom-meeting";
+import Queries from "./resolver/queries/user-vote-cycle";
 import organizerMutations from "./resolver/mutation/organizer";
 import eventMutations from "./resolver/mutation/event";
 import eventUserMutations from "./resolver/mutation/event-user";
@@ -32,6 +33,7 @@ export default {
     ...pollResultQueries,
     ...organizerQueries,
     ...zoomMeetingQueries,
+    ...userVoteCycleQueries,
   },
   Mutation: {
     ...organizerMutations,

@@ -18,6 +18,7 @@ import {
 } from "../../../repository/event-user-repository";
 import { pubsub } from "../../../server/graphql";
 import { POLL_LIFE_CYCLE } from "../subscription/subscription-types";
+import { query } from "../../../lib/database";
 
 export default {
   createPoll: async (_, args) => {
@@ -88,11 +89,12 @@ export default {
       await findOnlineEventUserByEventId(pollRecord.eventId),
     );
     if (pollResultId) {
+      // Korrektes Format für consistency: poll statt pollRecord
       pubsub.publish(POLL_LIFE_CYCLE, {
         eventId: pollRecord.eventId,
         state: "new",
-        pollRecord,
-        pollResultId,
+        poll: pollRecord, // WICHTIG: poll statt pollRecord verwenden
+        pollResultId: pollResultId
       });
     }
     return pollRecord;
@@ -107,10 +109,42 @@ export default {
       throw new Error(`Poll with id ${pollResult.pollId} not found!`);
     }
     await closePollResult(id);
+    
+    // KRITISCH: Stelle sicher, dass wir dem Client alle nötigen Informationen senden
+    console.log(`[DEBUG:POLL] Publishing poll close event for poll ${poll.id}, event ${poll.eventId}`);
+    // Vollständiges Poll-Objekt mit allen erforderlichen Feldern abrufen
+    const completePollQuery = await query(
+      `SELECT id, title, poll_answer AS pollAnswer, type, list, min_votes AS minVotes, 
+              max_votes AS maxVotes, allow_abstain AS allowAbstain
+       FROM poll WHERE id = ?`,
+      [poll.id]
+    );
+    
+    // Mögliche Antworten abrufen
+    const possibleAnswersQuery = await query(
+      "SELECT id, content FROM poll_possible_answer WHERE poll_id = ?",
+      [poll.id]
+    );
+    
+    const completePoll = Array.isArray(completePollQuery) && completePollQuery.length > 0 
+      ? completePollQuery[0] 
+      : poll; // Fallback auf das bereits vorhandene Objekt
+    
+    const possibleAnswers = Array.isArray(possibleAnswersQuery) 
+      ? possibleAnswersQuery 
+      : [];
+    
+    // Füge die möglichen Antworten hinzu
+    completePoll.possibleAnswers = possibleAnswers;
+    
     pubsub.publish(POLL_LIFE_CYCLE, {
       eventId: poll.eventId,
       state: "closed",
+      poll: completePoll, // Vollständiges Poll-Objekt mit allen erforderlichen Feldern
+      pollResultId: id
     });
+    
+    console.log(`[DEBUG:POLL] Poll close event published for poll ${poll.id}, pollResult ${id}`);
     return true;
   },
   removePoll: async (_, { id }) => {

@@ -14,6 +14,18 @@ export default {
           return parseInt(payload.eventId) === parseInt(args.eventId);
         }),
       ),
-    resolve: (payload) => payload,
+    resolve: (payload) => {
+      // Stelle sicher, dass alle erforderlichen Felder vorhanden sind
+      return {
+        pollResultId: payload.pollResultId || 0,
+        maxVotes: payload.maxVotes || 0,
+        maxVoteCycles: payload.maxVoteCycles || 0,
+        pollUserVoteCycles: payload.pollUserVoteCycles || 0,
+        pollUserVotedCount: payload.pollUserVotedCount || 0,
+        pollAnswersCount: payload.pollAnswersCount || 0,
+        pollUserCount: payload.pollUserCount || 0,
+        eventId: payload.eventId || 0
+      };
+    },
   },
 };
