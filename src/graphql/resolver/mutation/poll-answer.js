@@ -310,8 +310,6 @@ export default {
                 [pollResult.id, input.eventUserId]
               );
             }
-          } else {
-            console.log(`[DEBUG:POLL_ANSWER] No vote_cycle record found for SECRET poll, using count=0`);
           }
         }
 
@@ -416,8 +414,6 @@ export default {
                       [currentCount, currentCount, pollResult.id, input.eventUserId]
                     );
                   }
-                } else {
-                  console.log(`[DEBUG:POLL_ANSWER] No vote record found in final check, using count=0`);
                 }
               }
 
@@ -547,8 +543,6 @@ export default {
                   [currentCount, currentCount, pollResult.id, input.eventUserId]
                 );
               }
-            } else {
-              console.log(`[DEBUG:POLL_ANSWER] No vote record found in single vote check, using count=0`);
             }
           }
 

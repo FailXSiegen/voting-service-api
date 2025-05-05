@@ -41,8 +41,6 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
       if (beforeVoteCycle !== beforeVersion) {
         console.warn(`[WARN:VOTE_CYCLE] BEFORE TRANSACTION: voteCycle and version are already out of sync! voteCycle=${beforeVoteCycle}, version=${beforeVersion}`);
       }
-    } else {
-      console.log(`[DEBUG:VOTE_CYCLE] BEFORE TRANSACTION: No existing poll_user_voted record found`);
     }
 
     await query("START TRANSACTION");
@@ -109,13 +107,11 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
     } catch (txError) {
       // Bei Fehler: Transaktion zurückrollen
       console.error(`[ERROR] allowToCreateNewVote: Transaktionsfehler:`, txError);
-      console.log(`[DEBUG:VOTE_CYCLE] Transaction error, rolling back`);
       await query("ROLLBACK");
       return false;
     }
   } catch (error) {
     console.error(`[ERROR] allowToCreateNewVote: Fehler bei der Prüfung:`, error);
-    console.log(`[DEBUG:VOTE_CYCLE] General error, attempting rollback`);
     // Versuche Rollback im Fehlerfall
     try {
       await query("ROLLBACK");
@@ -162,8 +158,6 @@ export async function createPollUserVoted(
       if (parseInt(preTxCheck[0].vote_cycle, 10) !== parseInt(preTxCheck[0].version, 10)) {
         console.warn(`[WARN:CREATE_VOTE] BEFORE TRANSACTION: voteCycle and version are out of sync! voteCycle=${preTxCheck[0].vote_cycle}, version=${preTxCheck[0].version}`);
       }
-    } else {
-      console.log(`[DEBUG:CREATE_VOTE] BEFORE TRANSACTION: No existing entry found`);
     }
 
     await query("START TRANSACTION");
@@ -183,7 +177,6 @@ export async function createPollUserVoted(
           console.warn(`[WARN:CREATE_VOTE] In transaction: voteCycle and version are out of sync! voteCycle=${existingEntry[0].vote_cycle}, version=${existingEntry[0].version}`);
         }
 
-        console.log(`[DEBUG:CREATE_VOTE] Rolling back transaction`);
         await query("ROLLBACK");
         return null;
       }
@@ -199,7 +192,6 @@ export async function createPollUserVoted(
       // Wenn kein Benutzer gefunden oder nicht berechtigt, abbrechen
       if (!Array.isArray(userCheck) || userCheck.length === 0) {
         console.log(`[WARN] createPollUserVoted: Benutzer ${eventUserId} nicht gefunden oder nicht berechtigt`);
-        console.log(`[DEBUG:CREATE_VOTE] User not found or not authorized, rolling back transaction`);
         await query("ROLLBACK");
         return null;
       }
@@ -222,7 +214,6 @@ export async function createPollUserVoted(
         console.log(`[WARN] createPollUserVoted: voteCycle auf ${finalVoteCycle} (max) statt ${parsedVoteCycle} begrenzt`);
       }
 
-      console.log(`[DEBUG:CREATE_VOTE] Initialisiere poll_user_voted mit vote_cycle=${finalVoteCycle} (0 bedeutet, dass noch keine Stimme abgegeben wurde)`);
 
       const insertQuery = `INSERT INTO poll_user_voted 
          (event_user_id, username, poll_result_id, vote_cycle, create_datetime, version)
@@ -276,13 +267,11 @@ export async function createPollUserVoted(
     } catch (txError) {
       // Bei Fehler: Transaktion zurückrollen
       console.error(`[ERROR] createPollUserVoted: Transaktionsfehler:`, txError);
-      console.log(`[DEBUG:CREATE_VOTE] Transaction error, rolling back`, txError);
       await query("ROLLBACK");
       throw txError;
     }
   } catch (error) {
     console.error(`[ERROR] createPollUserVoted: Fehler beim Erstellen:`, error);
-    console.log(`[DEBUG:CREATE_VOTE] General error in createPollUserVoted`, error);
 
     // Versuche Rollback im Fehlerfall
     try {
@@ -334,7 +323,6 @@ export async function getUserVoteCycle(pollResultId, eventUserId) {
  * @returns {Promise<number>}
  */
 export async function countActualAnswersForUser(pollResultId, eventUserId) {
-  console.log(`[DEBUG] countActualAnswersForUser: Zähle tatsächliche Antworten für pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
   try {
     const result = await query(
       `
@@ -346,7 +334,6 @@ export async function countActualAnswersForUser(pollResultId, eventUserId) {
       [pollResultId, eventUserId]
     );
 
-    console.log(`[DEBUG] countActualAnswersForUser: Ergebnis:`, result);
 
     if (Array.isArray(result) && result.length > 0) {
       const count = parseInt(result[0].answerCount, 10) || 0;
@@ -458,13 +445,11 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId) {
     } catch (txError) {
       // Bei Fehler: Transaktion zurückrollen
       console.error(`[ERROR] incrementVoteCycleAfterVote: Transaktionsfehler:`, txError);
-      console.log(`[DEBUG:INC_VOTE_CYCLE] Transaction error, rolling back`);
       await query("ROLLBACK");
       return false;
     }
   } catch (error) {
     console.error(`[ERROR] incrementVoteCycleAfterVote: Fehler bei der Inkrementierung:`, error);
-    console.log(`[DEBUG:INC_VOTE_CYCLE] General error, attempting rollback`);
     // Versuche Rollback im Fehlerfall
     try {
       await query("ROLLBACK");
