@@ -23,7 +23,6 @@ export async function existInCurrentVote(pollResultId, eventUserId) {
  * @returns {Promise<boolean>} - true wenn eine weitere Stimme abgegeben werden darf, sonst false
  */
 export async function allowToCreateNewVote(pollResultId, eventUserId) {
-  console.log(`[DEBUG:VOTE_CYCLE] allowToCreateNewVote: Checking for pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
 
   try {
     // Before transaction - check current state for debugging
@@ -37,7 +36,6 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
     if (Array.isArray(beforeVoteQuery) && beforeVoteQuery.length > 0) {
       const beforeVoteCycle = parseInt(beforeVoteQuery[0].voteCycle, 10) || 0;
       const beforeVersion = parseInt(beforeVoteQuery[0].version, 10) || 0;
-      console.log(`[DEBUG:VOTE_CYCLE] BEFORE TRANSACTION: Current voteCycle=${beforeVoteCycle}, version=${beforeVersion}, record ID=${beforeVoteQuery[0].id}`);
 
       // Check if voteCycle and version are already out of sync
       if (beforeVoteCycle !== beforeVersion) {
@@ -47,13 +45,10 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
       console.log(`[DEBUG:VOTE_CYCLE] BEFORE TRANSACTION: No existing poll_user_voted record found`);
     }
 
-    // Wichtig: Transaktionen verwenden, um Race Conditions zu vermeiden
-    console.log(`[DEBUG:VOTE_CYCLE] Starting transaction...`);
     await query("START TRANSACTION");
 
     try {
-      // Benutzerinformationen mit Sperre abrufen
-      console.log(`[DEBUG:VOTE_CYCLE] Fetching user info with lock...`);
+
       const userQuery = await query(
         `SELECT vote_amount AS voteAmount, verified, allow_to_vote AS allowToVote, online, username 
          FROM event_user 
@@ -68,7 +63,7 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
       }
 
       const user = userQuery[0];
-      console.log(`[DEBUG:VOTE_CYCLE] User info: voteAmount=${user.voteAmount}, verified=${user.verified}, allowToVote=${user.allowToVote}, online=${user.online}, username=${user.username}`);
+
 
       if (!user.verified || !user.allowToVote || !user.online) {
         console.log(`[INFO] Benutzer ${eventUserId} ist nicht berechtigt.`);
@@ -77,10 +72,7 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
       }
 
       const maxVotes = parseInt(user.voteAmount, 10) || 0;
-      console.log(`[DEBUG:VOTE_CYCLE] Max votes allowed for user: ${maxVotes}`);
 
-      // Aktuellen Stimmzähler mit Sperre abrufen
-      console.log(`[DEBUG:VOTE_CYCLE] Fetching poll_user_voted record with lock...`);
       const voteQuery = await query(
         `SELECT vote_cycle AS voteCycle, version, id, username, create_datetime
          FROM poll_user_voted
@@ -97,37 +89,20 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
 
       const currentVoteCycle = parseInt(voteQuery[0].voteCycle, 10) || 0;
       const currentVersion = parseInt(voteQuery[0].version, 10) || 0;
-      console.log(`[DEBUG:VOTE_CYCLE] Current vote record: id=${voteQuery[0].id}, voteCycle=${currentVoteCycle}, version=${currentVersion}, username=${voteQuery[0].username}, create_datetime=${voteQuery[0].create_datetime}`);
 
       // Check if voteCycle and version are out of sync in the locked record
       if (currentVoteCycle !== currentVersion) {
         console.warn(`[WARN:VOTE_CYCLE] voteCycle and version are out of sync in locked record! voteCycle=${currentVoteCycle}, version=${currentVersion}`);
       }
-      console.log(`[INFO] Benutzer ${eventUserId} hat bisher ${currentVoteCycle} von ${maxVotes} Stimmen abgegeben.`);
 
       // WICHTIG: Wir prüfen nur, ob der Benutzer noch Stimmen übrig hat, erhöhen aber noch NICHT
       // den Vote-Cycle! Dies passiert erst, nachdem die eigentliche Stimme erfolgreich abgegeben wurde.
       // HINWEIS: Da wir jetzt mit vote_cycle=0 starten, bedeutet vote_cycle = 0, dass noch keine Stimme abgegeben wurde!
       if (currentVoteCycle < maxVotes) {
-        // Wir aktualisieren NICHT den Stimmzähler an dieser Stelle
-        // Stattdessen geben wir nur zurück, dass eine weitere Stimme erlaubt ist
-
-        // Transaktion abschließen ohne Änderungen
-        if (currentVoteCycle + 1 < maxVotes) {
-          // Mehrere Stimmen übrig
-          console.log(`[DEBUG:VOTE_CYCLE] User has votes left (${currentVoteCycle}/${maxVotes}), committing transaction without update`);
-        } else {
-          // Genau eine Stimme übrig - letzte Stimme darf gezählt werden, aber keine weitere
-          console.log(`[INFO] Benutzer ${eventUserId} hat ${currentVoteCycle} von ${maxVotes} Stimmen abgegeben, kann noch 1 abgeben`);
-          console.log(`[DEBUG:VOTE_CYCLE] User at final vote, committing transaction without update`);
-        }
         await query("COMMIT");
 
         return true;
       } else {
-        // Schon am oder über dem Maximum - keine weitere Stimme zählen
-        console.log(`[WARN] Benutzer ${eventUserId} hat bereits alle ${maxVotes} Stimmen abgegeben!`);
-        console.log(`[DEBUG:VOTE_CYCLE] User exceeds vote limit (${currentVoteCycle}/${maxVotes}), committing transaction without update`);
         await query("COMMIT");
         return false;
       }
