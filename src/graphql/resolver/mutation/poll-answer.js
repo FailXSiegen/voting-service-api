@@ -374,9 +374,9 @@ export default {
         const requestedVotes = input.voteCycle || 1;
         const remainingVotes = totalAllowedVotes - actualAnswerCount;
 
-        // WICHTIG: Stark reduzierte Batch-Größe, um die Datenbankverbindungen zu entlasten
-        // Maximal 2 Stimmen auf einmal abgeben, unabhängig davon, wie viele verbleiben
-        const MAX_BATCH_SIZE = 2;
+        // Erhöhte Batch-Größe 
+        // Maximal 25 Stimmen auf einmal abgeben, unabhängig davon, wie viele verbleiben
+        const MAX_BATCH_SIZE = 25;
         const votesToSubmit = Math.max(0, Math.min(requestedVotes, remainingVotes, MAX_BATCH_SIZE));
 
         console.log(`[DEBUG:POLL_ANSWER] MultiVote calculation: Total allowed=${totalAllowedVotes}, Already used=${actualAnswerCount}, Requested=${requestedVotes}, Remaining=${remainingVotes}, Batch limit=${MAX_BATCH_SIZE}, Will submit=${votesToSubmit}`);
@@ -481,9 +481,9 @@ export default {
               console.warn(`[DEBUG:POLL_ANSWER] Vote ${index}/${votesToSubmit} insertion failed`);
             }
 
-            // Verlängerte Verzögerung zwischen den Einsätzen einfügen, um die Datenbankverbindungen zu schonen
+            // Verzögerung zwischen den Einsätzen reduziert
             if (index < votesToSubmit) {
-              await new Promise(resolve => setTimeout(resolve, 250)); // 250ms Verzögerung
+              await new Promise(resolve => setTimeout(resolve, 50)); // 50ms Verzögerung
             }
           }
 
