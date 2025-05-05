@@ -11,6 +11,36 @@ const config = {
   trace: process.env.ENABLE_DEBUG === "1",
 };
 
+// Einfacher Semaphor für die Begrenzung der gleichzeitigen Datenbankverbindungen
+const MAX_CONCURRENT_CONNECTIONS = 50; // Maximal 50 gleichzeitige Verbindungen
+let currentActiveConnections = 0;
+const pendingConnections = [];
+
+// Hilfsfunktion zum Warten auf eine verfügbare Verbindung
+async function waitForAvailableConnection() {
+  if (currentActiveConnections < MAX_CONCURRENT_CONNECTIONS) {
+    currentActiveConnections++;
+    return;
+  }
+  
+  // Wenn das Limit erreicht ist, warten wir
+  return new Promise(resolve => {
+    pendingConnections.push(resolve);
+  });
+}
+
+// Hilfsfunktion zum Freigeben einer Verbindung
+function releaseConnection() {
+  if (pendingConnections.length > 0) {
+    // Eine wartende Anfrage fortsetzen
+    const nextResolve = pendingConnections.shift();
+    nextResolve();
+  } else {
+    // Zähler zurücksetzen
+    currentActiveConnections--;
+  }
+}
+
 function logQuery(sql, params) {
   if (process.env.LOG_QUERIES_TO_CONSOLE !== "1") {
     return;
@@ -21,25 +51,84 @@ function logQuery(sql, params) {
   console.debug("END---------------------------------------");
 }
 
-export async function baseQuery(sql, params) {
+/**
+ * Executes a SQL query and returns the raw result
+ * @param {string} sql - The SQL query to execute
+ * @param {Array} params - The parameters for the query
+ * @param {Object} options - Additional options
+ * @param {boolean} options.throwError - If true, throws errors instead of returning null
+ * @returns {Promise<Object|null>} - The query result or null if it failed
+ */
+export async function baseQuery(sql, params, options = {}) {
+  const { throwError = false } = options;
   let connection;
   logQuery(sql, params);
+  
+  // Auf eine verfügbare Verbindung warten
+  await waitForAvailableConnection();
+  
   try {
+    // Verzögerung bei vielen aktiven Verbindungen einbauen
+    if (currentActiveConnections > MAX_CONCURRENT_CONNECTIONS * 0.8) {
+      const delayMs = 50 + Math.floor(Math.random() * 150); // 50-200ms Verzögerung
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+    
     connection = await mysql.createConnection(config);
-    return await connection.query(sql, params);
+    const result = await connection.query(sql, params);
+    return result;
   } catch (err) {
-    console.error(err);
+    console.error(`[ERROR:DATABASE] Query failed: ${err.message}`, err);
+    if (throwError) {
+      throw err;
+    }
+    return null;
   } finally {
-    await connection.end();
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (err) {
+        console.error(`[ERROR:DATABASE] Error closing connection:`, err);
+      }
+    }
+    
+    // Verbindung freigeben
+    releaseConnection();
   }
 }
 
-export async function query(sql, params) {
-  const result = await baseQuery(sql, params);
-  return result?.length > 0 ? humps.camelizeKeys(result) : null;
+/**
+ * Executes a SQL query and returns the camelized result for SELECTs
+ * @param {string} sql - The SQL query to execute
+ * @param {Array} params - The parameters for the query
+ * @param {Object} options - Additional options
+ * @param {boolean} options.throwError - If true, throws errors instead of returning null
+ * @returns {Promise<Array|Object|null>} - The query result or null if it failed or no rows were returned
+ */
+export async function query(sql, params, options = {}) {
+  const result = await baseQuery(sql, params, options);
+  
+  if (!result) {
+    return null;
+  }
+  
+  // If this is a SELECT query (has rows property), return camelized results
+  if (result.length !== undefined) {
+    return result.length > 0 ? humps.camelizeKeys(result) : null;
+  }
+  
+  // For non-SELECT queries (INSERT, UPDATE, DELETE), return the raw result
+  return result;
 }
 
-export async function insert(table, input) {
+/**
+ * Inserts a record into the specified table
+ * @param {string} table - The name of the table
+ * @param {Object} input - The data to insert (in camelCase)
+ * @param {boolean} [returnCompleteResult=false] - If true, returns the complete result object instead of just insertId
+ * @returns {Promise<number|Object|null>} - The insertId of the created record, or null if insertion failed
+ */
+export async function insert(table, input, returnCompleteResult = false) {
   input = humps.decamelizeKeys(input);
   try {
     const properties = [];
@@ -51,32 +140,80 @@ export async function insert(table, input) {
     const fieldsList = properties.join(",");
     const sql = `INSERT INTO ${table} (${fieldsList}) VALUES (?)`;
     const result = await baseQuery(sql, [values]);
-    return result.insertId || null;
+    
+    if (!result) {
+      console.error(`[ERROR:DATABASE] Insert into ${table} failed - no result returned`);
+      return null;
+    }
+    
+    return returnCompleteResult ? result : (result.insertId || null);
   } catch (err) {
-    console.error(err);
+    console.error(`[ERROR:DATABASE] Insert into ${table} failed:`, err);
+    return null;
   }
 }
 
-export async function update(table, input) {
+/**
+ * Updates a record in the specified table
+ * @param {string} table - The name of the table
+ * @param {Object} input - The data to update (in camelCase), must include id field
+ * @param {string} [idField='id'] - The name of the ID field (default is 'id')
+ * @returns {Promise<boolean>} - True if update was successful, false otherwise
+ */
+export async function update(table, input, idField = 'id') {
+  if (!input || !input[idField]) {
+    console.error(`[ERROR:DATABASE] Update ${table} failed: Missing ${idField} field in input`);
+    return false;
+  }
+
   let inputCopy = JSON.parse(JSON.stringify(input));
-  const id = parseInt(inputCopy.id);
-  delete inputCopy.id;
+  const id = parseInt(inputCopy[idField]);
+  delete inputCopy[idField];
   inputCopy = humps.decamelizeKeys(inputCopy);
+  
   try {
-    const sql = `UPDATE ${table} SET ? WHERE id  = ?`;
-    await query(sql, [inputCopy, id]);
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-export async function remove(table, id) {
-  try {
-    const sql = `DELETE FROM ${table} WHERE id  = ?`;
-    await query(sql, [id]);
+    const sql = `UPDATE ${table} SET ? WHERE ${humps.decamelize(idField)} = ?`;
+    const result = await baseQuery(sql, [inputCopy, id]);
+    
+    if (!result) {
+      console.error(`[ERROR:DATABASE] Update ${table} failed - no result returned for id ${id}`);
+      return false;
+    }
+    
     return true;
   } catch (err) {
-    console.error(err);
+    console.error(`[ERROR:DATABASE] Update ${table} failed for id ${id}:`, err);
+    return false;
+  }
+}
+
+/**
+ * Removes a record from the specified table
+ * @param {string} table - The name of the table
+ * @param {number|string} id - The ID of the record to delete
+ * @param {string} [idField='id'] - The name of the ID field (default is 'id')
+ * @returns {Promise<boolean>} - True if removal was successful, false otherwise
+ */
+export async function remove(table, id, idField = 'id') {
+  if (!id) {
+    console.error(`[ERROR:DATABASE] Remove from ${table} failed: Missing ID`);
+    return false;
+  }
+  
+  try {
+    const idColumn = humps.decamelize(idField);
+    const sql = `DELETE FROM ${table} WHERE ${idColumn} = ?`;
+    const result = await baseQuery(sql, [id]);
+    
+    if (!result) {
+      console.error(`[ERROR:DATABASE] Remove from ${table} failed - no result returned for id ${id}`);
+      return false;
+    }
+    
+    // Check if any rows were affected
+    return result.affectedRows > 0;
+  } catch (err) {
+    console.error(`[ERROR:DATABASE] Remove from ${table} failed for id ${id}:`, err);
     return false;
   }
 }

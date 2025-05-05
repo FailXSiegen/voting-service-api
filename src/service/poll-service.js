@@ -46,73 +46,63 @@ export async function existsPollUserVoted(
   multiVote,
   input = {}
 ) {
-  console.log(`[DEBUG] existsPollUserVoted: Prüfe für pollResultId=${pollResultId}, eventUserId=${eventUserId}, multiVote=${multiVote}`);
-  
   try {
     // Prüfe, ob der Benutzer bereits in dieser Abstimmung abgestimmt hat
     const userExists = await existInCurrentVote(pollResultId, eventUserId);
-    console.log(`[DEBUG] existsPollUserVoted: Benutzer existiert bereits:`, userExists);
-    
+
     // Benutzerinformationen abrufen
     const eventUser = await findOneById(eventUserId);
     if (!eventUser) {
       console.log(`[ERROR] existsPollUserVoted: Benutzer mit ID ${eventUserId} nicht gefunden`);
       return false;
     }
-    
-    console.log(`[DEBUG] existsPollUserVoted: Benutzer:`, eventUser);
-    
+
     // Sicherstellen, dass der Benutzer überhaupt abstimmen darf
     if (!eventUser.verified || !eventUser.allowToVote) {
       console.log(`[WARN] existsPollUserVoted: Benutzer ${eventUserId} ist nicht verifiziert oder darf nicht abstimmen`);
       return false;
     }
-    
+
     // Die maximale Stimmanzahl sicherstellen
     const maxVotes = parseInt(eventUser.voteAmount, 10) || 0;
-    
+
     // Im multiVote-Modus müssen wir die Anzahl der abzugebenden Stimmen respektieren
     // Dies wird jetzt vom Client korrekt übergeben und hier validiert
     // Der Client sendet jetzt entweder 1 für einzelne Stimmen oder die Anzahl der verbleibenden Stimmen
-    
+
     // Neuen Eintrag erstellen, wenn es der erste ist
     if (userExists === null) {
       // Ein erster Vote-Cycle von 1 ist der Standardwert für neue Einträge
       // Falls multiVote aktiviert ist und der Client hat mehr angefordert, kann der Wert erhöht werden
-      
+
       // Das ist der Standardwert für neue Einträge
-      let voteCycle = 1;
-      
+      let voteCycle = 0;
+
       // Wenn multiVote aktiv ist, können wir einen höheren Wert setzen, aber maximal bis maxVotes
       if (multiVote) {
         // Der Client sendet die gewünschte Anzahl der Stimmen, aber wir begrenzen auf maxVotes
         const requestedVotes = input?.voteCycle || 1;
         voteCycle = Math.min(maxVotes, Math.max(1, requestedVotes));
-        console.log(`[DEBUG] existsPollUserVoted: MultiVote mit voteCycle=${voteCycle} (angefordert=${requestedVotes}, max=${maxVotes})`);
       }
-      
-      console.log(`[INFO] existsPollUserVoted: Erstelle neuen poll_user_voted mit voteCycle=${voteCycle}`);
-      
+
       // Repository-Funktion verwenden
       await createPollUserVoted(pollResultId, eventUserId, voteCycle);
-      
+
       // Bei MultiVote: Wenn genau die maximale Anzahl von Stimmen angefordert wurde, erlauben wir die Stimmabgabe
       if (multiVote) {
         if (voteCycle === maxVotes) {
-          console.log(`[INFO] existsPollUserVoted: MultiVote nutzt genau alle verfügbaren Stimmen (${voteCycle})`);
           return true; // Die letzte Stimme darf gezählt werden
         } else if (voteCycle > 0) {
-          console.log(`[INFO] existsPollUserVoted: MultiVote mit Teilstimmen (${voteCycle}/${maxVotes})`);
           return true; // Auch Teilabstimmungen sind erlaubt
         } else {
           console.log(`[INFO] existsPollUserVoted: MultiVote hat keine gültigen Stimmen angefordert`);
           return false;
         }
       }
-      
+
       return true; // Bei normalem Modus: Erste Stimme erlauben
     }
-    
+
     // Existierenden Eintrag aktualisieren - hier verwenden wir die Repository-Funktion
     return await allowToCreateNewVote(pollResultId, eventUserId);
   } catch (error) {

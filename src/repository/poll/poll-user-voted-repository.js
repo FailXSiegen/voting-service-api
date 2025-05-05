@@ -24,7 +24,7 @@ export async function existInCurrentVote(pollResultId, eventUserId) {
  */
 export async function allowToCreateNewVote(pollResultId, eventUserId) {
   console.log(`[DEBUG:VOTE_CYCLE] allowToCreateNewVote: Checking for pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
-  
+
   try {
     // Before transaction - check current state for debugging
     const beforeVoteQuery = await query(
@@ -33,12 +33,12 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
        WHERE poll_result_id = ? AND event_user_id = ?`,
       [pollResultId, eventUserId]
     );
-    
+
     if (Array.isArray(beforeVoteQuery) && beforeVoteQuery.length > 0) {
       const beforeVoteCycle = parseInt(beforeVoteQuery[0].voteCycle, 10) || 0;
       const beforeVersion = parseInt(beforeVoteQuery[0].version, 10) || 0;
       console.log(`[DEBUG:VOTE_CYCLE] BEFORE TRANSACTION: Current voteCycle=${beforeVoteCycle}, version=${beforeVersion}, record ID=${beforeVoteQuery[0].id}`);
-      
+
       // Check if voteCycle and version are already out of sync
       if (beforeVoteCycle !== beforeVersion) {
         console.warn(`[WARN:VOTE_CYCLE] BEFORE TRANSACTION: voteCycle and version are already out of sync! voteCycle=${beforeVoteCycle}, version=${beforeVersion}`);
@@ -46,11 +46,11 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
     } else {
       console.log(`[DEBUG:VOTE_CYCLE] BEFORE TRANSACTION: No existing poll_user_voted record found`);
     }
-    
+
     // Wichtig: Transaktionen verwenden, um Race Conditions zu vermeiden
     console.log(`[DEBUG:VOTE_CYCLE] Starting transaction...`);
     await query("START TRANSACTION");
-    
+
     try {
       // Benutzerinformationen mit Sperre abrufen
       console.log(`[DEBUG:VOTE_CYCLE] Fetching user info with lock...`);
@@ -60,25 +60,25 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
          WHERE id = ? FOR UPDATE`,
         [eventUserId]
       );
-      
+
       if (!Array.isArray(userQuery) || userQuery.length === 0) {
         console.log(`[INFO] Benutzer ${eventUserId} nicht gefunden.`);
         await query("ROLLBACK");
         return false;
       }
-      
+
       const user = userQuery[0];
       console.log(`[DEBUG:VOTE_CYCLE] User info: voteAmount=${user.voteAmount}, verified=${user.verified}, allowToVote=${user.allowToVote}, online=${user.online}, username=${user.username}`);
-      
+
       if (!user.verified || !user.allowToVote || !user.online) {
         console.log(`[INFO] Benutzer ${eventUserId} ist nicht berechtigt.`);
         await query("ROLLBACK");
         return false;
       }
-      
+
       const maxVotes = parseInt(user.voteAmount, 10) || 0;
       console.log(`[DEBUG:VOTE_CYCLE] Max votes allowed for user: ${maxVotes}`);
-      
+
       // Aktuellen Stimmzähler mit Sperre abrufen
       console.log(`[DEBUG:VOTE_CYCLE] Fetching poll_user_voted record with lock...`);
       const voteQuery = await query(
@@ -88,98 +88,44 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
          FOR UPDATE`,
         [pollResultId, eventUserId]
       );
-      
+
       if (!Array.isArray(voteQuery) || voteQuery.length === 0) {
         console.log(`[INFO] Kein Stimmzähler gefunden für Benutzer ${eventUserId}.`);
         await query("ROLLBACK");
         return false;
       }
-      
+
       const currentVoteCycle = parseInt(voteQuery[0].voteCycle, 10) || 0;
       const currentVersion = parseInt(voteQuery[0].version, 10) || 0;
       console.log(`[DEBUG:VOTE_CYCLE] Current vote record: id=${voteQuery[0].id}, voteCycle=${currentVoteCycle}, version=${currentVersion}, username=${voteQuery[0].username}, create_datetime=${voteQuery[0].create_datetime}`);
-      
+
       // Check if voteCycle and version are out of sync in the locked record
       if (currentVoteCycle !== currentVersion) {
         console.warn(`[WARN:VOTE_CYCLE] voteCycle and version are out of sync in locked record! voteCycle=${currentVoteCycle}, version=${currentVersion}`);
       }
       console.log(`[INFO] Benutzer ${eventUserId} hat bisher ${currentVoteCycle} von ${maxVotes} Stimmen abgegeben.`);
-      
-      // Stimme inkrementieren, aber nur wenn wir das Maximum nicht überschreiten würden
+
+      // WICHTIG: Wir prüfen nur, ob der Benutzer noch Stimmen übrig hat, erhöhen aber noch NICHT
+      // den Vote-Cycle! Dies passiert erst, nachdem die eigentliche Stimme erfolgreich abgegeben wurde.
+      // HINWEIS: Da wir jetzt mit vote_cycle=0 starten, bedeutet vote_cycle = 0, dass noch keine Stimme abgegeben wurde!
       if (currentVoteCycle < maxVotes) {
-        const newVoteCycle = currentVoteCycle + 1;
-        console.log(`[INFO] Erhöhe Stimmzähler für Benutzer ${eventUserId} von ${currentVoteCycle} auf ${newVoteCycle}`);
-        
-        // Aktualisiere den Stimmzähler mit Transaktion
-        // WICHTIG: voteCycle direkt in der Datenbank inkrementieren
-        // statt einen berechneten Wert zu setzen
-        // KRITISCH: Aktualisiere auch das version-Feld, damit beide Werte synchron sind
-        console.log(`[DEBUG:VOTE_CYCLE] Updating poll_user_voted with SQL: UPDATE poll_user_voted SET vote_cycle = vote_cycle + 1, version = version + 1 WHERE poll_result_id = ${pollResultId} AND event_user_id = ${eventUserId} AND vote_cycle < ${maxVotes}`);
-        
-        const updateResult = await query(
-          `UPDATE poll_user_voted
-           SET vote_cycle = vote_cycle + 1, version = version + 1
-           WHERE poll_result_id = ? AND event_user_id = ? AND vote_cycle < ?`,
-          [pollResultId, eventUserId, maxVotes]
-        );
-        
-        console.log(`[DEBUG:VOTE_CYCLE] Update result:`, updateResult);
-        
-        // Verify the update occurred
-        const verifyQuery = await query(
-          `SELECT vote_cycle AS voteCycle, version
-           FROM poll_user_voted
-           WHERE poll_result_id = ? AND event_user_id = ?
-           FOR UPDATE`,
-          [pollResultId, eventUserId]
-        );
-        
-        const updatedVoteCycle = Array.isArray(verifyQuery) && verifyQuery.length > 0 
-          ? parseInt(verifyQuery[0].voteCycle, 10) || 0 
-          : 0;
-        
-        const updatedVersion = Array.isArray(verifyQuery) && verifyQuery.length > 0 
-          ? parseInt(verifyQuery[0].version, 10) || 0 
-          : 0;
-        
-        console.log(`[DEBUG:VOTE_CYCLE] After UPDATE, voteCycle=${updatedVoteCycle}, version=${updatedVersion} (both should be ${newVoteCycle})`);
-        
-        if (updatedVoteCycle !== newVoteCycle || updatedVersion !== newVoteCycle) {
-          console.warn(`[WARN:VOTE_CYCLE] Vote fields were not incremented as expected! Expected both at: ${newVoteCycle}, Actual: voteCycle=${updatedVoteCycle}, version=${updatedVersion}`);
+        // Wir aktualisieren NICHT den Stimmzähler an dieser Stelle
+        // Stattdessen geben wir nur zurück, dass eine weitere Stimme erlaubt ist
+
+        // Transaktion abschließen ohne Änderungen
+        if (currentVoteCycle + 1 < maxVotes) {
+          // Mehrere Stimmen übrig
+          console.log(`[DEBUG:VOTE_CYCLE] User has votes left (${currentVoteCycle}/${maxVotes}), committing transaction without update`);
+        } else {
+          // Genau eine Stimme übrig - letzte Stimme darf gezählt werden, aber keine weitere
+          console.log(`[INFO] Benutzer ${eventUserId} hat ${currentVoteCycle} von ${maxVotes} Stimmen abgegeben, kann noch 1 abgeben`);
+          console.log(`[DEBUG:VOTE_CYCLE] User at final vote, committing transaction without update`);
         }
-        
-        // Transaktion abschließen
-        console.log(`[DEBUG:VOTE_CYCLE] Committing transaction`);
         await query("COMMIT");
-        
-        // Post-transaction verification
-        const afterVoteQuery = await query(
-          `SELECT vote_cycle AS voteCycle, version, id
-           FROM poll_user_voted
-           WHERE poll_result_id = ? AND event_user_id = ?`,
-          [pollResultId, eventUserId]
-        );
-        
-        if (Array.isArray(afterVoteQuery) && afterVoteQuery.length > 0) {
-          const afterVoteCycle = parseInt(afterVoteQuery[0].voteCycle, 10) || 0;
-          const afterVersion = parseInt(afterVoteQuery[0].version, 10) || 0;
-          console.log(`[DEBUG:VOTE_CYCLE] AFTER TRANSACTION: Final voteCycle=${afterVoteCycle}, version=${afterVersion}, record ID=${afterVoteQuery[0].id}`);
-          
-          // Verify both fields are in sync
-          if (afterVoteCycle !== afterVersion) {
-            console.warn(`[WARN:VOTE_CYCLE] Final values are not in sync! voteCycle=${afterVoteCycle}, version=${afterVersion}`);
-          }
-        }
-        
+
         return true;
-      } else if (currentVoteCycle === maxVotes) {
-        // Genau an der Grenze - letzte Stimme darf gezählt werden, aber keine weitere
-        console.log(`[INFO] Benutzer ${eventUserId} hat genau alle ${maxVotes} Stimmen abgegeben`);
-        console.log(`[DEBUG:VOTE_CYCLE] User at vote limit, committing transaction without update`);
-        await query("COMMIT");
-        return true; // Erlauben Sie die letzte Stimme zu zählen
       } else {
-        // Schon über dem Maximum - keine weitere Stimme zählen
+        // Schon am oder über dem Maximum - keine weitere Stimme zählen
         console.log(`[WARN] Benutzer ${eventUserId} hat bereits alle ${maxVotes} Stimmen abgegeben!`);
         console.log(`[DEBUG:VOTE_CYCLE] User exceeds vote limit (${currentVoteCycle}/${maxVotes}), committing transaction without update`);
         await query("COMMIT");
@@ -226,8 +172,7 @@ export async function createPollUserVoted(
   eventUserId,
   voteCycle,
 ) {
-  console.log(`[DEBUG:CREATE_VOTE] createPollUserVoted: Creating for pollResultId=${pollResultId}, eventUserId=${eventUserId}, voteCycle=${voteCycle}`);
-  
+
   try {
     // Check for existing entries before transaction (for debug purposes)
     const preTxCheck = await query(
@@ -235,10 +180,9 @@ export async function createPollUserVoted(
        WHERE poll_result_id = ? AND event_user_id = ?`,
       [pollResultId, eventUserId]
     );
-    
+
     if (Array.isArray(preTxCheck) && preTxCheck.length > 0) {
-      console.log(`[DEBUG:CREATE_VOTE] BEFORE TRANSACTION: Found existing entry - id=${preTxCheck[0].id}, voteCycle=${preTxCheck[0].vote_cycle}, version=${preTxCheck[0].version}, username=${preTxCheck[0].username}`);
-      
+
       // Check if voteCycle and version are already out of sync
       if (parseInt(preTxCheck[0].vote_cycle, 10) !== parseInt(preTxCheck[0].version, 10)) {
         console.warn(`[WARN:CREATE_VOTE] BEFORE TRANSACTION: voteCycle and version are out of sync! voteCycle=${preTxCheck[0].vote_cycle}, version=${preTxCheck[0].version}`);
@@ -246,38 +190,29 @@ export async function createPollUserVoted(
     } else {
       console.log(`[DEBUG:CREATE_VOTE] BEFORE TRANSACTION: No existing entry found`);
     }
-    
-    // Transaktion starten, um Race Conditions zu vermeiden
-    console.log(`[DEBUG:CREATE_VOTE] Starting transaction...`);
+
     await query("START TRANSACTION");
-    
+
     try {
-      // Prüfen, ob bereits ein Eintrag existiert (mit Sperre)
-      console.log(`[DEBUG:CREATE_VOTE] Checking for existing entries with lock...`);
       const existingEntry = await query(
         `SELECT id, vote_cycle, version FROM poll_user_voted 
          WHERE poll_result_id = ? AND event_user_id = ?
          FOR UPDATE`,
         [pollResultId, eventUserId]
       );
-      
+
       // Wenn bereits ein Eintrag existiert, Transaktion abbrechen
       if (Array.isArray(existingEntry) && existingEntry.length > 0) {
-        console.log(`[WARN] createPollUserVoted: Eintrag für pollResultId=${pollResultId}, eventUserId=${eventUserId} existiert bereits`);
-        console.log(`[DEBUG:CREATE_VOTE] Found existing entry in transaction - id=${existingEntry[0].id}, voteCycle=${existingEntry[0].vote_cycle}, version=${existingEntry[0].version}`);
-        
         // Check if voteCycle and version are out of sync in the locked record
         if (parseInt(existingEntry[0].vote_cycle, 10) !== parseInt(existingEntry[0].version, 10)) {
           console.warn(`[WARN:CREATE_VOTE] In transaction: voteCycle and version are out of sync! voteCycle=${existingEntry[0].vote_cycle}, version=${existingEntry[0].version}`);
         }
-        
+
         console.log(`[DEBUG:CREATE_VOTE] Rolling back transaction`);
         await query("ROLLBACK");
         return null;
       }
-      
-      // Benutzerinformationen mit Sperre abrufen
-      console.log(`[DEBUG:CREATE_VOTE] Fetching user info with lock...`);
+
       const userCheck = await query(
         `SELECT vote_amount AS voteAmount, username, verified, allow_to_vote AS allowToVote 
          FROM event_user 
@@ -285,7 +220,7 @@ export async function createPollUserVoted(
          FOR UPDATE`,
         [eventUserId]
       );
-      
+
       // Wenn kein Benutzer gefunden oder nicht berechtigt, abbrechen
       if (!Array.isArray(userCheck) || userCheck.length === 0) {
         console.log(`[WARN] createPollUserVoted: Benutzer ${eventUserId} nicht gefunden oder nicht berechtigt`);
@@ -293,86 +228,75 @@ export async function createPollUserVoted(
         await query("ROLLBACK");
         return null;
       }
-      
-      console.log(`[DEBUG:CREATE_VOTE] User info: username=${userCheck[0].username}, voteAmount=${userCheck[0].voteAmount}, verified=${userCheck[0].verified}, allowToVote=${userCheck[0].allowToVote}`);
-      
+
       const createDatetime = getCurrentUnixTimeStamp();
       const username = userCheck[0].username;
-      
+
       // Stelle sicher, dass voteAmount ein numerischer Wert ist
       const maxVotes = parseInt(userCheck[0].voteAmount, 10) || 0;
-      
+
       // Parsen und validieren von voteCycle
-      const parsedVoteCycle = parseInt(voteCycle, 10) || 1;
-      
-      // Sicherstellen, dass voteCycle nicht höher als erlaubt ist und mindestens 1
-      const finalVoteCycle = Math.max(1, Math.min(parsedVoteCycle, maxVotes));
-      
-      console.log(`[DEBUG:CREATE_VOTE] Vote cycle calculation: maxVotes=${maxVotes}, requestedVoteCycle=${parsedVoteCycle}, finalVoteCycle=${finalVoteCycle}`);
-      
+      // WICHTIG: Wir setzen den initialen vote_cycle auf 0 statt 1,
+      // damit der Zyklus erst nach Abgabe der ersten Stimme erhöht wird
+      const parsedVoteCycle = parseInt(voteCycle, 10) || 0;
+
+      // Sicherstellen, dass voteCycle nicht höher als erlaubt ist und 0 für den initalen Zustand
+      const finalVoteCycle = Math.min(parsedVoteCycle, maxVotes);
+
       if (finalVoteCycle !== parsedVoteCycle) {
         console.log(`[WARN] createPollUserVoted: voteCycle auf ${finalVoteCycle} (max) statt ${parsedVoteCycle} begrenzt`);
       }
-      
-      // Direktes INSERT in einer Transaktion
-      // KRITISCH: Stelle sicher, dass version und voteCycle synchron sind
-      console.log(`[DEBUG:CREATE_VOTE] Executing INSERT with values: eventUserId=${eventUserId}, username=${username}, pollResultId=${pollResultId}, finalVoteCycle=${finalVoteCycle}, createDatetime=${createDatetime}`);
-      
+
+      console.log(`[DEBUG:CREATE_VOTE] Initialisiere poll_user_voted mit vote_cycle=${finalVoteCycle} (0 bedeutet, dass noch keine Stimme abgegeben wurde)`);
+
       const insertQuery = `INSERT INTO poll_user_voted 
          (event_user_id, username, poll_result_id, vote_cycle, create_datetime, version)
          VALUES (?, ?, ?, ?, ?, ?)`;
-      
-      console.log(`[DEBUG:CREATE_VOTE] SQL: ${insertQuery}`);
-      
+
       const result = await query(
         insertQuery,
         [eventUserId, username, pollResultId, finalVoteCycle, createDatetime, finalVoteCycle]  // VERSION equals VOTE_CYCLE for new rows
       );
-      
-      console.log(`[DEBUG:CREATE_VOTE] INSERT result:`, result);
-      console.log(`[INFO] createPollUserVoted: Eintrag erstellt mit voteCycle=${finalVoteCycle}`);
-      
       // Verify that the insert worked
       const verifyInsert = await query(
-        `SELECT id, vote_cycle, version, username FROM poll_user_voted 
+        `SELECT id, vote_cycle AS voteCycle, version, username FROM poll_user_voted 
          WHERE poll_result_id = ? AND event_user_id = ?
          FOR UPDATE`,
         [pollResultId, eventUserId]
       );
-      
+
       if (Array.isArray(verifyInsert) && verifyInsert.length > 0) {
-        console.log(`[DEBUG:CREATE_VOTE] Verified INSERT: id=${verifyInsert[0].id}, voteCycle=${verifyInsert[0].vote_cycle}, version=${verifyInsert[0].version}, username=${verifyInsert[0].username}`);
-        
+        // In SQL verwenden wir vote_cycle, aber in JavaScript camelCase
+        const voteCycle = verifyInsert[0].voteCylce;
+
         // Verify voteCycle and version are in sync
-        if (parseInt(verifyInsert[0].vote_cycle, 10) !== parseInt(verifyInsert[0].version, 10)) {
-          console.warn(`[WARN:CREATE_VOTE] voteCycle and version are not in sync after insert! voteCycle=${verifyInsert[0].vote_cycle}, version=${verifyInsert[0].version}`);
+        if (parseInt(voteCycle, 10) !== parseInt(verifyInsert[0].version, 10)) {
+          console.warn(`[WARN:CREATE_VOTE] voteCycle and version are not in sync after insert! voteCycle=${voteCycle}, version=${verifyInsert[0].version}`);
         }
       } else {
         console.warn(`[WARN:CREATE_VOTE] Could not verify INSERT - entry not found immediately after insert!`);
       }
-      
-      // Transaktion abschließen
-      console.log(`[DEBUG:CREATE_VOTE] Committing transaction`);
       await query("COMMIT");
-      
+
       // After transaction verification
       const postTxCheck = await query(
-        `SELECT id, vote_cycle, version, username FROM poll_user_voted 
+        `SELECT id, vote_cycle AS voteCycle, version, username FROM poll_user_voted 
          WHERE poll_result_id = ? AND event_user_id = ?`,
         [pollResultId, eventUserId]
       );
-      
+
       if (Array.isArray(postTxCheck) && postTxCheck.length > 0) {
-        console.log(`[DEBUG:CREATE_VOTE] AFTER TRANSACTION: Confirmed entry - id=${postTxCheck[0].id}, voteCycle=${postTxCheck[0].vote_cycle}, version=${postTxCheck[0].version}, username=${postTxCheck[0].username}`);
-        
+        // In SQL verwenden wir vote_cycle, aber in JavaScript camelCase
+        const voteCycle = postTxCheck[0].voteCycle;
+
         // Final verification that voteCycle and version are in sync
-        if (parseInt(postTxCheck[0].vote_cycle, 10) !== parseInt(postTxCheck[0].version, 10)) {
-          console.warn(`[WARN:CREATE_VOTE] AFTER TRANSACTION: voteCycle and version are not in sync! voteCycle=${postTxCheck[0].vote_cycle}, version=${postTxCheck[0].version}`);
+        if (parseInt(voteCycle, 10) !== parseInt(postTxCheck[0].version, 10)) {
+          console.warn(`[WARN:CREATE_VOTE] AFTER TRANSACTION: voteCycle and version are not in sync! voteCycle=${voteCycle}, version=${postTxCheck[0].version}`);
         }
       } else {
         console.warn(`[WARN:CREATE_VOTE] AFTER TRANSACTION: Entry not found despite successful commit!`);
       }
-      
+
       return result;
     } catch (txError) {
       // Bei Fehler: Transaktion zurückrollen
@@ -384,14 +308,14 @@ export async function createPollUserVoted(
   } catch (error) {
     console.error(`[ERROR] createPollUserVoted: Fehler beim Erstellen:`, error);
     console.log(`[DEBUG:CREATE_VOTE] General error in createPollUserVoted`, error);
-    
+
     // Versuche Rollback im Fehlerfall
     try {
       await query("ROLLBACK");
     } catch (e) {
       // Ignorieren
     }
-    
+
     return null;
   }
 }
@@ -403,7 +327,6 @@ export async function createPollUserVoted(
  * @returns {Promise<{voteCycle: number}|null>}
  */
 export async function getUserVoteCycle(pollResultId, eventUserId) {
-  console.log(`[DEBUG] getUserVoteCycle: Suche Vote-Cycle für pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
   try {
     const result = await query(
       `
@@ -415,13 +338,10 @@ export async function getUserVoteCycle(pollResultId, eventUserId) {
       `,
       [pollResultId, eventUserId]
     );
-    
-    console.log(`[DEBUG] getUserVoteCycle: Ergebnis für pollResultId=${pollResultId}, eventUserId=${eventUserId}:`, result);
-    
+
     if (Array.isArray(result) && result.length > 0) {
       return result[0];
     } else {
-      console.log(`[DEBUG] getUserVoteCycle: Kein Eintrag für pollResultId=${pollResultId}, eventUserId=${eventUserId} gefunden`);
       return null;
     }
   } catch (error) {
@@ -430,38 +350,6 @@ export async function getUserVoteCycle(pollResultId, eventUserId) {
   }
 }
 
-/**
- * Sucht den höchsten Vote-Cycle für einen Benutzer in einer bestimmten Poll (über alle poll_results hinweg)
- * @param {number} pollId 
- * @param {number} eventUserId 
- * @returns {Promise<{voteCycle: number}|null>}
- */
-export async function getHighestVoteCycleForPoll(pollId, eventUserId) {
-  console.log(`[DEBUG] getHighestVoteCycleForPoll: Suche höchsten Vote-Cycle für pollId=${pollId}, eventUserId=${eventUserId}`);
-  try {
-    const result = await query(
-      `
-      SELECT MAX(puv.vote_cycle) as voteCycle
-      FROM poll_user_voted puv
-      JOIN poll_result pr ON puv.poll_result_id = pr.id
-      WHERE pr.poll_id = ? AND puv.event_user_id = ?
-      `,
-      [pollId, eventUserId]
-    );
-    
-    console.log(`[DEBUG] getHighestVoteCycleForPoll: Ergebnis für pollId=${pollId}, eventUserId=${eventUserId}:`, result);
-    
-    if (Array.isArray(result) && result.length > 0 && result[0].voteCycle) {
-      return { voteCycle: parseInt(result[0].voteCycle, 10) || 0 };
-    } else {
-      console.log(`[DEBUG] getHighestVoteCycleForPoll: Kein Eintrag für pollId=${pollId}, eventUserId=${eventUserId} gefunden`);
-      return null;
-    }
-  } catch (error) {
-    console.error(`[ERROR] getHighestVoteCycleForPoll: Fehler bei Abfrage für pollId=${pollId}, eventUserId=${eventUserId}:`, error);
-    return null;
-  }
-}
 
 /**
  * Zählt die TATSÄCHLICHE Gesamtzahl der abgegebenen Antworten für einen Benutzer in einer Poll
@@ -482,19 +370,133 @@ export async function countActualAnswersForUser(pollResultId, eventUserId) {
       `,
       [pollResultId, eventUserId]
     );
-    
+
     console.log(`[DEBUG] countActualAnswersForUser: Ergebnis:`, result);
-    
+
     if (Array.isArray(result) && result.length > 0) {
       const count = parseInt(result[0].answerCount, 10) || 0;
       console.log(`[INFO] Benutzer ${eventUserId} hat tatsächlich ${count} Antworten in dieser Abstimmung abgegeben`);
       return count;
     }
-    
+
     return 0;
   } catch (error) {
     console.error(`[ERROR] countActualAnswersForUser: Fehler bei der Zählung:`, error);
     return 0;
+  }
+}
+
+/**
+ * Erhöht den vote_cycle eines Benutzers NACHDEM die Stimme erfolgreich abgegeben wurde
+ * @param {number} pollResultId - Die ID des Abstimmungsergebnisses
+ * @param {number} eventUserId - Die ID des Benutzers
+ * @returns {Promise<boolean>} - true bei Erfolg, false bei Fehler
+ */
+export async function incrementVoteCycleAfterVote(pollResultId, eventUserId) {
+
+  try {
+
+    await query("START TRANSACTION");
+
+    try {
+
+      const userQuery = await query(
+        `SELECT vote_amount AS voteAmount
+         FROM event_user 
+         WHERE id = ? FOR UPDATE`,
+        [eventUserId]
+      );
+
+      if (!Array.isArray(userQuery) || userQuery.length === 0) {
+        console.log(`[INFO] incrementVoteCycleAfterVote: Benutzer ${eventUserId} nicht gefunden.`);
+        await query("ROLLBACK");
+        return false;
+      }
+
+      const maxVotes = parseInt(userQuery[0].voteAmount, 10) || 0;
+
+      const voteQuery = await query(
+        `SELECT vote_cycle AS voteCycle, version, id
+         FROM poll_user_voted
+         WHERE poll_result_id = ? AND event_user_id = ?
+         FOR UPDATE`,
+        [pollResultId, eventUserId]
+      );
+
+      if (!Array.isArray(voteQuery) || voteQuery.length === 0) {
+        console.log(`[INFO] incrementVoteCycleAfterVote: Kein Stimmzähler gefunden für Benutzer ${eventUserId}.`);
+        await query("ROLLBACK");
+        return false;
+      }
+
+      const currentVoteCycle = parseInt(voteQuery[0].voteCycle, 10) || 0;
+      const currentVersion = parseInt(voteQuery[0].version, 10) || 0;
+      // Check if voteCycle and version are out of sync in the locked record
+      if (currentVoteCycle !== currentVersion) {
+        console.warn(`[WARN:INC_VOTE_CYCLE] voteCycle and version are out of sync in locked record! voteCycle=${currentVoteCycle}, version=${currentVersion}`);
+      }
+
+      // Stimme inkrementieren, wenn wir UNTER dem Maximum sind
+      // WICHTIG: Der vote_cycle wird nach jeder vollständigen Stimmabgabe erhöht
+      // Da wir jetzt mit vote_cycle=0 starten, bedeutet vote_cycle=0, dass noch keine Stimme abgegeben wurde,
+      // vote_cycle=1 bedeutet 1 Stimme abgegeben, usw.
+      if (currentVoteCycle <= maxVotes) {
+        const newVoteCycle = currentVoteCycle + 1;
+
+        const updateResult = await query(
+          `UPDATE poll_user_voted
+           SET vote_cycle = vote_cycle + 1, version = version + 1
+           WHERE poll_result_id = ? AND event_user_id = ? AND vote_cycle < ?`,
+          [pollResultId, eventUserId, maxVotes]
+        );
+
+
+        // Verify the update occurred
+        const verifyQuery = await query(
+          `SELECT vote_cycle AS voteCycle, version
+           FROM poll_user_voted
+           WHERE poll_result_id = ? AND event_user_id = ?
+           FOR UPDATE`,
+          [pollResultId, eventUserId]
+        );
+
+        const updatedVoteCycle = Array.isArray(verifyQuery) && verifyQuery.length > 0
+          ? parseInt(verifyQuery[0].voteCycle, 10) || 0
+          : 0;
+
+        const updatedVersion = Array.isArray(verifyQuery) && verifyQuery.length > 0
+          ? parseInt(verifyQuery[0].version, 10) || 0
+          : 0;
+
+
+        if (updatedVoteCycle !== newVoteCycle || updatedVersion !== newVoteCycle) {
+          console.warn(`[WARN:INC_VOTE_CYCLE] Vote fields were not incremented as expected! Expected both at: ${newVoteCycle}, Actual: voteCycle=${updatedVoteCycle}, version=${updatedVersion}`);
+        }
+
+        await query("COMMIT");
+
+        return true;
+      } else {
+        await query("COMMIT");
+        return true;
+      }
+    } catch (txError) {
+      // Bei Fehler: Transaktion zurückrollen
+      console.error(`[ERROR] incrementVoteCycleAfterVote: Transaktionsfehler:`, txError);
+      console.log(`[DEBUG:INC_VOTE_CYCLE] Transaction error, rolling back`);
+      await query("ROLLBACK");
+      return false;
+    }
+  } catch (error) {
+    console.error(`[ERROR] incrementVoteCycleAfterVote: Fehler bei der Inkrementierung:`, error);
+    console.log(`[DEBUG:INC_VOTE_CYCLE] General error, attempting rollback`);
+    // Versuche Rollback im Fehlerfall
+    try {
+      await query("ROLLBACK");
+    } catch (e) {
+      // Ignorieren
+    }
+    return false;
   }
 }
 
@@ -510,18 +512,18 @@ export async function calculateRealVoteCycle(pollResultId, eventUserId, answersP
   try {
     // Zähle die tatsächlichen Antworten
     const answerCount = await countActualAnswersForUser(pollResultId, eventUserId);
-    
+
     // Wenn keine Antworten vorhanden sind, gibt es keinen Vote-Cycle
     if (answerCount === 0) {
       return 0;
     }
-    
+
     // Berechne den Vote-Cycle basierend auf der Anzahl der Antworten
     // Bei mehreren Antworten pro Abstimmung (z.B. Multiple-Choice) teilen wir durch die Anzahl der Antworten pro Stimme
     const effectiveVoteCycle = Math.ceil(answerCount / Math.max(1, answersPerVote));
-    
+
     console.log(`[INFO] Benutzer ${eventUserId} hat einen effektiven Vote-Cycle von ${effectiveVoteCycle} (${answerCount} Antworten mit ${answersPerVote} Antworten pro Stimme)`);
-    
+
     return effectiveVoteCycle;
   } catch (error) {
     console.error(`[ERROR] calculateRealVoteCycle: Fehler bei der Berechnung:`, error);
