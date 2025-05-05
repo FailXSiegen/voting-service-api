@@ -267,7 +267,7 @@ export async function createPollUserVoted(
 
       if (Array.isArray(verifyInsert) && verifyInsert.length > 0) {
         // In SQL verwenden wir vote_cycle, aber in JavaScript camelCase
-        const voteCycle = verifyInsert[0].voteCylce;
+        const voteCycle = verifyInsert[0].voteCycle;
 
         // Verify voteCycle and version are in sync
         if (parseInt(voteCycle, 10) !== parseInt(verifyInsert[0].version, 10)) {
