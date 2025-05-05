@@ -23,14 +23,12 @@ export default {
       const pollResult = await findOneByPollId(pollId);
 
       if (!pollResult) {
-        console.log(`[DEBUG] userVoteCycle: Kein Poll-Result für Poll-ID ${pollId} gefunden`);
         return { voteCycle: 0, maxVotes: 0 };
       }
 
       const eventUser = await findOneById(eventUserId);
 
       if (!eventUser) {
-        console.log(`[DEBUG] userVoteCycle: Kein Event-User mit ID ${eventUserId} gefunden`);
         return { voteCycle: 0, maxVotes: 0 };
       }
 
@@ -56,7 +54,6 @@ export default {
             console.warn(`[WARN] userVoteCycle: Diskrepanz zwischen voteCycle (${dbVoteCycle}) und version (${dbVersion}) gefunden!`);
             // Nutze den höheren Wert, um sicherzustellen, dass der Benutzer nicht mehr Stimmen abgeben kann, als erlaubt
             const maxValue = Math.max(dbVoteCycle, dbVersion);
-            console.log(`[DEBUG] userVoteCycle: Verwende den höheren Wert (${maxValue}) als tatsächlichen voteCycle`);
 
             if (userVote) {
               userVote.voteCycle = maxValue;
