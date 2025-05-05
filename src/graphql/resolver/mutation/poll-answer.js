@@ -100,21 +100,12 @@ async function publishPollClosedEvent(pollResultId, eventId, pollId = null) {
     pollResultId: pollResultId
   });
 
-  console.log(`[DEBUG:POLL_LIFECYCLE] Poll close event published for poll ${pollResultId} with poll_id=${pollId}`);
 }
 
 
 async function publishPollLifeCycle(pollResultId) {
   // Close the poll and verify it was closed successfully
   await closePollResult(pollResultId);
-
-  // Verify the poll was actually closed
-  const verifyCloseQuery = await query("SELECT closed FROM poll_result WHERE id = ?", [pollResultId]);
-  if (Array.isArray(verifyCloseQuery) && verifyCloseQuery.length > 0) {
-    console.log(`[DEBUG:POLL_LIFECYCLE] Poll closed status after update: ${verifyCloseQuery[0].closed}`);
-  } else {
-    console.warn(`[WARN:POLL_LIFECYCLE] Could not verify poll ${pollResultId} was closed`);
-  }
 
   const eventId = await findEventIdByPollResultId(pollResultId);
   if (!eventId) {
@@ -175,7 +166,6 @@ export default {
       ;
       leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);
       if (leftAnswersDataSet === null) {
-        console.log(`[DEBUG:POLL_ANSWER] No answers left, closing poll`);
 
         // First check if the poll is already closed
         const pollStatusCheck = await query(
@@ -247,7 +237,6 @@ export default {
             }
           }
         } else {
-          console.log(`[DEBUG:POLL_ANSWER] Publishing poll life cycle event to close poll ${pollResult.id}`);
           await publishPollLifeCycle(pollResult.id);
         }
 
@@ -320,10 +309,6 @@ export default {
                  FOR UPDATE`,
                 [pollResult.id, input.eventUserId]
               );
-
-              if (Array.isArray(verifySync) && verifySync.length > 0) {
-                console.log(`[DEBUG:POLL_ANSWER] After sync: voteCycle=${verifySync[0].voteCycle}, version=${verifySync[0].version}`);
-              }
             }
           } else {
             console.log(`[DEBUG:POLL_ANSWER] No vote_cycle record found for SECRET poll, using count=0`);
@@ -379,11 +364,9 @@ export default {
         const MAX_BATCH_SIZE = 25;
         const votesToSubmit = Math.max(0, Math.min(requestedVotes, remainingVotes, MAX_BATCH_SIZE));
 
-        console.log(`[DEBUG:POLL_ANSWER] MultiVote calculation: Total allowed=${totalAllowedVotes}, Already used=${actualAnswerCount}, Requested=${requestedVotes}, Remaining=${remainingVotes}, Batch limit=${MAX_BATCH_SIZE}, Will submit=${votesToSubmit}`);
 
         // Only insert votes if we have votes remaining
         if (votesToSubmit > 0) {
-          console.log(`[DEBUG:POLL_ANSWER] Inserting ${votesToSubmit} votes for user ${input.eventUserId} (batch limited to ${MAX_BATCH_SIZE})`);
           // Variable zur Verfolgung, ob mindestens eine Antwort erfolgreich eingefügt wurde
           let successfulInsert = false;
           for (let index = 1; index <= votesToSubmit; ++index) {
@@ -407,7 +390,6 @@ export default {
                   ? parseInt(finalCheck[0].answerCount, 10) || 0
                   : 0;
 
-                console.log(`[DEBUG:POLL_ANSWER] Pre-insert check for PUBLIC poll: currentCount=${currentCount}/${totalAllowedVotes}`);
               } else {
                 // For SECRET polls, check vote_cycle
                 const voteCheck = await query(
@@ -422,8 +404,6 @@ export default {
                   const voteCycle = parseInt(voteCheck[0].voteCycle, 10) || 0;
                   const version = parseInt(voteCheck[0].version, 10) || 0;
                   currentCount = Math.max(voteCycle, version);
-
-                  console.log(`[DEBUG:POLL_ANSWER] Pre-insert check for SECRET poll: voteCycle=${voteCycle}, version=${version}, using max=${currentCount}/${totalAllowedVotes}`);
 
                   // Fix inconsistency if found
                   if (voteCycle !== version) {
@@ -467,14 +447,11 @@ export default {
             // Nur wenn BEIDE Bedingungen erfüllt sind, wird der vote_cycle erhöht
             const voteComplete = isLastInBatch && isLastAnswerInBallot;
 
-            console.log(`[DEBUG:POLL_ANSWER] Submitting answer ${cloneAnswerObject.answerItemCount}/${cloneAnswerObject.answerItemLength}, isLastInBatch=${isLastInBatch}, isLastAnswerInBallot=${isLastAnswerInBallot}, voteComplete=${voteComplete}`);
-
             // An die insertPollSubmitAnswer-Funktion das voteComplete-Flag übergeben,
             // damit der vote_cycle nur einmal pro Stimmzettel erhöht wird
             const insertResult = await insertPollSubmitAnswer(input, voteComplete);
 
             if (insertResult) {
-              console.log(`[DEBUG:POLL_ANSWER] Vote ${index}/${votesToSubmit} successfully inserted`);
               // Wir merken uns, dass mindestens eine Antwort erfolgreich war
               successfulInsert = true;
             } else {
@@ -501,9 +478,7 @@ export default {
 
           // Der vote_cycle wurde bereits in der insertPollSubmitAnswer-Funktion erhöht,
           // wenn voteComplete=true (beim letzten Element des Batches)
-          if (successfulInsert) {
-            console.log(`[DEBUG:POLL_ANSWER] At least one vote was successfully inserted`);
-          } else {
+          if (!successfulInsert) {
             console.warn(`[DEBUG:POLL_ANSWER] No votes were successfully inserted`);
           }
 
@@ -561,8 +536,6 @@ export default {
               const version = parseInt(voteCheck[0].version, 10) || 0;
               currentCount = Math.max(voteCycle, version);
 
-              console.log(`[DEBUG:POLL_ANSWER] Single vote final check for SECRET poll: voteCycle=${voteCycle}, version=${version}, using max=${currentCount}/${totalAllowedVotes}`);
-
               // Fix inconsistency if found
               if (voteCycle !== version) {
                 console.warn(`[WARN:POLL_ANSWER] Found single vote discrepancy: voteCycle=${voteCycle}, version=${version}. Fixing to ${currentCount}`);
@@ -611,14 +584,11 @@ export default {
         // Nur dann soll der vote_cycle erhöht werden
         const isLastAnswerInBallot = (cloneAnswerObject.answerItemCount === cloneAnswerObject.answerItemLength);
 
-        console.log(`[DEBUG:POLL_ANSWER] Single vote: Processing answer ${cloneAnswerObject.answerItemCount}/${cloneAnswerObject.answerItemLength}, isLastAnswerInBallot=${isLastAnswerInBallot}`);
 
         // voteComplete nur setzen, wenn es die letzte Antwort des Stimmzettels ist
         const insertResult = await insertPollSubmitAnswer(input, isLastAnswerInBallot);
 
-        if (insertResult) {
-          console.log(`[DEBUG:POLL_ANSWER] Single vote successfully inserted with vote_cycle increment in same transaction`);
-        } else {
+        if (!insertResult) {
           console.warn(`[DEBUG:POLL_ANSWER] Single vote insertion failed`);
         }
 
@@ -633,7 +603,6 @@ export default {
           ? parseInt(verifyVoteCycleQuery[0].voteCycle, 10) || 0
           : 0;
 
-        console.log(`[DEBUG:POLL_ANSWER] After single vote insertion, vote_cycle in poll_user_voted: ${updatedVoteCycle}`);
       }
       const isLastAnswerInBallot = (cloneAnswerObject.answerItemCount === cloneAnswerObject.answerItemLength);
       if (isLastAnswerInBallot) {
@@ -643,7 +612,6 @@ export default {
         }
       }
       leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);
-      console.log(`[DEBUG:POLL_ANSWER] Checking remaining answers - leftAnswersDataSet:`, leftAnswersDataSet ? JSON.stringify(leftAnswersDataSet) : 'null');
 
       if (isLastAnswerInBallot) {
         // Again check if there are votes left.
@@ -711,7 +679,6 @@ export default {
           pollStatusCheck[0].closed === 1;
 
         if (!isAlreadyClosed) {
-          console.log(`[DEBUG:POLL_ANSWER] Poll ${pollResult.id} not closed yet, publishing close event`);
           await publishPollLifeCycle(pollResult.id);
         }
       }

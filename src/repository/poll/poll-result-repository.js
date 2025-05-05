@@ -90,8 +90,6 @@ export async function findLeftAnswersCount(pollResultId) {
       const pollId = pollInfo[0].pollId;
       const isClosed = pollInfo[0].closed === 1;
 
-      console.log(`[DEBUG:LEFT_ANSWERS] Poll info: maxVotes=${maxVotes}, maxVoteCycles=${maxVoteCycles}, isClosed=${isClosed}`);
-
       // If poll is already marked as closed, return null
       if (isClosed) {
         await query("COMMIT");
@@ -128,8 +126,6 @@ export async function findLeftAnswersCount(pollResultId) {
 
       // Use the higher value between vote_cycle and version totals for safety
       const effectiveVoteCycles = Math.max(totalVoteCycles, totalVersions);
-      console.log(`[DEBUG:LEFT_ANSWERS] Total voteCycles=${totalVoteCycles}, versions=${totalVersions}, using max=${effectiveVoteCycles}/${maxVoteCycles}`);
-
       // Count users who have voted
       const votedUsersQuery = await query(
         `SELECT COUNT(DISTINCT id) AS total FROM poll_user_voted WHERE poll_result_id = ?`,
@@ -155,7 +151,7 @@ export async function findLeftAnswersCount(pollResultId) {
       const eligibleUsers = Array.isArray(eligibleUsersQuery) && eligibleUsersQuery.length > 0
         ? parseInt(eligibleUsersQuery[0].total, 10) || 0
         : 0;
-        
+
       // NEW: Count users who have completed all their votes
       const usersWithMaxVotesQuery = await query(
         `SELECT COUNT(*) AS completedUsers FROM poll_user_voted puv
@@ -163,23 +159,20 @@ export async function findLeftAnswersCount(pollResultId) {
          WHERE puv.poll_result_id = ? AND eu.vote_amount > 0 AND puv.vote_cycle >= eu.vote_amount`,
         [pollResultId]
       );
-      
+
       const usersCompletedVoting = Array.isArray(usersWithMaxVotesQuery) && usersWithMaxVotesQuery.length > 0
         ? parseInt(usersWithMaxVotesQuery[0].completedUsers, 10) || 0
         : 0;
 
-      console.log(`[DEBUG:LEFT_ANSWERS] Users: ${votedUsers} voted out of ${eligibleUsers} eligible, ${usersCompletedVoting} have completed all votes`);
-
       // Check if all eligible users have completed voting
       // Only if there are eligible users and all have used their maximum votes
       const allUsersVotedMax = eligibleUsers > 0 && usersCompletedVoting >= eligibleUsers;
-      
+
       if (allUsersVotedMax) {
-        console.log(`[DEBUG:LEFT_ANSWERS] CRITICAL: All eligible users (${usersCompletedVoting}/${eligibleUsers}) have completed voting! Returning null to initiate poll closure.`);
         await query("COMMIT");
         return null; // This will trigger poll closure in the caller
       }
-      
+
       await query("COMMIT");
       return {
         pollResultId,
@@ -208,7 +201,6 @@ export async function findLeftAnswersCount(pollResultId) {
 }
 
 export async function closePollResult(id) {
-  console.log(`[DEBUG:CLOSE_POLL] Closing poll result with id: ${id}`);
 
   // First check if it's already closed
   const checkQuery = await query("SELECT closed FROM poll_result WHERE id = ?", [id]);
@@ -217,18 +209,15 @@ export async function closePollResult(id) {
     checkQuery[0].closed === 1;
 
   if (isAlreadyClosed) {
-    console.log(`[DEBUG:CLOSE_POLL] Poll ${id} is already closed, skipping update`);
     return true;
   }
 
   const result = await query("UPDATE poll_result SET closed = ? WHERE id = ?", [1, id]);
-  console.log(`[DEBUG:CLOSE_POLL] Poll close result:`, result);
 
   // Verify the update worked
   const verifyQuery = await query("SELECT closed FROM poll_result WHERE id = ?", [id]);
   if (Array.isArray(verifyQuery) && verifyQuery.length > 0) {
     const actualClosed = verifyQuery[0].closed === 1;
-    console.log(`[DEBUG:CLOSE_POLL] Poll ${id} closed status after update: ${actualClosed}`);
     return actualClosed;
   }
 
