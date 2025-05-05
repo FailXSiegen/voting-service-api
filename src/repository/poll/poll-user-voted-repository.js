@@ -55,7 +55,6 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
       );
 
       if (!Array.isArray(userQuery) || userQuery.length === 0) {
-        console.log(`[INFO] Benutzer ${eventUserId} nicht gefunden.`);
         await query("ROLLBACK");
         return false;
       }
@@ -64,7 +63,6 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
 
 
       if (!user.verified || !user.allowToVote || !user.online) {
-        console.log(`[INFO] Benutzer ${eventUserId} ist nicht berechtigt.`);
         await query("ROLLBACK");
         return false;
       }
@@ -80,7 +78,6 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
       );
 
       if (!Array.isArray(voteQuery) || voteQuery.length === 0) {
-        console.log(`[INFO] Kein Stimmzähler gefunden für Benutzer ${eventUserId}.`);
         await query("ROLLBACK");
         return false;
       }
@@ -191,7 +188,7 @@ export async function createPollUserVoted(
 
       // Wenn kein Benutzer gefunden oder nicht berechtigt, abbrechen
       if (!Array.isArray(userCheck) || userCheck.length === 0) {
-        console.log(`[WARN] createPollUserVoted: Benutzer ${eventUserId} nicht gefunden oder nicht berechtigt`);
+        console.warn(`[WARN] createPollUserVoted: Benutzer ${eventUserId} nicht gefunden oder nicht berechtigt`);
         await query("ROLLBACK");
         return null;
       }
@@ -211,7 +208,7 @@ export async function createPollUserVoted(
       const finalVoteCycle = Math.min(parsedVoteCycle, maxVotes);
 
       if (finalVoteCycle !== parsedVoteCycle) {
-        console.log(`[WARN] createPollUserVoted: voteCycle auf ${finalVoteCycle} (max) statt ${parsedVoteCycle} begrenzt`);
+        console.warn(`[WARN] createPollUserVoted: voteCycle auf ${finalVoteCycle} (max) statt ${parsedVoteCycle} begrenzt`);
       }
 
 
@@ -337,7 +334,6 @@ export async function countActualAnswersForUser(pollResultId, eventUserId) {
 
     if (Array.isArray(result) && result.length > 0) {
       const count = parseInt(result[0].answerCount, 10) || 0;
-      console.log(`[INFO] Benutzer ${eventUserId} hat tatsächlich ${count} Antworten in dieser Abstimmung abgegeben`);
       return count;
     }
 
@@ -370,7 +366,6 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId) {
       );
 
       if (!Array.isArray(userQuery) || userQuery.length === 0) {
-        console.log(`[INFO] incrementVoteCycleAfterVote: Benutzer ${eventUserId} nicht gefunden.`);
         await query("ROLLBACK");
         return false;
       }
@@ -386,7 +381,6 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId) {
       );
 
       if (!Array.isArray(voteQuery) || voteQuery.length === 0) {
-        console.log(`[INFO] incrementVoteCycleAfterVote: Kein Stimmzähler gefunden für Benutzer ${eventUserId}.`);
         await query("ROLLBACK");
         return false;
       }
@@ -482,7 +476,6 @@ export async function calculateRealVoteCycle(pollResultId, eventUserId, answersP
     // Bei mehreren Antworten pro Abstimmung (z.B. Multiple-Choice) teilen wir durch die Anzahl der Antworten pro Stimme
     const effectiveVoteCycle = Math.ceil(answerCount / Math.max(1, answersPerVote));
 
-    console.log(`[INFO] Benutzer ${eventUserId} hat einen effektiven Vote-Cycle von ${effectiveVoteCycle} (${answerCount} Antworten mit ${answersPerVote} Antworten pro Stimme)`);
 
     return effectiveVoteCycle;
   } catch (error) {

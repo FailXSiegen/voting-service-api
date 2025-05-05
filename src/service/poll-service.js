@@ -53,13 +53,13 @@ export async function existsPollUserVoted(
     // Benutzerinformationen abrufen
     const eventUser = await findOneById(eventUserId);
     if (!eventUser) {
-      console.log(`[ERROR] existsPollUserVoted: Benutzer mit ID ${eventUserId} nicht gefunden`);
+      console.error(`[ERROR] existsPollUserVoted: Benutzer mit ID ${eventUserId} nicht gefunden`);
       return false;
     }
 
     // Sicherstellen, dass der Benutzer überhaupt abstimmen darf
     if (!eventUser.verified || !eventUser.allowToVote) {
-      console.log(`[WARN] existsPollUserVoted: Benutzer ${eventUserId} ist nicht verifiziert oder darf nicht abstimmen`);
+      console.warn(`[WARN] existsPollUserVoted: Benutzer ${eventUserId} ist nicht verifiziert oder darf nicht abstimmen`);
       return false;
     }
 
@@ -95,7 +95,6 @@ export async function existsPollUserVoted(
         } else if (voteCycle > 0) {
           return true; // Auch Teilabstimmungen sind erlaubt
         } else {
-          console.log(`[INFO] existsPollUserVoted: MultiVote hat keine gültigen Stimmen angefordert`);
           return false;
         }
       }
