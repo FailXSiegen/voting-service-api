@@ -6,11 +6,12 @@ services:
   db:
     container_name: db
     image: mariadb:10.1
-    command: mysqld --character-set-server=utf8
+    command: mysqld --character-set-server=utf8 --max_connections=1500
     ports:
       - 3306:3306
     volumes:
       - .database:/var/lib/mysql
+      - ./voting-service-api/.docker/mariadb-conf:/etc/mysql/conf.d
     restart: always
     environment:
       - MYSQL_ROOT_PASSWORD=1234
