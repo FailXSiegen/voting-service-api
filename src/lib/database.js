@@ -7,12 +7,12 @@ const config = {
   user: process.env.DATABSE_USER,
   password: process.env.DATABSE_PASSWORD,
   database: process.env.DATABSE_NAME,
-  connectionLimit: 100,
+  connectionLimit: 250,
   trace: process.env.ENABLE_DEBUG === "1",
 };
 
 // Einfacher Semaphor für die Begrenzung der gleichzeitigen Datenbankverbindungen
-const MAX_CONCURRENT_CONNECTIONS = 50; // Maximal 50 gleichzeitige Verbindungen
+const MAX_CONCURRENT_CONNECTIONS = 250; // Maximal 50 gleichzeitige Verbindungen
 let currentActiveConnections = 0;
 const pendingConnections = [];
 
@@ -22,7 +22,7 @@ async function waitForAvailableConnection() {
     currentActiveConnections++;
     return;
   }
-  
+
   // Wenn das Limit erreicht ist, warten wir
   return new Promise(resolve => {
     pendingConnections.push(resolve);
@@ -63,17 +63,17 @@ export async function baseQuery(sql, params, options = {}) {
   const { throwError = false } = options;
   let connection;
   logQuery(sql, params);
-  
+
   // Auf eine verfügbare Verbindung warten
   await waitForAvailableConnection();
-  
+
   try {
     // Verzögerung bei vielen aktiven Verbindungen einbauen
     if (currentActiveConnections > MAX_CONCURRENT_CONNECTIONS * 0.8) {
       const delayMs = 50 + Math.floor(Math.random() * 150); // 50-200ms Verzögerung
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
-    
+
     connection = await mysql.createConnection(config);
     const result = await connection.query(sql, params);
     return result;
@@ -91,7 +91,7 @@ export async function baseQuery(sql, params, options = {}) {
         console.error(`[ERROR:DATABASE] Error closing connection:`, err);
       }
     }
-    
+
     // Verbindung freigeben
     releaseConnection();
   }
@@ -107,16 +107,16 @@ export async function baseQuery(sql, params, options = {}) {
  */
 export async function query(sql, params, options = {}) {
   const result = await baseQuery(sql, params, options);
-  
+
   if (!result) {
     return null;
   }
-  
+
   // If this is a SELECT query (has rows property), return camelized results
   if (result.length !== undefined) {
     return result.length > 0 ? humps.camelizeKeys(result) : null;
   }
-  
+
   // For non-SELECT queries (INSERT, UPDATE, DELETE), return the raw result
   return result;
 }
@@ -140,12 +140,12 @@ export async function insert(table, input, returnCompleteResult = false) {
     const fieldsList = properties.join(",");
     const sql = `INSERT INTO ${table} (${fieldsList}) VALUES (?)`;
     const result = await baseQuery(sql, [values]);
-    
+
     if (!result) {
       console.error(`[ERROR:DATABASE] Insert into ${table} failed - no result returned`);
       return null;
     }
-    
+
     return returnCompleteResult ? result : (result.insertId || null);
   } catch (err) {
     console.error(`[ERROR:DATABASE] Insert into ${table} failed:`, err);
@@ -170,16 +170,16 @@ export async function update(table, input, idField = 'id') {
   const id = parseInt(inputCopy[idField]);
   delete inputCopy[idField];
   inputCopy = humps.decamelizeKeys(inputCopy);
-  
+
   try {
     const sql = `UPDATE ${table} SET ? WHERE ${humps.decamelize(idField)} = ?`;
     const result = await baseQuery(sql, [inputCopy, id]);
-    
+
     if (!result) {
       console.error(`[ERROR:DATABASE] Update ${table} failed - no result returned for id ${id}`);
       return false;
     }
-    
+
     return true;
   } catch (err) {
     console.error(`[ERROR:DATABASE] Update ${table} failed for id ${id}:`, err);
@@ -199,17 +199,17 @@ export async function remove(table, id, idField = 'id') {
     console.error(`[ERROR:DATABASE] Remove from ${table} failed: Missing ID`);
     return false;
   }
-  
+
   try {
     const idColumn = humps.decamelize(idField);
     const sql = `DELETE FROM ${table} WHERE ${idColumn} = ?`;
     const result = await baseQuery(sql, [id]);
-    
+
     if (!result) {
       console.error(`[ERROR:DATABASE] Remove from ${table} failed - no result returned for id ${id}`);
       return false;
     }
-    
+
     // Check if any rows were affected
     return result.affectedRows > 0;
   } catch (err) {
