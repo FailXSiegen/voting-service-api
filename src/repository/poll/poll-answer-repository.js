@@ -105,76 +105,40 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
         ? parseInt(voteCyclesQuery[0].totalCycles, 10) || 0
         : 0;
 
-      // SECOND: For PUBLIC polls: Check if this would exceed the user's vote limit
-      if (input.type === "PUBLIC") {
 
-        // Get the event user's vote amount
-        const userQuery = await query(
-          `SELECT vote_amount AS voteAmount FROM event_user WHERE id = ? FOR UPDATE`,
-          [input.eventUserId]
-        );
+      // Get the event user's vote amount
+      const userQuery = await query(
+        `SELECT vote_amount AS voteAmount FROM event_user WHERE id = ? FOR UPDATE`,
+        [input.eventUserId]
+      );
 
-        const maxVotes = Array.isArray(userQuery) && userQuery.length > 0
-          ? parseInt(userQuery[0].voteAmount, 10) || 0
-          : 0;
+      const maxVotes = Array.isArray(userQuery) && userQuery.length > 0
+        ? parseInt(userQuery[0].voteAmount, 10) || 0
+        : 0;
 
 
-        // Count how many answers this user already has
-        const currentCountQuery = await query(
-          `SELECT COUNT(*) AS answerCount FROM poll_answer pa
-           JOIN poll_user pu ON pa.poll_user_id = pu.id
-           WHERE pa.poll_result_id = ? AND pu.event_user_id = ?
-           FOR UPDATE`,
-          [input.pollResultId, input.eventUserId]
-        );
+      // Check vote_cycle for SECRET polls
+      const voteCycleQuery = await query(
+        `SELECT vote_cycle as voteCycle, version FROM poll_user_voted
+          WHERE poll_result_id = ? AND event_user_id = ?
+          FOR UPDATE`,
+        [input.pollResultId, input.eventUserId]
+      );
 
-        const currentCount = Array.isArray(currentCountQuery) && currentCountQuery.length > 0
-          ? parseInt(currentCountQuery[0].answerCount, 10) || 0
-          : 0;
+      if (Array.isArray(voteCycleQuery) && voteCycleQuery.length > 0) {
+        const voteCycle = parseInt(voteCycleQuery[0].voteCycle, 10) || 0;
+        const version = parseInt(voteCycleQuery[0].version, 10) || 0;
+        const currentCount = Math.max(voteCycle, version);
 
 
         // Block insertion if it would exceed the limit
         if (currentCount > maxVotes) {
-          console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING PUBLIC vote: User ${input.eventUserId} exceeded limit (${currentCount}/${maxVotes})`);
-          await query("COMMIT", [], { throwError: true }); // Still commit to release locks
+          console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING SECRET vote: User ${input.eventUserId} exceeded limit (${currentCount}/${maxVotes})`);
+          await query("COMMIT", [], { throwError: true });
           return null;
         }
-      } else {
-        // For SECRET polls: Check vote_cycle/version in poll_user_voted
-
-        // Get the event user's vote amount
-        const userQuery = await query(
-          `SELECT vote_amount AS voteAmount FROM event_user WHERE id = ? FOR UPDATE`,
-          [input.eventUserId]
-        );
-
-        const maxVotes = Array.isArray(userQuery) && userQuery.length > 0
-          ? parseInt(userQuery[0].voteAmount, 10) || 0
-          : 0;
-
-
-        // Check vote_cycle for SECRET polls
-        const voteCycleQuery = await query(
-          `SELECT vote_cycle as voteCycle, version FROM poll_user_voted
-           WHERE poll_result_id = ? AND event_user_id = ?
-           FOR UPDATE`,
-          [input.pollResultId, input.eventUserId]
-        );
-
-        if (Array.isArray(voteCycleQuery) && voteCycleQuery.length > 0) {
-          const voteCycle = parseInt(voteCycleQuery[0].voteCycle, 10) || 0;
-          const version = parseInt(voteCycleQuery[0].version, 10) || 0;
-          const currentCount = Math.max(voteCycle, version);
-
-
-          // Block insertion if it would exceed the limit
-          if (currentCount > maxVotes) {
-            console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING SECRET vote: User ${input.eventUserId} exceeded limit (${currentCount}/${maxVotes})`);
-            await query("COMMIT", [], { throwError: true });
-            return null;
-          }
-        }
       }
+
 
       // THIRD: Now perform the actual insertion based on poll type
       if (input.type === "PUBLIC") {
