@@ -256,60 +256,44 @@ export default {
       let actualAnswerCount = 0;
       await query("START TRANSACTION", [], { throwError: true });
       try {
-        if (input.type === "PUBLIC") {
-          // For PUBLIC polls we can directly count the answers with a lock
-          const actualAnswerQuery = await query(
-            `SELECT COUNT(*) AS answerCount FROM poll_answer pa
-             JOIN poll_user pu ON pa.poll_user_id = pu.id
-             WHERE pa.poll_result_id = ? AND pu.event_user_id = ?
-             FOR UPDATE`,
-            [pollResult.id, input.eventUserId]
-          );
+        // For SECRET polls, we need to use poll_user_voted.vote_cycle as our source of truth
+        const voteCycleQuery = await query(
+          `SELECT vote_cycle AS voteCycle, version 
+            FROM poll_user_voted
+            WHERE poll_result_id = ? AND event_user_id = ?
+            FOR UPDATE`,
+          [pollResult.id, input.eventUserId]
+        );
 
-          actualAnswerCount = Array.isArray(actualAnswerQuery) && actualAnswerQuery.length > 0
-            ? parseInt(actualAnswerQuery[0].answerCount, 10) || 0
-            : 0;
+        if (Array.isArray(voteCycleQuery) && voteCycleQuery.length > 0) {
+          // Use the higher value between vote_cycle and version to be safe
+          const voteCycle = parseInt(voteCycleQuery[0].voteCycle, 10) || 0;
+          const version = parseInt(voteCycleQuery[0].version, 10) || 0;
+          actualAnswerCount = Math.max(voteCycle, version);
 
-        } else {
-          // For SECRET polls, we need to use poll_user_voted.vote_cycle as our source of truth
-          const voteCycleQuery = await query(
-            `SELECT vote_cycle AS voteCycle, version 
-             FROM poll_user_voted
-             WHERE poll_result_id = ? AND event_user_id = ?
-             FOR UPDATE`,
-            [pollResult.id, input.eventUserId]
-          );
+          // If vote_cycle and version are out of sync, try to fix them
+          if (voteCycle !== version) {
+            console.warn(`[WARN:POLL_ANSWER] Found discrepancy between vote_cycle (${voteCycle}) and version (${version}). Attempting to sync them to ${actualAnswerCount}`);
 
-          if (Array.isArray(voteCycleQuery) && voteCycleQuery.length > 0) {
-            // Use the higher value between vote_cycle and version to be safe
-            const voteCycle = parseInt(voteCycleQuery[0].voteCycle, 10) || 0;
-            const version = parseInt(voteCycleQuery[0].version, 10) || 0;
-            actualAnswerCount = Math.max(voteCycle, version);
+            // Update both to the higher value for consistency
+            // Da wir einen komplexen WHERE haben und kein einzelnes ID-Feld,
+            // verwenden wir weiterhin den direkten query-Ansatz
+            await query(
+              `UPDATE poll_user_voted 
+                SET vote_cycle = ?, version = ?
+                WHERE poll_result_id = ? AND event_user_id = ?`,
+              [actualAnswerCount, actualAnswerCount, pollResult.id, input.eventUserId],
+              { throwError: true }
+            );
 
-            // If vote_cycle and version are out of sync, try to fix them
-            if (voteCycle !== version) {
-              console.warn(`[WARN:POLL_ANSWER] Found discrepancy between vote_cycle (${voteCycle}) and version (${version}). Attempting to sync them to ${actualAnswerCount}`);
-
-              // Update both to the higher value for consistency
-              // Da wir einen komplexen WHERE haben und kein einzelnes ID-Feld,
-              // verwenden wir weiterhin den direkten query-Ansatz
-              await query(
-                `UPDATE poll_user_voted 
-                 SET vote_cycle = ?, version = ?
-                 WHERE poll_result_id = ? AND event_user_id = ?`,
-                [actualAnswerCount, actualAnswerCount, pollResult.id, input.eventUserId],
-                { throwError: true }
-              );
-
-              // Verify the update
-              const verifySync = await query(
-                `SELECT vote_cycle AS voteCycle, version 
-                 FROM poll_user_voted
-                 WHERE poll_result_id = ? AND event_user_id = ?
-                 FOR UPDATE`,
-                [pollResult.id, input.eventUserId]
-              );
-            }
+            // Verify the update
+            const verifySync = await query(
+              `SELECT vote_cycle AS voteCycle, version 
+                FROM poll_user_voted
+                WHERE poll_result_id = ? AND event_user_id = ?
+                FOR UPDATE`,
+              [pollResult.id, input.eventUserId]
+            );
           }
         }
 
