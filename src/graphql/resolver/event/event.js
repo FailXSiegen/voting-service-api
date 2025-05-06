@@ -6,6 +6,12 @@ export default {
   organizer: async ({ organizerId }) => {
     return await findOneById(organizerId);
   },
+  originalOrganizer: async ({ originalOrganizerId }) => {
+    if (!originalOrganizerId) {
+      return null;
+    }
+    return await findOneById(originalOrganizerId);
+  },
   lobbyOpen: async ({ lobbyOpen }) => {
     return lobbyOpen === 1 || lobbyOpen === true;
   },

@@ -59,6 +59,10 @@ type Mutation {
   updateEvent(input: UpdateEventInput!): Event!
   # Updates an event status.
   updateEventStatus(input: UpdateEventStatusInput!): Boolean
+  # Transfers an event to another organizer.
+  transferEvent(eventId: ID!, newOrganizerId: ID!): Event!
+  # Resets an event back to its original organizer.
+  resetEventOrganizer(eventId: ID!): Event!
   # Removes an event.
   removeEvent(organizerId: ID!, id: ID!): Boolean
   # Create a new poll.
@@ -134,6 +138,7 @@ type Event {
   logo: String
   scheduledDatetime: Int!
   organizer: Organizer
+  originalOrganizer: Organizer
   lobbyOpen: Boolean
   active: Boolean
   multivoteType: Int
