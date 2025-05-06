@@ -3,8 +3,12 @@ import {
   update,
   findOneBySlug,
   remove,
+  findById,
+  transferToOrganizer,
+  resetToOriginalOrganizer,
 } from "../../../repository/event-repository";
 import SlugAlreadyExistsError from "../../../errors/event/SlugAlreadyExistsError";
+import EventNotFoundError from "../../../errors/event/EventNotFoundError";
 
 export default {
   createEvent: async (_, { input }) => {
@@ -30,5 +34,25 @@ export default {
   },
   removeEvent: async (_, { organizerId, id }) => {
     return await remove(organizerId, id);
+  },
+  transferEvent: async (_, { eventId, newOrganizerId }) => {
+    const event = await findById(eventId);
+    if (!event) {
+      throw new EventNotFoundError();
+    }
+
+    return await transferToOrganizer(eventId, newOrganizerId);
+  },
+  resetEventOrganizer: async (_, { eventId }) => {
+    const event = await findById(eventId);
+    if (!event) {
+      throw new EventNotFoundError();
+    }
+
+    if (!event.originalOrganizerId) {
+      throw new Error('No original organizer exists for this event');
+    }
+
+    return await resetToOriginalOrganizer(eventId);
   },
 };

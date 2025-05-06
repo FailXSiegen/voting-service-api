@@ -32,6 +32,13 @@ export async function findByOrganizer(organizerId) {
   );
 }
 
+export async function findByOriginalOrganizer(organizerId) {
+  return await query(
+    "SELECT * FROM event WHERE original_organizer_id = ? AND organizer_id != ? AND deleted = 0",
+    [organizerId, organizerId],
+  );
+}
+
 export async function findEventIdByPollResultId(pollResultId) {
   const result = await query(
     "SELECT poll.event_id FROM poll INNER JOIN poll_result ON poll.id = poll_result.poll_id WHERE poll_result.id = ?",
@@ -64,11 +71,27 @@ export async function findUpcoming(organizerId) {
   );
 }
 
+export async function findUpcomingByOriginalOrganizer(organizerId) {
+  const currentTimestamp = getCurrentUnixTimeStamp();
+  return await query(
+    "SELECT * FROM event WHERE original_organizer_id = ? AND organizer_id != ? AND deleted = 0 AND scheduled_datetime > ?",
+    [organizerId, organizerId, currentTimestamp],
+  );
+}
+
 export async function findExpired(organizerId) {
   const currentTimestamp = getCurrentUnixTimeStamp();
   return await query(
     "SELECT * FROM event WHERE organizer_id = ? AND deleted = 0 AND scheduled_datetime <= ?",
     [organizerId, currentTimestamp],
+  );
+}
+
+export async function findExpiredByOriginalOrganizer(organizerId) {
+  const currentTimestamp = getCurrentUnixTimeStamp();
+  return await query(
+    "SELECT * FROM event WHERE original_organizer_id = ? AND organizer_id != ? AND deleted = 0 AND scheduled_datetime <= ?",
+    [organizerId, organizerId, currentTimestamp],
   );
 }
 
@@ -129,6 +152,39 @@ export async function create(input) {
 export async function update(input) {
   input.modifiedDatetime = getCurrentUnixTimeStamp();
   await updateQuery("event", input);
+}
+
+export async function transferToOrganizer(eventId, newOrganizerId) {
+  const event = await findById(eventId);
+
+  if (!event) {
+    return null;
+  }
+
+  // Only set original_organizer_id if it hasn't been set yet
+  const originalOrganizerId = event.originalOrganizerId || event.organizerId;
+
+  await query(
+    "UPDATE event SET organizer_id = ?, original_organizer_id = ?, modified_datetime = ? WHERE id = ?",
+    [newOrganizerId, originalOrganizerId, getCurrentUnixTimeStamp(), eventId]
+  );
+
+  return await findById(eventId);
+}
+
+export async function resetToOriginalOrganizer(eventId) {
+  const event = await findById(eventId);
+
+  if (!event || !event.originalOrganizerId) {
+    return null;
+  }
+
+  await query(
+    "UPDATE event SET organizer_id = ?, original_organizer_id = NULL, modified_datetime = ? WHERE id = ?",
+    [event.originalOrganizerId, getCurrentUnixTimeStamp(), eventId]
+  );
+
+  return await findById(eventId);
 }
 
 export async function remove(organizerId, id) {
