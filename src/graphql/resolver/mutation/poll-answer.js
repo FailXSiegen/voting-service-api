@@ -487,46 +487,29 @@ export default {
 
         try {
           let currentCount = 0;
+          const voteCheck = await query(
+            `SELECT vote_cycle AS voteCycle, version 
+              FROM poll_user_voted
+              WHERE poll_result_id = ? AND event_user_id = ?
+              FOR UPDATE`, // Lock the row during check
+            [pollResult.id, input.eventUserId]
+          );
 
-          if (input.type === "PUBLIC") {
-            const finalSingleCheck = await query(
-              `SELECT COUNT(*) AS answerCount FROM poll_answer pa
-               JOIN poll_user pu ON pa.poll_user_id = pu.id
-               WHERE pa.poll_result_id = ? AND pu.event_user_id = ?
-               FOR UPDATE`, // Lock the rows during check
-              [pollResult.id, input.eventUserId]
-            );
+          if (Array.isArray(voteCheck) && voteCheck.length > 0) {
+            const voteCycle = parseInt(voteCheck[0].voteCycle, 10) || 0;
+            const version = parseInt(voteCheck[0].version, 10) || 0;
+            currentCount = Math.max(voteCycle, version);
 
-            currentCount = Array.isArray(finalSingleCheck) && finalSingleCheck.length > 0
-              ? parseInt(finalSingleCheck[0].answerCount, 10) || 0
-              : 0;
+            // Fix inconsistency if found
+            if (voteCycle !== version) {
+              console.warn(`[WARN:POLL_ANSWER] Found single vote discrepancy: voteCycle=${voteCycle}, version=${version}. Fixing to ${currentCount}`);
 
-          } else {
-            // For SECRET polls, check vote_cycle
-            const voteCheck = await query(
-              `SELECT vote_cycle AS voteCycle, version 
-               FROM poll_user_voted
-               WHERE poll_result_id = ? AND event_user_id = ?
-               FOR UPDATE`, // Lock the row during check
-              [pollResult.id, input.eventUserId]
-            );
-
-            if (Array.isArray(voteCheck) && voteCheck.length > 0) {
-              const voteCycle = parseInt(voteCheck[0].voteCycle, 10) || 0;
-              const version = parseInt(voteCheck[0].version, 10) || 0;
-              currentCount = Math.max(voteCycle, version);
-
-              // Fix inconsistency if found
-              if (voteCycle !== version) {
-                console.warn(`[WARN:POLL_ANSWER] Found single vote discrepancy: voteCycle=${voteCycle}, version=${version}. Fixing to ${currentCount}`);
-
-                await query(
-                  `UPDATE poll_user_voted 
-                   SET vote_cycle = ?, version = ?
-                   WHERE poll_result_id = ? AND event_user_id = ?`,
-                  [currentCount, currentCount, pollResult.id, input.eventUserId]
-                );
-              }
+              await query(
+                `UPDATE poll_user_voted 
+                  SET vote_cycle = ?, version = ?
+                  WHERE poll_result_id = ? AND event_user_id = ?`,
+                [currentCount, currentCount, pollResult.id, input.eventUserId]
+              );
             }
           }
 
