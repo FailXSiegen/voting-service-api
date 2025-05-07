@@ -114,7 +114,8 @@ export async function query(sql, params, options = {}) {
 
   // If this is a SELECT query (has rows property), return camelized results
   if (result.length !== undefined) {
-    return result.length > 0 ? humps.camelizeKeys(result) : null;
+    // Immer ein Array zurückgeben, auch wenn es leer ist
+    return humps.camelizeKeys(result);
   }
 
   // For non-SELECT queries (INSERT, UPDATE, DELETE), return the raw result

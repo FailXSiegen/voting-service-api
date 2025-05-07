@@ -1,0 +1,22 @@
+type Media {
+  id: ID!
+  filename: String!
+  url: String!
+  mimeType: String!
+  fileSize: Int!
+  createdBy: Organizer
+  uploadedAt: String!
+}
+
+extend type Query {
+  # Get all media items
+  mediaItems: [Media]
+  
+  # Get specific media item
+  media(id: ID!): Media
+}
+
+extend type Mutation {
+  # Delete media item
+  deleteMedia(id: ID!): Boolean!
+}

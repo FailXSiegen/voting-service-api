@@ -13,6 +13,7 @@ import fetchEventById from "../request/event/fetch-event";
 import activateEventUserAuthToken from "../request/login/activate-event-user-auth-token";
 import loginByEventUserAuthToken from "../request/login/login-by-event-user-auth-token";
 import zoomAuthToken from "../request/zoom/zoom-auth-token";
+import uploadMedia from "../request/media/upload-media";
 
 export default function (app) {
   app.post("/login", async (req, res) => {
@@ -58,4 +59,9 @@ export default function (app) {
     await cleanUp(req, res);
   });
   app.post("/zoom/auth/token", zoomAuthToken);
+  
+  // Media Upload und Verwaltung
+  app.post("/media/upload", async (req, res) => {
+    await uploadMedia(req, res);
+  });
 }

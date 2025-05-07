@@ -21,6 +21,9 @@ import pollResultResolvers from "./resolver/poll-result/poll-result";
 import pollSubscriptionResolvers from "./resolver/subscription/poll";
 import eventUserSubscriptionResolvers from "./resolver/subscription/event-user";
 import poolAnswerSubscriptionResolvers from "./resolver/subscription/poll-answer";
+import staticContentResolvers from "./resolver/static-content-resolver";
+import mediaResolvers from "./resolver/media-resolver";
+import systemSettingsResolvers from "./resolver/system-settings-resolver";
 
 export default {
   VideoConferenceType: {
@@ -34,6 +37,9 @@ export default {
     ...organizerQueries,
     ...zoomMeetingQueries,
     ...userVoteCycleQueries,
+    ...staticContentResolvers.Query,
+    ...mediaResolvers.Query,
+    ...systemSettingsResolvers.Query,
   },
   Mutation: {
     ...organizerMutations,
@@ -44,6 +50,9 @@ export default {
     ...pollUserVotedMutations,
     ...zoomMeetingMutations,
     ...eventUserAuthTokenMutations,
+    ...staticContentResolvers.Mutation,
+    ...mediaResolvers.Mutation,
+    ...systemSettingsResolvers.Mutation,
   },
   ActivePollEventUser: {
     ...activePollEventUser,
@@ -64,5 +73,17 @@ export default {
     ...pollSubscriptionResolvers,
     ...eventUserSubscriptionResolvers,
     ...poolAnswerSubscriptionResolvers,
+  },
+  StaticContent: {
+    ...staticContentResolvers.StaticContent,
+  },
+  StaticContentVersion: {
+    ...staticContentResolvers.StaticContentVersion,
+  },
+  Media: {
+    ...mediaResolvers.Media,
+  },
+  SystemSettings: {
+    ...systemSettingsResolvers.SystemSettings,
   },
 };
