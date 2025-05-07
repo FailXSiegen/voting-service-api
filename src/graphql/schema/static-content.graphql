@@ -1,0 +1,75 @@
+type StaticContent {
+  id: ID!
+  pageKey: String!
+  sectionKey: String!
+  content: String!
+  title: String
+  ordering: Int
+  isPublished: Boolean!
+  createdBy: Organizer
+  createdAt: String!
+  updatedAt: String!
+  publishedAt: String
+  versions: [StaticContentVersion]
+}
+
+type StaticContentVersion {
+  id: ID!
+  contentId: ID!
+  content: String!
+  title: String
+  version: Int!
+  changedBy: Organizer
+  createdAt: String!
+}
+
+input CreateStaticContentInput {
+  pageKey: String!
+  sectionKey: String!
+  content: String!
+  title: String
+  ordering: Int
+  isPublished: Boolean
+}
+
+input UpdateStaticContentInput {
+  id: ID!
+  content: String
+  title: String
+  ordering: Int
+  isPublished: Boolean
+}
+
+extend type Query {
+  # Get all static content
+  staticContents: [StaticContent]
+  
+  # Get static content by page key
+  staticContentsByPage(pageKey: String!): [StaticContent]
+  
+  # Get specific static content
+  staticContent(id: ID!): StaticContent
+  
+  # Get static content by page and section
+  staticContentBySection(pageKey: String!, sectionKey: String!): StaticContent
+  
+  # Get version history for a static content
+  staticContentVersions(contentId: ID!): [StaticContentVersion]
+}
+
+extend type Mutation {
+  # Create new static content
+  createStaticContent(input: CreateStaticContentInput!): StaticContent!
+  
+  # Update existing static content
+  updateStaticContent(input: UpdateStaticContentInput!): StaticContent!
+  
+  # Delete static content
+  deleteStaticContent(id: ID!): Boolean!
+  
+  # Publish or unpublish static content
+  toggleStaticContentPublished(id: ID!, isPublished: Boolean!): StaticContent!
+  
+  # Revert to a previous version
+  revertStaticContentToVersion(contentId: ID!, versionId: ID!): StaticContent!
+}
