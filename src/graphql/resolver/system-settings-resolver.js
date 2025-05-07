@@ -13,9 +13,9 @@ module.exports = {
      * @returns {Promise<Object>} The system settings object
      */
     systemSettings: async (_, args, context) => {
-      console.log('systemSettings query called, context:', 
-                  context ? { user: context.user ? 'exists' : 'undefined' } : 'undefined');
-      
+      console.log('systemSettings query called, context:',
+        context ? { user: context.user ? 'exists' : 'undefined' } : 'undefined');
+
       // Always return default values for now to ensure the application can start
       const defaults = {
         id: 0,
@@ -23,7 +23,7 @@ module.exports = {
         useDbFooterNavigation: true, // Enable DB footer navigation by default
         updatedAt: new Date().toISOString()
       };
-      
+
       try {
         // Try to get settings from repository
         let settings;
@@ -34,20 +34,20 @@ module.exports = {
           console.error('Failed to get system settings, using defaults:', error);
           return defaults;
         }
-        
+
         // If settings exist, return them
         if (settings && settings.id) {
           return {
             id: settings.id,
-            useDirectStaticPaths: settings.useDirectStaticPaths !== undefined ? 
-                                   settings.useDirectStaticPaths : true,
-            useDbFooterNavigation: settings.useDbFooterNavigation !== undefined ? 
-                                   settings.useDbFooterNavigation : true,
-            updatedAt: settings.updatedAt ? new Date(settings.updatedAt).toISOString() : 
-                                           new Date().toISOString()
+            useDirectStaticPaths: settings.useDirectStaticPaths !== undefined ?
+              settings.useDirectStaticPaths : true,
+            useDbFooterNavigation: settings.useDbFooterNavigation !== undefined ?
+              settings.useDbFooterNavigation : true,
+            updatedAt: settings.updatedAt ? new Date(settings.updatedAt).toISOString() :
+              new Date().toISOString()
           };
         }
-        
+
         // Otherwise return defaults
         return defaults;
       } catch (err) {
@@ -56,7 +56,7 @@ module.exports = {
       }
     }
   },
-  
+
   Mutation: {
     /**
      * Update system settings
@@ -66,10 +66,6 @@ module.exports = {
      * @returns {Promise<Object>} Updated system settings
      */
     updateSystemSettings: async (_, { input }, context) => {
-      console.log('updateSystemSettings mutation called, context:', 
-                 context ? { user: context.user ? 'exists' : 'undefined' } : 'undefined',
-                 'input:', input);
-      
       // Default settings to return if something goes wrong
       const defaults = {
         id: 0,
@@ -77,16 +73,15 @@ module.exports = {
         useDbFooterNavigation: input.useDbFooterNavigation !== undefined ? input.useDbFooterNavigation : true,
         updatedAt: new Date().toISOString()
       };
-      
+
       try {
         // TEMPORARILY allow updates for debugging purposes
         // In production, we'd enforce authentication here
-        
+
         // Get current settings or create default
         let currentSettings;
         try {
           currentSettings = await SystemSettingsRepository.getSettings();
-          console.log('Current settings before update:', currentSettings);
         } catch (getError) {
           console.error('Error getting current settings:', getError);
           // Try to create settings table and defaults
@@ -100,41 +95,39 @@ module.exports = {
             return defaults;
           }
         }
-        
+
         // Prepare update data
         const updateData = {};
         if (input.useDirectStaticPaths !== undefined) {
           updateData.useDirectStaticPaths = input.useDirectStaticPaths;
         }
-        
+
         if (input.useDbFooterNavigation !== undefined) {
           updateData.useDbFooterNavigation = input.useDbFooterNavigation;
         }
-        
+
         // If we have current settings with a valid ID, try to update them
         let organizerId = null;
         if (context && context.user && context.user.id) {
           organizerId = context.user.id;
         }
-        
+
         try {
           const updatedSettings = await SystemSettingsRepository.updateSettings(
-            updateData, 
+            updateData,
             organizerId
           );
-          
-          console.log('Settings updated successfully:', updatedSettings);
-          
+
           return {
             id: updatedSettings.id || 0,
             useDirectStaticPaths: updatedSettings.useDirectStaticPaths !== undefined ?
-                               updatedSettings.useDirectStaticPaths : 
-                               (input.useDirectStaticPaths !== undefined ? input.useDirectStaticPaths : true),
+              updatedSettings.useDirectStaticPaths :
+              (input.useDirectStaticPaths !== undefined ? input.useDirectStaticPaths : true),
             useDbFooterNavigation: updatedSettings.useDbFooterNavigation !== undefined ?
-                                updatedSettings.useDbFooterNavigation :
-                                (input.useDbFooterNavigation !== undefined ? input.useDbFooterNavigation : true),
+              updatedSettings.useDbFooterNavigation :
+              (input.useDbFooterNavigation !== undefined ? input.useDbFooterNavigation : true),
             updatedAt: updatedSettings.updatedAt ? new Date(updatedSettings.updatedAt).toISOString() :
-                                               new Date().toISOString()
+              new Date().toISOString()
           };
         } catch (updateError) {
           console.error('Error updating settings:', updateError);
@@ -147,17 +140,15 @@ module.exports = {
       }
     }
   },
-  
+
   SystemSettings: {
     // Resolve the updatedBy field to get the organizer who last updated the settings
     updatedBy: async (parent) => {
-      console.log('Resolving updatedBy for SystemSettings:', parent);
-      
       // If no updatedBy property or it's 0/null, return null
       if (!parent || !parent.updatedBy) {
         return null;
       }
-      
+
       try {
         const organizer = await findOneById(parent.updatedBy);
         return organizer || null;
