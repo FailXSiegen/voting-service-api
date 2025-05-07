@@ -19,7 +19,7 @@ module.exports = {
           id: settings.id,
           useDirectStaticPaths: settings.useDirectStaticPaths,
           useDbFooterNavigation: settings.useDbFooterNavigation,
-          updatedAt: settings.updatedAt ? settings.updatedAt.toISOString() : null
+          updatedAt: settings.updatedAt ? new Date(settings.updatedAt).toISOString() : null
         };
       } catch (err) {
         console.error('Error in systemSettings resolver:', err);
@@ -66,7 +66,7 @@ module.exports = {
           id: updatedSettings.id,
           useDirectStaticPaths: updatedSettings.useDirectStaticPaths,
           useDbFooterNavigation: updatedSettings.useDbFooterNavigation,
-          updatedAt: updatedSettings.updatedAt ? updatedSettings.updatedAt.toISOString() : null
+          updatedAt: updatedSettings.updatedAt ? new Date(updatedSettings.updatedAt).toISOString() : null
         };
       } catch (err) {
         console.error('Error in updateSystemSettings resolver:', err);

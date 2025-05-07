@@ -1,6 +1,16 @@
--- Fix data type mismatch for foreign key
-ALTER TABLE static_content_version 
-  MODIFY COLUMN content_id bigint(20) unsigned;
+-- Create static_content_version table
+CREATE TABLE IF NOT EXISTS static_content_version (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  content_id int(11) NOT NULL,
+  content text NOT NULL,
+  title varchar(255) DEFAULT NULL,
+  version int(11) NOT NULL DEFAULT 1,
+  changed_by int(11) DEFAULT NULL,
+  created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_static_content_version_content_id (content_id),
+  INDEX idx_static_content_version_version (version)
+);
 
 -- Add missing foreign keys to static_content_version table
 ALTER TABLE static_content_version 
