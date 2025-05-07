@@ -5,7 +5,7 @@ export default async function (req, res, next) {
   if (process.env.ENABLE_JWT !== "1") {
     return next();
   }
-  
+
   // Only apply to GraphQL endpoint
   if (req.url !== process.env.GRAPHQL_ENDPOINT) {
     return next();
@@ -15,20 +15,19 @@ export default async function (req, res, next) {
   if (req.method === 'OPTIONS') {
     return next();
   }
-  
+
   // For POST requests, check if it's a query that should bypass auth
   if (req.method === 'POST' && req.body) {
     try {
       // Try to parse the request body
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      
+
       // Check if it's a systemSettings query - these should be allowed without auth
       if (body.query && (
-          body.query.includes('systemSettings') || 
-          body.query.includes('GetSystemSettings') ||
-          body.operationName === 'GetSystemSettings'
-        )) {
-        console.log('Bypassing authentication for systemSettings query');
+        body.query.includes('systemSettings') ||
+        body.query.includes('GetSystemSettings') ||
+        body.operationName === 'GetSystemSettings'
+      )) {
         return next();
       }
     } catch (parseError) {
@@ -40,12 +39,12 @@ export default async function (req, res, next) {
   // Regular auth check for other requests
   try {
     const authHeader = req.headers.authorization;
-    
+
     // If no auth header is present, reject
     if (!authHeader) {
       return res.status(401).json({ error: 'No authorization header' });
     }
-    
+
     const token = authHeader.split(" ")[1] || "";
     await jwt.verify(token, process.env.JWT_SECRET);
     next();
