@@ -37,9 +37,11 @@ export default function () {
     context.req = req;
     next();
   });
-  app.use(authenticate);
   app.use(cookieParser(process.env.COOKIE_SIGN_SECRET));
   app.use(express.json());
+  
+  // Apply authentication after body parsing
+  app.use(authenticate);
 
   // Additional routes.
   addStandaloneRequests(app);
