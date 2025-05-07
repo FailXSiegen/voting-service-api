@@ -7,12 +7,12 @@ const config = {
   user: process.env.DATABSE_USER,
   password: process.env.DATABSE_PASSWORD,
   database: process.env.DATABSE_NAME,
-  connectionLimit: 250,
+  connectionLimit: 800,
   trace: process.env.ENABLE_DEBUG === "1",
 };
 
 // Einfacher Semaphor für die Begrenzung der gleichzeitigen Datenbankverbindungen
-const MAX_CONCURRENT_CONNECTIONS = 250; // Maximal 50 gleichzeitige Verbindungen
+const MAX_CONCURRENT_CONNECTIONS = 800; // Maximal 50 gleichzeitige Verbindungen
 let currentActiveConnections = 0;
 const pendingConnections = [];
 
