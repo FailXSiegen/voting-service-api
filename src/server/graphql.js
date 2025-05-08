@@ -27,6 +27,12 @@ export const yoga = createYoga({
     const baseContext = { pubsub };
 
     try {
+      // Sicherheitsprüfung: Überprüfe, ob request und headers existieren
+      if (!request || !request.headers || typeof request.headers.get !== 'function') {
+        console.warn('Fehlende Header in GraphQL-Kontext-Anfrage');
+        return baseContext;
+      }
+      
       // Extrahiere den JWT-Token aus dem Authorization-Header
       const authHeader = request.headers.get('authorization');
       if (authHeader && authHeader.startsWith('Bearer ')) {
