@@ -21,6 +21,7 @@ import pollResultResolvers from "./resolver/poll-result/poll-result";
 import pollSubscriptionResolvers from "./resolver/subscription/poll";
 import eventUserSubscriptionResolvers from "./resolver/subscription/event-user";
 import poolAnswerSubscriptionResolvers from "./resolver/subscription/poll-answer";
+import votingDetailsSubscriptionResolvers from "./resolver/subscription/voting-details";
 import staticContentResolvers from "./resolver/static-content-resolver";
 import mediaResolvers from "./resolver/media-resolver";
 import systemSettingsResolvers from "./resolver/system-settings-resolver";
@@ -73,6 +74,7 @@ export default {
     ...pollSubscriptionResolvers,
     ...eventUserSubscriptionResolvers,
     ...poolAnswerSubscriptionResolvers,
+    ...votingDetailsSubscriptionResolvers,
   },
   StaticContent: {
     ...staticContentResolvers.StaticContent,
