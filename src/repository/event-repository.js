@@ -187,42 +187,110 @@ export async function resetToOriginalOrganizer(eventId) {
   return await findById(eventId);
 }
 
+/**
+ * Entfernt ein Event und alle zugehörigen Daten
+ * @param {number} organizerId - ID des Organisators
+ * @param {number} id - ID des Events
+ * @returns {Promise<boolean>} - true bei Erfolg
+ */
 export async function remove(organizerId, id) {
+  // 1. Lösche poll_user_voted Einträge
   await query(
-    "DELETE poll_user_voted FROM poll_user_voted INNER JOIN poll_result ON poll_user_voted.poll_result_id = poll_result.id INNER JOIN poll ON poll_result.poll_id = poll.id INNER JOIN event ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?",
+    `DELETE poll_user_voted 
+     FROM poll_user_voted 
+     INNER JOIN poll_result ON poll_user_voted.poll_result_id = poll_result.id 
+     INNER JOIN poll ON poll_result.poll_id = poll.id 
+     INNER JOIN event ON poll.event_id = event.id 
+     WHERE event.organizer_id = ? AND event.id = ?`,
     [organizerId, id],
   );
+
+  // 2. Lösche poll_possible_answer Einträge
   await query(
-    "DELETE poll_possible_answer FROM poll_possible_answer INNER JOIN poll ON poll_possible_answer.poll_id = poll.id INNER JOIN event ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?",
+    `DELETE poll_possible_answer 
+     FROM poll_possible_answer 
+     INNER JOIN poll ON poll_possible_answer.poll_id = poll.id 
+     INNER JOIN event ON poll.event_id = event.id 
+     WHERE event.organizer_id = ? AND event.id = ?`,
     [organizerId, id],
   );
+
+  // 3. Lösche poll_answer Einträge
   await query(
-    "DELETE poll_answer FROM poll_answer INNER JOIN poll_result ON poll_answer.poll_result_id = poll_result.id INNER JOIN poll ON poll_result.poll_id = poll.id INNER JOIN event ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?",
+    `DELETE poll_answer 
+     FROM poll_answer 
+     INNER JOIN poll_result ON poll_answer.poll_result_id = poll_result.id 
+     INNER JOIN poll ON poll_result.poll_id = poll.id 
+     INNER JOIN event ON poll.event_id = event.id 
+     WHERE event.organizer_id = ? AND event.id = ?`,
     [organizerId, id],
   );
+
+  // 4. Lösche poll_user Einträge
   await query(
-    "DELETE poll_user FROM poll_user INNER JOIN poll ON poll_user.poll_id = poll.id INNER JOIN event ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?",
+    `DELETE poll_user 
+     FROM poll_user 
+     INNER JOIN poll ON poll_user.poll_id = poll.id 
+     INNER JOIN event ON poll.event_id = event.id 
+     WHERE event.organizer_id = ? AND event.id = ?`,
     [organizerId, id],
   );
+
+  // 5. Lösche poll_result Einträge
   await query(
-    "DELETE poll_result FROM poll_result INNER JOIN poll ON poll_result.poll_id = poll.id INNER JOIN event ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?",
+    `DELETE poll_result 
+     FROM poll_result 
+     INNER JOIN poll ON poll_result.poll_id = poll.id 
+     INNER JOIN event ON poll.event_id = event.id 
+     WHERE event.organizer_id = ? AND event.id = ?`,
     [organizerId, id],
   );
+
+  // 6. Lösche poll Einträge
   await query(
-    "DELETE poll FROM poll INNER JOIN event  ON poll.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?",
+    `DELETE poll 
+     FROM poll 
+     INNER JOIN event ON poll.event_id = event.id 
+     WHERE event.organizer_id = ? AND event.id = ?`,
     [organizerId, id],
   );
+
+  // 7. Lösche event_user_auth_token Einträge - NEUE ZEILE
   await query(
-    "DELETE jwt_refresh_token FROM jwt_refresh_token INNER JOIN event_user ON jwt_refresh_token.event_user_id = event_user.id INNER JOIN event ON event_user.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?",
+    `DELETE euat 
+     FROM event_user_auth_token euat
+     INNER JOIN event_user ON euat.event_user_id = event_user.id 
+     INNER JOIN event ON event_user.event_id = event.id 
+     WHERE event.organizer_id = ? AND event.id = ?`,
     [organizerId, id],
   );
+
+  // 8. Lösche jwt_refresh_token Einträge
   await query(
-    "DELETE event_user FROM event_user INNER JOIN event  ON event_user.event_id = event.id WHERE event.organizer_id = ? AND event.id = ?",
+    `DELETE jwt_refresh_token 
+     FROM jwt_refresh_token 
+     INNER JOIN event_user ON jwt_refresh_token.event_user_id = event_user.id 
+     INNER JOIN event ON event_user.event_id = event.id 
+     WHERE event.organizer_id = ? AND event.id = ?`,
     [organizerId, id],
   );
+
+  // 9. Lösche event_user Einträge
   await query(
-    "DELETE event FROM event WHERE event.organizer_id = ? AND event.id = ?",
+    `DELETE event_user 
+     FROM event_user 
+     INNER JOIN event ON event_user.event_id = event.id 
+     WHERE event.organizer_id = ? AND event.id = ?`,
     [organizerId, id],
   );
+
+  // 10. Lösche das Event selbst
+  await query(
+    `DELETE event 
+     FROM event 
+     WHERE event.organizer_id = ? AND event.id = ?`,
+    [organizerId, id],
+  );
+
   return true;
 }
