@@ -148,6 +148,8 @@ type Subscription {
   eventUserLifeCycle: EventUserLifeCyclePayload!
   # Notifies about the count of left poll answers.
   pollAnswerLifeCycle(eventId: ID): PollAnswerLifeCyclePayLoad!
+  # Separate subscription for voting details updates without affecting the poll form
+  votingDetailsUpdate(eventId: ID!): ActivePollEventUser
 }
 type Organizer {
   id: ID!
@@ -431,6 +433,7 @@ input PollSubmitAnswerInput {
   answerItemCount: Int!
   multivote: Boolean!
   browserInstanceId: String
+  isLastAnswerInBallot: Boolean
 }
 input PollUserVotedInput {
   pollResultId: ID!
