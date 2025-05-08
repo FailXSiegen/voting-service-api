@@ -49,7 +49,6 @@ export async function existsPollUserVoted(
   try {
     // Prüfe, ob der Benutzer bereits in dieser Abstimmung abgestimmt hat
     const userExists = await existInCurrentVote(pollResultId, eventUserId);
-
     // Benutzerinformationen abrufen
     const eventUser = await findOneById(eventUserId);
     if (!eventUser) {
@@ -59,7 +58,7 @@ export async function existsPollUserVoted(
 
     // Sicherstellen, dass der Benutzer überhaupt abstimmen darf
     if (!eventUser.verified || !eventUser.allowToVote) {
-      console.warn(`[WARN] existsPollUserVoted: Benutzer ${eventUserId} ist nicht verifiziert oder darf nicht abstimmen`);
+      console.warn(`[WARN] existsPollUserVoted: Benutzer ${eventUserId} ist nicht verifiziert (${eventUser.verified}) oder darf nicht abstimmen (${eventUser.allowToVote})`);
       return false;
     }
 
@@ -71,7 +70,7 @@ export async function existsPollUserVoted(
     // Der Client sendet jetzt entweder 1 für einzelne Stimmen oder die Anzahl der verbleibenden Stimmen
 
     // Neuen Eintrag erstellen, wenn es der erste ist
-    if (userExists === null) {
+    if (!userExists) {
       // Ein erster Vote-Cycle von 1 ist der Standardwert für neue Einträge
       // Falls multiVote aktiviert ist und der Client hat mehr angefordert, kann der Wert erhöht werden
 

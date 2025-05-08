@@ -322,6 +322,9 @@ export default {
         return false;
       }
 
+      // Define isLastAnswerInBallot at a higher scope so it's available later
+      const isLastAnswerInBallot = (cloneAnswerObject.answerItemCount === cloneAnswerObject.answerItemLength);
+
       if (multiVote) {
 
         // Get current vote cycle for this user to know how many votes they've already used
@@ -527,8 +530,7 @@ export default {
 
         // Bei einzelner Abstimmung müssen wir prüfen, ob es die letzte Antwort des Stimmzettels ist
         // Nur dann soll der vote_cycle erhöht werden
-        const isLastAnswerInBallot = (cloneAnswerObject.answerItemCount === cloneAnswerObject.answerItemLength);
-
+        // isLastAnswerInBallot is already defined higher in the scope
 
         // voteComplete nur setzen, wenn es die letzte Antwort des Stimmzettels ist
         const insertResult = await insertPollSubmitAnswer(input, isLastAnswerInBallot);
@@ -549,7 +551,7 @@ export default {
           : 0;
 
       }
-      const isLastAnswerInBallot = (cloneAnswerObject.answerItemCount === cloneAnswerObject.answerItemLength);
+      // isLastAnswerInBallot is already defined above
       if (isLastAnswerInBallot) {
         const incrementedVoteCycle = await incrementVoteCycleAfterVote(pollResult.id, input.eventUserId);
         if (!incrementedVoteCycle) {

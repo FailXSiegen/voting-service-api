@@ -6,14 +6,30 @@ export async function create(input) {
   return await insert("poll_user_voted", input);
 }
 
+/**
+ * Prüft, ob ein Benutzer bereits an einer Abstimmung teilgenommen hat
+ * @param {number} pollResultId - Die ID des Abstimmungsergebnisses
+ * @param {number} eventUserId - Die ID des Benutzers
+ * @returns {Promise<boolean>} - true wenn der Benutzer bereits abgestimmt hat, sonst false
+ */
 export async function existInCurrentVote(pollResultId, eventUserId) {
-  return await query(
+  const result = await query(
     `
-    SELECT id FROM poll_user_voted
-    WHERE poll_result_id = ? AND event_user_id = ?
-  `,
+    SELECT EXISTS(
+      SELECT 1 FROM poll_user_voted 
+      WHERE poll_result_id = ? AND event_user_id = ?
+    ) AS voted
+    `,
     [pollResultId, eventUserId],
   );
+
+  // Bei Datenbankfehler (result ist null) geben wir false zurück
+  if (!result || result.length === 0) {
+    return false;
+  }
+
+  // MySQL gibt bei EXISTS() einen Wert von 0 oder 1 zurück
+  return result[0].voted === 1;
 }
 
 /**
@@ -95,10 +111,10 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
       // HINWEIS: Da wir jetzt mit vote_cycle=0 starten, bedeutet vote_cycle = 0, dass noch keine Stimme abgegeben wurde!
       if (currentVoteCycle < maxVotes) {
         await query("COMMIT");
-
         return true;
       } else {
         await query("COMMIT");
+        console.warn(`[WARN:VOTE_CYCLE] Benutzer ${eventUserId} hat Stimmenlimit erreicht: voteCycle=${currentVoteCycle}, maxVotes=${maxVotes}`);
         return false;
       }
     } catch (txError) {

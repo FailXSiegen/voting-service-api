@@ -41,7 +41,9 @@ export async function onSubscribeWebsocket(ctx, msg) {
 
 export async function onConnectWebsocket(ctx) {
   console.info("[INFO] User connected");
-  if (!ctx.extra.request.headers.cookie) {
+  // Sicherheitsprüfung: Überprüfe, ob request und headers existieren
+  if (!ctx.extra || !ctx.extra.request || !ctx.extra.request.headers || !ctx.extra.request.headers.cookie) {
+    console.warn("[WARN] WebSocket Connect ohne gültige Headers");
     return;
   }
 
@@ -102,7 +104,9 @@ export async function onConnectWebsocket(ctx) {
 
 export async function onDisconnectWebsocket(ctx) {
   console.info("[INFO] User disconnected!");
-  if (!ctx.extra.request.headers.cookie) {
+  // Sicherheitsprüfung: Überprüfe, ob request und headers existieren
+  if (!ctx.extra || !ctx.extra.request || !ctx.extra.request.headers || !ctx.extra.request.headers.cookie) {
+    console.warn("[WARN] WebSocket Disconnect ohne gültige Headers");
     return;
   }
 
