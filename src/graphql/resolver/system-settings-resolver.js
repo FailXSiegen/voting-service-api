@@ -13,8 +13,6 @@ module.exports = {
      * @returns {Promise<Object>} The system settings object
      */
     systemSettings: async (_, args, context) => {
-      console.log('systemSettings query called, context:',
-        context ? { user: context.user ? 'exists' : 'undefined' } : 'undefined');
 
       // Always return default values for now to ensure the application can start
       const defaults = {
@@ -29,7 +27,6 @@ module.exports = {
         let settings;
         try {
           settings = await SystemSettingsRepository.getSettings();
-          console.log('Retrieved settings from database:', settings);
         } catch (error) {
           console.error('Failed to get system settings, using defaults:', error);
           return defaults;
