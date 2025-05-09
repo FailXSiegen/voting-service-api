@@ -22,11 +22,19 @@ export default async function (req, res, next) {
       // Try to parse the request body
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
-      // Check if it's a systemSettings query - these should be allowed without auth
+      // Check if it's a public query - these should be allowed without auth
       if (body.query && (
+        // System settings queries
         body.query.includes('systemSettings') ||
         body.query.includes('GetSystemSettings') ||
-        body.operationName === 'GetSystemSettings'
+        body.operationName === 'GetSystemSettings' ||
+        // Static content queries for public pages
+        body.query.includes('staticContentsByPage') ||
+        body.query.includes('GetFaqContent') ||
+        body.operationName === 'GetFaqContent' ||
+        // WebSocket keep-alive query
+        body.query.includes('__typename') ||
+        body.operationName === 'KeepAlive'
       )) {
         return next();
       }
