@@ -9,14 +9,18 @@ const mediaRepository = require('../../repository/media/media-repository');
 // Konfiguration für Multer (Datei-Upload)
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // Zielverzeichnis außerhalb des src-Ordners im Client-Projekt
-    const uploadDir = path.join(__dirname, '../../../../voting-service-client-v2/public/uploads/images');
-    
+    // Verwende Umgebungsvariable für Upload-Pfad oder Standard-Entwicklungspfad
+    const uploadBasePath = process.env.UPLOAD_BASE_PATH ||
+      path.join(__dirname, '../../../../voting-service-client-v2/public');
+
+    // Erstelle vollständigen Pfad mit uploads/images
+    const uploadDir = path.join(uploadBasePath, 'uploads/images');
+
     // Stelle sicher, dass das Verzeichnis existiert
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
-    
+
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
@@ -30,7 +34,7 @@ const storage = multer.diskStorage({
 // Upload-Filter: Nur Bilder erlauben
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-  
+
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -65,7 +69,7 @@ module.exports = async function (req, res) {
         message: err.message || 'Fehler beim Hochladen der Datei'
       });
     }
-    
+
     try {
       // Wenn keine Datei vorhanden
       if (!req.file) {
@@ -74,10 +78,10 @@ module.exports = async function (req, res) {
           message: 'Keine Datei ausgewählt'
         });
       }
-      
+
       // Pfad relativ zum public-Verzeichnis für den Client
       const clientPath = `/uploads/images/${req.file.filename}`;
-      
+
       // Speichere in der Datenbank die Metadaten
       const mediaData = {
         filename: req.file.originalname,
@@ -86,10 +90,10 @@ module.exports = async function (req, res) {
         fileSize: req.file.size,
         createdBy: req.user?.organizer?.id || null
       };
-      
+
       // Speichere in Datenbank
       const savedMedia = await mediaRepository.create(mediaData);
-      
+
       // Erfolgreiche Antwort mit Daten für den Client
       return res.status(200).json({
         id: savedMedia.id,
