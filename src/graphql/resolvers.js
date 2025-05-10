@@ -25,6 +25,7 @@ import votingDetailsSubscriptionResolvers from "./resolver/subscription/voting-d
 import staticContentResolvers from "./resolver/static-content-resolver";
 import mediaResolvers from "./resolver/media-resolver";
 import systemSettingsResolvers from "./resolver/system-settings-resolver";
+import translationsResolvers from "./resolver/translations-resolver";
 
 export default {
   VideoConferenceType: {
@@ -41,6 +42,7 @@ export default {
     ...staticContentResolvers.Query,
     ...mediaResolvers.Query,
     ...systemSettingsResolvers.Query,
+    ...translationsResolvers.Query,
   },
   Mutation: {
     ...organizerMutations,
@@ -54,6 +56,7 @@ export default {
     ...staticContentResolvers.Mutation,
     ...mediaResolvers.Mutation,
     ...systemSettingsResolvers.Mutation,
+    ...translationsResolvers.Mutation,
   },
   ActivePollEventUser: {
     ...activePollEventUser,

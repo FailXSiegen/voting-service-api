@@ -59,12 +59,18 @@ type Query {
   
   # Get system settings
   systemSettings: SystemSettings
-  
+
   # Get all media items
   mediaItems: [Media]
-  
+
   # Get specific media item
   media(id: ID!): Media
+
+  # Get all translations
+  translations: String!
+
+  # Get translations for a specific locale
+  translationsByLocale(locale: String!): String!
 }
 type Mutation {
   # Create a new organizer.
@@ -136,6 +142,12 @@ type Mutation {
   
   # Update system settings
   updateSystemSettings(input: SystemSettingsInput!): SystemSettings!
+
+  # Save translations (creates or updates)
+  saveTranslations(translations: [SaveTranslationInput!]!): Boolean!
+
+  # Delete a specific translation
+  deleteTranslation(locale: String!, key: String!): Boolean!
 }
 type Subscription {
   # Notifies about user access rights updates.
@@ -518,4 +530,11 @@ type SystemSettings {
 input SystemSettingsInput {
   useDirectStaticPaths: Boolean
   useDbFooterNavigation: Boolean
+}
+
+# Input for translation updates
+input SaveTranslationInput {
+  locale: String!
+  key: String!
+  value: String!
 }

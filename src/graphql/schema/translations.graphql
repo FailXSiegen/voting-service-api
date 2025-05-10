@@ -1,0 +1,29 @@
+type Translation {
+  locale: String!
+  key: String!
+  value: String!
+  updatedBy: Organizer
+  updatedAt: String!
+}
+
+input SaveTranslationInput {
+  locale: String!
+  key: String!
+  value: String!
+}
+
+extend type Query {
+  # Get all translations
+  translations: String!
+  
+  # Get translations for a specific locale
+  translationsByLocale(locale: String!): String!
+}
+
+extend type Mutation {
+  # Save translations (creates or updates)
+  saveTranslations(translations: [SaveTranslationInput!]!): Boolean!
+  
+  # Delete a specific translation
+  deleteTranslation(locale: String!, key: String!): Boolean!
+}
