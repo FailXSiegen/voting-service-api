@@ -2,6 +2,11 @@
 
 GraphQL API for [Voting Service Client](https://github.com/FailXSiegen/voting-service-client-v2).
 
+## Development Notes
+
+### Ignored Files
+Files matching the pattern `src/messages*` are ignored by git. This includes `messages.local.json` which contains local translation overrides. These files should never be committed to the repository and are meant for local development only.
+
 ## System requirements
 
 * node `>=16.16.0`
