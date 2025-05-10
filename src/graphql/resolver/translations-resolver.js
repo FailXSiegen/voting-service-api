@@ -29,9 +29,9 @@ const resolvers = {
      * @param {Object} args Arguments
      * @returns {Promise<string>} Translations for the locale as JSON string
      */
-    translationsByLocale: async (_, { locale }, context) => {
+    translationsByLocale: async (_, { locale, includeDefaults }, context) => {
       try {
-        const translations = await TranslationRepository.getTranslationsByLocale(locale);
+        const translations = await TranslationRepository.getTranslationsByLocale(locale, includeDefaults);
         return JSON.stringify(translations);
       } catch (err) {
         console.error('Error in translationsByLocale resolver:', err);

@@ -70,7 +70,8 @@ type Query {
   translations: String!
 
   # Get translations for a specific locale
-  translationsByLocale(locale: String!): String!
+  # If includeDefaults is true, returns both default and custom translations
+  translationsByLocale(locale: String!, includeDefaults: Boolean): String!
 }
 type Mutation {
   # Create a new organizer.
