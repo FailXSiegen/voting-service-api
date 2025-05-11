@@ -103,7 +103,6 @@ const resolvers = {
         const publishedOnly = !user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin);
 
         const content = await staticContentRepository.findBySection(pageKey, sectionKey, publishedOnly);
-
         return content;
       } catch (err) {
         console.error('Error in staticContentBySection resolver:', err);
@@ -159,11 +158,26 @@ const resolvers = {
         const repositoryInput = {
           pageKey: input.pageKey,
           sectionKey: input.sectionKey,
+          contentType: input.contentType || 'standard',
           content: input.content,
           title: input.title,
           ordering: input.ordering,
           isPublished: input.isPublished
         };
+
+        // Add multi-column data if provided
+        if (input.contentType === 'multi-column' && input.columnCount) {
+          repositoryInput.columnCount = input.columnCount;
+          
+          if (input.columnsContent && Array.isArray(input.columnsContent)) {
+            repositoryInput.columnsContent = input.columnsContent;
+          }
+        }
+
+        // Add accordion data if provided
+        if (input.contentType === 'accordion' && input.accordionItems && Array.isArray(input.accordionItems)) {
+          repositoryInput.accordionItems = input.accordionItems;
+        }
 
         return staticContentRepository.create(repositoryInput, user.organizer.id);
       } catch (err) {
@@ -194,8 +208,23 @@ const resolvers = {
           content: input.content,
           title: input.title,
           ordering: input.ordering,
-          isPublished: input.isPublished
+          isPublished: input.isPublished,
+          contentType: input.contentType
         };
+
+        // Add multi-column data if provided
+        if (input.columnCount !== undefined) {
+          repositoryInput.columnCount = input.columnCount;
+        }
+
+        if (input.columnsContent !== undefined) {
+          repositoryInput.columnsContent = input.columnsContent;
+        }
+
+        // Add accordion data if provided
+        if (input.accordionItems !== undefined) {
+          repositoryInput.accordionItems = input.accordionItems;
+        }
 
         return staticContentRepository.update(input.id, repositoryInput, user.organizer.id);
       } catch (err) {
@@ -284,6 +313,7 @@ const resolvers = {
      * @returns {Promise<Object>} The organizer who created the content
      */
     createdBy: async (parent) => {
+      // camelCase mapping from database.js means we need to look for camelCase properties
       if (!parent.createdBy) {
         return null;
       }
@@ -300,17 +330,11 @@ const resolvers = {
       return staticContentRepository.getVersions(parent.id);
     },
 
-    // Map snake_case field names to camelCase for GraphQL
-    id: (parent) => parent.id,
-    pageKey: (parent) => parent.pageKey,
-    sectionKey: (parent) => parent.sectionKey,
-    content: (parent) => parent.content,
-    title: (parent) => parent.title,
-    ordering: (parent) => parent.ordering,
-    isPublished: (parent) => parent.isPublished,
-    createdAt: (parent) => parent.createdAt,
-    updatedAt: (parent) => parent.updatedAt,
-    publishedAt: (parent) => parent.publishedAt
+    // The parent already has camelCase fields from database.js
+    // Just add default values to ensure non-null fields
+    columnCount: (parent) => parent.columnCount,
+    columnsContent: (parent) => parent.columnsContent || [],
+    accordionItems: (parent) => parent.accordionItems || []
   },
 
   StaticContentVersion: {
@@ -327,13 +351,12 @@ const resolvers = {
       return organizerRepository.findById(parent.changedBy);
     },
 
-    // Map snake_case field names to camelCase for GraphQL
-    id: (parent) => parent.id,
-    contentId: (parent) => parent.contentId,
-    content: (parent) => parent.content,
-    title: (parent) => parent.title,
-    version: (parent) => parent.version,
-    createdAt: (parent) => parent.createdAt
+    // The parent already has camelCase fields from database.js
+    // Just add default values to ensure non-null fields
+    contentType: (parent) => parent.contentType || 'standard',
+    columnCount: (parent) => parent.columnCount,
+    columnsContent: (parent) => parent.columnsContent || [],
+    accordionItems: (parent) => parent.accordionItems || []
   }
 };
 

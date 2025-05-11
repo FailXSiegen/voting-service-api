@@ -466,10 +466,20 @@ input UpdateZoomMeetingInput {
   sdkSecret: String
 }
 
+type ColumnContent {
+  content: String!
+}
+
+type AccordionItem {
+  title: String!
+  content: String!
+}
+
 type StaticContent {
   id: ID!
   pageKey: String!
   sectionKey: String!
+  contentType: String!
   content: String!
   title: String
   ordering: Int
@@ -479,25 +489,45 @@ type StaticContent {
   updatedAt: String!
   publishedAt: String
   versions: [StaticContentVersion]
+  columnCount: Int
+  columnsContent: [ColumnContent]
+  accordionItems: [AccordionItem]
 }
 
 type StaticContentVersion {
   id: ID!
   contentId: ID!
+  contentType: String!
   content: String!
   title: String
   version: Int!
   changedBy: Organizer
   createdAt: String!
+  columnCount: Int
+  columnsContent: [ColumnContent]
+  accordionItems: [AccordionItem]
+}
+
+input ColumnContentInput {
+  content: String!
+}
+
+input AccordionItemInput {
+  title: String!
+  content: String!
 }
 
 input CreateStaticContentInput {
   pageKey: String!
   sectionKey: String!
+  contentType: String!
   content: String!
   title: String
   ordering: Int
   isPublished: Boolean
+  columnCount: Int
+  columnsContent: [ColumnContentInput]
+  accordionItems: [AccordionItemInput]
 }
 
 input UpdateStaticContentInput {
@@ -506,6 +536,10 @@ input UpdateStaticContentInput {
   title: String
   ordering: Int
   isPublished: Boolean
+  contentType: String
+  columnCount: Int
+  columnsContent: [ColumnContentInput]
+  accordionItems: [AccordionItemInput]
 }
 
 type Media {

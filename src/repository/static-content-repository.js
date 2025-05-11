@@ -15,15 +15,15 @@ class StaticContentRepository {
     let query = `
       SELECT * FROM static_content
     `;
-    
+
     if (publishedOnly) {
       query += ` WHERE is_published = true`;
     }
-    
+
     query += ` ORDER BY page_key, ordering ASC, section_key ASC`;
-    
+
     const result = await db.query(query);
-    return result || [];
+    return this.parseContentItems(result || []);
   }
 
   /**
@@ -36,9 +36,9 @@ class StaticContentRepository {
       SELECT * FROM static_content
       WHERE id = ?
     `;
-    
+
     const result = await db.query(query, [id]);
-    return result[0];
+    return result[0] ? this.parseContentItem(result[0]) : null;
   }
 
   /**
@@ -52,17 +52,17 @@ class StaticContentRepository {
       SELECT * FROM static_content
       WHERE page_key = ?
     `;
-    
+
     const params = [pageKey];
-    
+
     if (publishedOnly) {
       query += ' AND is_published = true';
     }
-    
+
     query += ' ORDER BY ordering ASC, section_key ASC';
-    
+
     const result = await db.query(query, params);
-    return result || [];
+    return this.parseContentItems(result || []);
   }
 
   /**
@@ -77,15 +77,15 @@ class StaticContentRepository {
       SELECT * FROM static_content
       WHERE page_key = ? AND section_key = ?
     `;
-    
+
     const params = [pageKey, sectionKey];
-    
+
     if (publishedOnly) {
       query += ' AND is_published = true';
     }
-    
+
     const result = await db.query(query, params);
-    return result[0];
+    return result[0] ? this.parseContentItem(result[0]) : null;
   }
 
   /**
@@ -95,37 +95,66 @@ class StaticContentRepository {
    * @returns {Promise<Object>} The created static content entry
    */
   async create(data, organizerId) {
-    // MariaDB does not support RETURNING *, so we need to do a separate query
-    const insertResult = await db.insert('static_content', {
+    // Prepare data for insertion
+    const insertData = {
       page_key: data.pageKey,
       section_key: data.sectionKey,
+      content_type: data.contentType || 'standard',
       content: data.content,
       title: data.title || null,
       ordering: data.ordering || 0,
       is_published: data.isPublished !== undefined ? data.isPublished : true,
       created_by: organizerId
-    }, true);
-    
+    };
+
+    // Add column data if provided
+    if (data.contentType === 'multi-column' && data.columnCount) {
+      insertData.column_count = data.columnCount;
+
+      if (data.columnsContent && Array.isArray(data.columnsContent)) {
+        insertData.columns_content = JSON.stringify(data.columnsContent);
+      }
+    }
+
+    // Add accordion data if provided
+    if (data.contentType === 'accordion' && data.accordionItems && Array.isArray(data.accordionItems)) {
+      insertData.accordion_items = JSON.stringify(data.accordionItems);
+    }
+
+    // MariaDB does not support RETURNING *, so we need to do a separate query
+    const insertResult = await db.insert('static_content', insertData, true);
+
     if (!insertResult || !insertResult.insertId) {
       throw new Error('Failed to insert static content');
     }
-    
+
     // Fetch the created content
     const selectQuery = `
       SELECT * FROM static_content
       WHERE id = ?
     `;
-    
+
     const result = await db.query(selectQuery, [insertResult.insertId]);
-    
+    const parsedResult = this.parseContentItem(result[0]);
+
     try {
       // Create first version entry
-      await this.createVersion(result[0].id, result[0].content, result[0].title, 1, organizerId);
+      await this.createVersion(
+        parsedResult.id,
+        parsedResult.content,
+        parsedResult.title,
+        1,
+        organizerId,
+        parsedResult.contentType,
+        parsedResult.columnCount,
+        parsedResult.columnsContent,
+        parsedResult.accordionItems
+      );
     } catch (err) {
       console.warn('Could not create version entry, continuing without versioning:', err.message);
     }
-    
-    return result[0];
+
+    return parsedResult;
   }
 
   /**
@@ -137,11 +166,11 @@ class StaticContentRepository {
    */
   async update(id, data, organizerId) {
     const content = await this.findById(id);
-    
+
     if (!content) {
       throw new Error('Static content not found');
     }
-    
+
     let newVersion = 1;
     try {
       // Get latest version
@@ -150,76 +179,120 @@ class StaticContentRepository {
     } catch (err) {
       console.warn('Could not get versions, continuing with version 1:', err.message);
     }
-    
+
     const fields = [];
     const params = [];
-    let paramIndex = 1;
-    
+
     if (data.content !== undefined) {
       fields.push(`content = ?`);
       params.push(data.content);
-      paramIndex++;
     }
-    
+
     if (data.title !== undefined) {
       fields.push(`title = ?`);
       params.push(data.title);
-      paramIndex++;
     }
-    
+
     if (data.ordering !== undefined) {
       fields.push(`ordering = ?`);
       params.push(data.ordering);
-      paramIndex++;
     }
-    
+
     if (data.isPublished !== undefined) {
       fields.push(`is_published = ?`);
       params.push(data.isPublished);
-      paramIndex++;
-      
+
       if (data.isPublished) {
         fields.push(`published_at = CURRENT_TIMESTAMP`);
       }
     }
-    
+
+    if (data.contentType !== undefined) {
+      fields.push(`content_type = ?`);
+      params.push(data.contentType);
+    }
+
+    if (data.columnCount !== undefined) {
+      fields.push(`column_count = ?`);
+      params.push(data.columnCount);
+    } else if (data.contentType && data.contentType !== 'multi-column') {
+      fields.push(`column_count = NULL`);
+    }
+
+    if (data.columnsContent !== undefined) {
+      fields.push(`columns_content = ?`);
+      params.push(Array.isArray(data.columnsContent) ? JSON.stringify(data.columnsContent) : null);
+    } else if (data.contentType && data.contentType !== 'multi-column') {
+      fields.push(`columns_content = NULL`);
+    }
+
+    if (data.accordionItems !== undefined) {
+      fields.push(`accordion_items = ?`);
+      params.push(Array.isArray(data.accordionItems) ? JSON.stringify(data.accordionItems) : null);
+    } else if (data.contentType && data.contentType !== 'accordion') {
+      fields.push(`accordion_items = NULL`);
+    }
+
     fields.push(`updated_at = CURRENT_TIMESTAMP`);
-    
-    // Add content ID and organizer ID to params
+
+    // Add content ID to params
     params.push(id);
-    
+
     // MariaDB does not support RETURNING *, so we need to do a separate query
     const updateQuery = `
       UPDATE static_content
       SET ${fields.join(', ')}
       WHERE id = ?
     `;
-    
+
     await db.query(updateQuery, params);
-    
+
     // Create new version entry if content or title changed
-    if (data.content !== undefined || data.title !== undefined) {
+    if (data.content !== undefined || data.title !== undefined ||
+      data.contentType !== undefined || data.columnCount !== undefined ||
+      data.columnsContent !== undefined || data.accordionItems !== undefined) {
       try {
+        const updatedContentType = data.contentType || content.contentType;
+        let columnCount = content.columnCount;
+        let columnsContent = content.columnsContent;
+        let accordionItems = content.accordionItems;
+
+        if (data.columnCount !== undefined) {
+          columnCount = data.columnCount;
+        }
+
+        if (data.columnsContent !== undefined) {
+          columnsContent = data.columnsContent;
+        }
+
+        if (data.accordionItems !== undefined) {
+          accordionItems = data.accordionItems;
+        }
+
         await this.createVersion(
-          id, 
+          id,
           data.content || content.content,
           data.title !== undefined ? data.title : content.title,
-          newVersion, 
-          organizerId
+          newVersion,
+          organizerId,
+          updatedContentType,
+          columnCount,
+          columnsContent,
+          accordionItems
         );
       } catch (err) {
         console.warn('Could not create version entry, continuing without versioning:', err.message);
       }
     }
-    
+
     // Fetch the updated content
     const selectQuery = `
       SELECT * FROM static_content
       WHERE id = ?
     `;
-    
+
     const result = await db.query(selectQuery, [id]);
-    return result[0];
+    return this.parseContentItem(result[0]);
   }
 
   /**
@@ -232,7 +305,7 @@ class StaticContentRepository {
       DELETE FROM static_content
       WHERE id = ?
     `;
-    
+
     await db.query(query, [id]);
     return true;
   }
@@ -253,17 +326,17 @@ class StaticContentRepository {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
-    
+
     await db.query(updateQuery, [isPublished, id]);
-    
+
     // Fetch the updated content
     const selectQuery = `
       SELECT * FROM static_content
       WHERE id = ?
     `;
-    
+
     const result = await db.query(selectQuery, [id]);
-    return result[0];
+    return this.parseContentItem(result[0]);
   }
 
   /**
@@ -273,30 +346,54 @@ class StaticContentRepository {
    * @param {string} title - The content title
    * @param {number} version - The version number
    * @param {number} organizerId - ID of the editor
+   * @param {string} contentType - Type of content
+   * @param {number} columnCount - Number of columns
+   * @param {Array} columnsContent - Content for each column
+   * @param {Array} accordionItems - Accordion item data
    * @returns {Promise<Object>} The created version entry
    */
-  async createVersion(contentId, content, title, version, organizerId) {
-    // MariaDB does not support RETURNING *, so we need to do a separate query
-    const insertResult = await db.insert('static_content_version', {
+  async createVersion(contentId, content, title, version, organizerId, contentType = 'standard', columnCount = null, columnsContent = null, accordionItems = null) {
+    // Prepare insertion data
+    const insertData = {
       content_id: contentId,
       content: content,
       title: title,
       version: version,
-      changed_by: organizerId
-    }, true);
-    
+      changed_by: organizerId,
+      content_type: contentType
+    };
+
+    if (contentType === 'multi-column' && columnCount) {
+      insertData.column_count = columnCount;
+
+      if (columnsContent) {
+        insertData.columns_content = Array.isArray(columnsContent)
+          ? JSON.stringify(columnsContent)
+          : (typeof columnsContent === 'string' ? columnsContent : null);
+      }
+    }
+
+    if (contentType === 'accordion' && accordionItems) {
+      insertData.accordion_items = Array.isArray(accordionItems)
+        ? JSON.stringify(accordionItems)
+        : (typeof accordionItems === 'string' ? accordionItems : null);
+    }
+
+    // MariaDB does not support RETURNING *, so we need to do a separate query
+    const insertResult = await db.insert('static_content_version', insertData, true);
+
     if (!insertResult || !insertResult.insertId) {
       throw new Error('Failed to insert static content version');
     }
-    
+
     // Fetch the created version
     const selectQuery = `
       SELECT * FROM static_content_version
       WHERE id = ?
     `;
-    
+
     const result = await db.query(selectQuery, [insertResult.insertId]);
-    return result[0];
+    return this.parseVersionItem(result[0]);
   }
 
   /**
@@ -310,9 +407,9 @@ class StaticContentRepository {
       WHERE content_id = ?
       ORDER BY version DESC
     `;
-    
+
     const result = await db.query(query, [contentId]);
-    return result || [];
+    return this.parseVersionItems(result || []);
   }
 
   /**
@@ -325,9 +422,9 @@ class StaticContentRepository {
       SELECT * FROM static_content_version
       WHERE id = ?
     `;
-    
+
     const result = await db.query(query, [versionId]);
-    return result[0];
+    return result[0] ? this.parseVersionItem(result[0]) : null;
   }
 
   /**
@@ -340,16 +437,134 @@ class StaticContentRepository {
   async revertToVersion(contentId, versionId, organizerId) {
     // Get the version to revert to
     const version = await this.getVersion(versionId);
-    
-    if (!version || version.content_id !== contentId) {
+
+    if (!version || version.contentId !== contentId) {
       throw new Error('Invalid version');
     }
-    
+
     // Update the content
     return this.update(contentId, {
       content: version.content,
-      title: version.title
+      title: version.title,
+      contentType: version.contentType,
+      columnCount: version.columnCount,
+      columnsContent: version.columnsContent,
+      accordionItems: version.accordionItems
     }, organizerId);
+  }
+
+  /**
+   * Parse database result for static content items
+   * @param {Array} items - Database result array
+   * @returns {Array} Parsed static content array
+   */
+  parseContentItems(items) {
+    return items.map(item => this.parseContentItem(item));
+  }
+
+  /**
+   * Parse database result for static content item
+   * @param {Object} item - Database result item
+   * @returns {Object} Parsed static content item
+   */
+  parseContentItem(item) {
+    if (!item) return null;
+
+    const parsed = {
+      id: item.id || 0,
+      pageKey: item.pageKey || '',
+      sectionKey: item.sectionKey || '',
+      contentType: item.contentType || 'standard',
+      content: item.content || '',
+      title: item.title || null,
+      ordering: item.ordering || 0,
+      isPublished: !!item.isPublished,
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || new Date().toISOString(),
+      publishedAt: item.publishedAt || null,
+      createdBy: item.createdBy || null
+    };
+
+    // Parse column data if it exists
+    if (item.columnCount) {
+      parsed.columnCount = item.columnCount;
+    }
+
+    if (item.columnsContent) {
+      try {
+        parsed.columnsContent = JSON.parse(item.columnsContent);
+      } catch (err) {
+        console.warn('Could not parse columns_content JSON:', err.message);
+        parsed.columnsContent = [];
+      }
+    }
+
+    // Parse accordion data if it exists
+    if (item.accordionItems) {
+      try {
+        parsed.accordionItems = JSON.parse(item.accordionItems);
+      } catch (err) {
+        console.warn('Could not parse accordion_items JSON:', err.message);
+        parsed.accordionItems = [];
+      }
+    }
+
+    return parsed;
+  }
+
+  /**
+   * Parse database result for static content version items
+   * @param {Array} items - Database result array
+   * @returns {Array} Parsed static content version array
+   */
+  parseVersionItems(items) {
+    return items.map(item => this.parseVersionItem(item));
+  }
+
+  /**
+   * Parse database result for static content version item
+   * @param {Object} item - Database result item
+   * @returns {Object} Parsed static content version item
+   */
+  parseVersionItem(item) {
+    if (!item) return null;
+
+    const parsed = {
+      id: item.id || 0,
+      contentId: item.contentId || 0,
+      content: item.content || '',
+      title: item.title || null,
+      version: item.version || 1,
+      contentType: item.contentType || 'standard',
+      changedBy: item.changedBy || null,
+      createdAt: item.createdAt || new Date().toISOString()
+    };
+
+    // Parse column data if it exists
+    if (item.columnCount) {
+      parsed.columnCount = item.columnCount;
+    }
+
+    if (item.columnsContent) {
+      try {
+        parsed.columnsContent = JSON.parse(item.columnsContent);
+      } catch (err) {
+        console.warn('Could not parse columns_content JSON:', err.message);
+        parsed.columnsContent = [];
+      }
+    }
+
+    // Parse accordion data if it exists
+    if (item.accordionItems) {
+      try {
+        parsed.accordionItems = JSON.parse(item.accordionItems);
+      } catch (err) {
+        console.warn('Could not parse accordion_items JSON:', err.message);
+        parsed.accordionItems = [];
+      }
+    }
+
+    return parsed;
   }
 }
 
