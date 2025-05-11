@@ -102,6 +102,7 @@ class StaticContentRepository {
       content_type: data.contentType || 'standard',
       content: data.content,
       title: data.title || null,
+      header_class: data.headerClass || 'h2',
       ordering: data.ordering || 0,
       is_published: data.isPublished !== undefined ? data.isPublished : true,
       created_by: organizerId
@@ -148,7 +149,8 @@ class StaticContentRepository {
         parsedResult.contentType,
         parsedResult.columnCount,
         parsedResult.columnsContent,
-        parsedResult.accordionItems
+        parsedResult.accordionItems,
+        parsedResult.headerClass
       );
     } catch (err) {
       console.warn('Could not create version entry, continuing without versioning:', err.message);
@@ -193,9 +195,17 @@ class StaticContentRepository {
       params.push(data.title);
     }
 
+    if (data.headerClass !== undefined) {
+      fields.push(`header_class = ?`);
+      params.push(data.headerClass);
+    }
+
     if (data.ordering !== undefined) {
+      const orderingValue = parseInt(data.ordering, 10);
+
       fields.push(`ordering = ?`);
-      params.push(data.ordering);
+      params.push(orderingValue);
+
     }
 
     if (data.isPublished !== undefined) {
@@ -247,8 +257,8 @@ class StaticContentRepository {
 
     await db.query(updateQuery, params);
 
-    // Create new version entry if content or title changed
-    if (data.content !== undefined || data.title !== undefined ||
+    // Create new version entry if content, title, or other important fields changed
+    if (data.content !== undefined || data.title !== undefined || data.headerClass !== undefined ||
       data.contentType !== undefined || data.columnCount !== undefined ||
       data.columnsContent !== undefined || data.accordionItems !== undefined) {
       try {
@@ -256,6 +266,7 @@ class StaticContentRepository {
         let columnCount = content.columnCount;
         let columnsContent = content.columnsContent;
         let accordionItems = content.accordionItems;
+        let headerClass = content.headerClass;
 
         if (data.columnCount !== undefined) {
           columnCount = data.columnCount;
@@ -269,6 +280,10 @@ class StaticContentRepository {
           accordionItems = data.accordionItems;
         }
 
+        if (data.headerClass !== undefined) {
+          headerClass = data.headerClass;
+        }
+
         await this.createVersion(
           id,
           data.content || content.content,
@@ -278,7 +293,8 @@ class StaticContentRepository {
           updatedContentType,
           columnCount,
           columnsContent,
-          accordionItems
+          accordionItems,
+          headerClass
         );
       } catch (err) {
         console.warn('Could not create version entry, continuing without versioning:', err.message);
@@ -350,14 +366,16 @@ class StaticContentRepository {
    * @param {number} columnCount - Number of columns
    * @param {Array} columnsContent - Content for each column
    * @param {Array} accordionItems - Accordion item data
+   * @param {string} headerClass - The header class for styling (h1-h5, d-none)
    * @returns {Promise<Object>} The created version entry
    */
-  async createVersion(contentId, content, title, version, organizerId, contentType = 'standard', columnCount = null, columnsContent = null, accordionItems = null) {
+  async createVersion(contentId, content, title, version, organizerId, contentType = 'standard', columnCount = null, columnsContent = null, accordionItems = null, headerClass = 'h2') {
     // Prepare insertion data
     const insertData = {
       content_id: contentId,
       content: content,
       title: title,
+      header_class: headerClass,
       version: version,
       changed_by: organizerId,
       content_type: contentType
@@ -446,6 +464,7 @@ class StaticContentRepository {
     return this.update(contentId, {
       content: version.content,
       title: version.title,
+      headerClass: version.headerClass,
       contentType: version.contentType,
       columnCount: version.columnCount,
       columnsContent: version.columnsContent,
@@ -477,6 +496,7 @@ class StaticContentRepository {
       contentType: item.contentType || 'standard',
       content: item.content || '',
       title: item.title || null,
+      headerClass: item.headerClass || 'h2',
       ordering: item.ordering || 0,
       isPublished: !!item.isPublished,
       createdAt: item.createdAt || new Date().toISOString(),
@@ -534,6 +554,7 @@ class StaticContentRepository {
       contentId: item.contentId || 0,
       content: item.content || '',
       title: item.title || null,
+      headerClass: item.headerClass || 'h2',
       version: item.version || 1,
       contentType: item.contentType || 'standard',
       changedBy: item.changedBy || null,

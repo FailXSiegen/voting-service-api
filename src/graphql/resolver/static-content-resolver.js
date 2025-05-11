@@ -161,6 +161,7 @@ const resolvers = {
           contentType: input.contentType || 'standard',
           content: input.content,
           title: input.title,
+          headerClass: input.headerClass || 'h2',
           ordering: input.ordering,
           isPublished: input.isPublished
         };
@@ -168,7 +169,7 @@ const resolvers = {
         // Add multi-column data if provided
         if (input.contentType === 'multi-column' && input.columnCount) {
           repositoryInput.columnCount = input.columnCount;
-          
+
           if (input.columnsContent && Array.isArray(input.columnsContent)) {
             repositoryInput.columnsContent = input.columnsContent;
           }
@@ -207,7 +208,8 @@ const resolvers = {
         const repositoryInput = {
           content: input.content,
           title: input.title,
-          ordering: input.ordering,
+          headerClass: input.headerClass,
+          ordering: input.ordering !== undefined ? parseInt(input.ordering, 10) : undefined, // Explizit zu Integer konvertieren
           isPublished: input.isPublished,
           contentType: input.contentType
         };
@@ -332,6 +334,7 @@ const resolvers = {
 
     // The parent already has camelCase fields from database.js
     // Just add default values to ensure non-null fields
+    headerClass: (parent) => parent.headerClass || 'h2',
     columnCount: (parent) => parent.columnCount,
     columnsContent: (parent) => parent.columnsContent || [],
     accordionItems: (parent) => parent.accordionItems || []
@@ -354,6 +357,7 @@ const resolvers = {
     // The parent already has camelCase fields from database.js
     // Just add default values to ensure non-null fields
     contentType: (parent) => parent.contentType || 'standard',
+    headerClass: (parent) => parent.headerClass || 'h2',
     columnCount: (parent) => parent.columnCount,
     columnsContent: (parent) => parent.columnsContent || [],
     accordionItems: (parent) => parent.accordionItems || []

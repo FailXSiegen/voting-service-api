@@ -482,6 +482,7 @@ type StaticContent {
   contentType: String!
   content: String!
   title: String
+  headerClass: String
   ordering: Int
   isPublished: Boolean!
   createdBy: Organizer
@@ -500,6 +501,7 @@ type StaticContentVersion {
   contentType: String!
   content: String!
   title: String
+  headerClass: String
   version: Int!
   changedBy: Organizer
   createdAt: String!
@@ -523,6 +525,7 @@ input CreateStaticContentInput {
   contentType: String!
   content: String!
   title: String
+  headerClass: String
   ordering: Int
   isPublished: Boolean
   columnCount: Int
@@ -534,6 +537,7 @@ input UpdateStaticContentInput {
   id: ID!
   content: String
   title: String
+  headerClass: String
   ordering: Int
   isPublished: Boolean
   contentType: String
