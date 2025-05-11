@@ -23,6 +23,7 @@ import eventUserSubscriptionResolvers from "./resolver/subscription/event-user";
 import poolAnswerSubscriptionResolvers from "./resolver/subscription/poll-answer";
 import votingDetailsSubscriptionResolvers from "./resolver/subscription/voting-details";
 import staticContentResolvers from "./resolver/static-content-resolver";
+import pageSlugResolvers from "./resolver/page-slug-resolver";
 import mediaResolvers from "./resolver/media-resolver";
 import systemSettingsResolvers from "./resolver/system-settings-resolver";
 import translationsResolvers from "./resolver/translations-resolver";
@@ -40,6 +41,7 @@ export default {
     ...zoomMeetingQueries,
     ...userVoteCycleQueries,
     ...staticContentResolvers.Query,
+    ...pageSlugResolvers.Query,
     ...mediaResolvers.Query,
     ...systemSettingsResolvers.Query,
     ...translationsResolvers.Query,
@@ -54,6 +56,7 @@ export default {
     ...zoomMeetingMutations,
     ...eventUserAuthTokenMutations,
     ...staticContentResolvers.Mutation,
+    ...pageSlugResolvers.Mutation,
     ...mediaResolvers.Mutation,
     ...systemSettingsResolvers.Mutation,
     ...translationsResolvers.Mutation,
@@ -84,6 +87,9 @@ export default {
   },
   StaticContentVersion: {
     ...staticContentResolvers.StaticContentVersion,
+  },
+  PageSlug: {
+    // Add any field resolvers for PageSlug if needed
   },
   Media: {
     ...mediaResolvers.Media,

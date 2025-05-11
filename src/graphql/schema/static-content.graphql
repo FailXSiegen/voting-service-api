@@ -81,16 +81,16 @@ input UpdateStaticContentInput {
 extend type Query {
   # Get all static content
   staticContents: [StaticContent]
-  
+
   # Get static content by page key
   staticContentsByPage(pageKey: String!): [StaticContent]
-  
+
   # Get specific static content
   staticContent(id: ID!): StaticContent
-  
+
   # Get static content by page and section
   staticContentBySection(pageKey: String!, sectionKey: String!): StaticContent
-  
+
   # Get version history for a static content
   staticContentVersions(contentId: ID!): [StaticContentVersion]
 }
@@ -98,16 +98,16 @@ extend type Query {
 extend type Mutation {
   # Create new static content
   createStaticContent(input: CreateStaticContentInput!): StaticContent!
-  
+
   # Update existing static content
   updateStaticContent(input: UpdateStaticContentInput!): StaticContent!
-  
+
   # Delete static content
   deleteStaticContent(id: ID!): Boolean!
-  
+
   # Publish or unpublish static content
   toggleStaticContentPublished(id: ID!, isPublished: Boolean!): StaticContent!
-  
+
   # Revert to a previous version
   revertStaticContentToVersion(contentId: ID!, versionId: ID!): StaticContent!
 }

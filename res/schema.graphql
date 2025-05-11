@@ -54,9 +54,20 @@ type Query {
   staticContent(id: ID!): StaticContent
   # Get static content by page and section
   staticContentBySection(pageKey: String!, sectionKey: String!): StaticContent
+  # Get static content by page slug
+  staticContentByPageSlug(pageSlug: String!): [StaticContent]
   # Get version history for a static content
   staticContentVersions(contentId: ID!): [StaticContentVersion]
-  
+
+  # Get all page slugs
+  pageSlugs: [PageSlug]
+
+  # Get page slug by page key
+  pageSlugByPageKey(pageKey: String!): PageSlug
+
+  # Get page slug by slug
+  pageSlugBySlug(slug: String!): PageSlug
+
   # Get system settings
   systemSettings: SystemSettings
 
@@ -137,7 +148,13 @@ type Mutation {
   toggleStaticContentPublished(id: ID!, isPublished: Boolean!): StaticContent!
   # Revert to a previous version
   revertStaticContentToVersion(contentId: ID!, versionId: ID!): StaticContent!
-  
+
+  # Create or update page slug
+  upsertPageSlug(pageKey: String!, slug: String!): PageSlug!
+
+  # Delete page slug
+  deletePageSlug(pageKey: String!): Boolean!
+
   # Delete media item
   deleteMedia(id: ID!): Boolean!
   
@@ -479,6 +496,8 @@ type StaticContent {
   id: ID!
   pageKey: String!
   sectionKey: String!
+  pageSlug: String
+  slug: String
   contentType: String!
   content: String!
   title: String
@@ -503,6 +522,8 @@ type StaticContentVersion {
   title: String
   headerClass: String
   version: Int!
+  pageSlug: String
+  slug: String
   changedBy: Organizer
   createdAt: String!
   columnCount: Int
@@ -522,6 +543,7 @@ input AccordionItemInput {
 input CreateStaticContentInput {
   pageKey: String!
   sectionKey: String!
+  pageSlug: String
   contentType: String!
   content: String!
   title: String
@@ -535,6 +557,7 @@ input CreateStaticContentInput {
 
 input UpdateStaticContentInput {
   id: ID!
+  pageSlug: String
   content: String
   title: String
   headerClass: String
@@ -544,6 +567,14 @@ input UpdateStaticContentInput {
   columnCount: Int
   columnsContent: [ColumnContentInput]
   accordionItems: [AccordionItemInput]
+}
+
+type PageSlug {
+  id: ID!
+  pageKey: String!
+  slug: String!
+  createdAt: String!
+  updatedAt: String!
 }
 
 type Media {

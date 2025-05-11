@@ -2,6 +2,7 @@
 
 const staticContentRepository = require('../../repository/static-content-repository');
 const organizerRepository = require('../../repository/organizer-repository');
+const staticPageSlugRepository = require('../../repository/static-page-slug-repository');
 const AuthenticationError = require('../../errors/AuthenticationError');
 const RecordNotFoundError = require('../../errors/RecordNotFoundError');
 
@@ -111,6 +112,35 @@ const resolvers = {
     },
 
     /**
+     * Get static content by page slug
+     * @param {Object} _ - Parent resolver
+     * @param {Object} args - Arguments
+     * @param {Object} context - Request context
+     * @returns {Promise<Array>} The static content entries for the page
+     */
+    staticContentByPageSlug: async (_, { pageSlug }, context) => {
+      try {
+        const { user } = context;
+        const publishedOnly = !user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin);
+
+        // First, find the page key by slug from the mapping table
+        const pageSlugEntry = await staticPageSlugRepository.findBySlug(pageSlug);
+
+        if (!pageSlugEntry) {
+          console.warn(`No page found with slug: ${pageSlug}`);
+          return [];
+        }
+
+        // Use the page key to get the content
+        const content = await staticContentRepository.findByPageKey(pageSlugEntry.pageKey, publishedOnly);
+        return content;
+      } catch (err) {
+        console.error('Error in staticContentByPageSlug resolver:', err);
+        return [];
+      }
+    },
+
+    /**
      * Get version history for a static content
      * @param {Object} _ - Parent resolver
      * @param {Object} args - Arguments
@@ -180,7 +210,10 @@ const resolvers = {
           repositoryInput.accordionItems = input.accordionItems;
         }
 
-        return staticContentRepository.create(repositoryInput, user.organizer.id);
+        // Create the content first
+        const content = await staticContentRepository.create(repositoryInput, user.organizer.id);
+
+        return content;
       } catch (err) {
         console.error('Error in createStaticContent resolver:', err);
         return null;
@@ -204,12 +237,18 @@ const resolvers = {
           return null;
         }
 
+        // Get the existing content first to get the page key
+        const existingContent = await staticContentRepository.findById(input.id);
+        if (!existingContent) {
+          throw new RecordNotFoundError('Static content not found');
+        }
+
         // Convert input field names from camelCase to snake_case for the repository
         const repositoryInput = {
           content: input.content,
           title: input.title,
           headerClass: input.headerClass,
-          ordering: input.ordering !== undefined ? parseInt(input.ordering, 10) : undefined, // Explizit zu Integer konvertieren
+          ordering: input.ordering !== undefined ? parseInt(input.ordering, 10) : undefined,
           isPublished: input.isPublished,
           contentType: input.contentType
         };
@@ -228,7 +267,10 @@ const resolvers = {
           repositoryInput.accordionItems = input.accordionItems;
         }
 
-        return staticContentRepository.update(input.id, repositoryInput, user.organizer.id);
+        // Update the content
+        const updatedContent = await staticContentRepository.update(input.id, repositoryInput, user.organizer.id);
+
+        return updatedContent;
       } catch (err) {
         console.error('Error in updateStaticContent resolver:', err);
         return null;
@@ -332,6 +374,25 @@ const resolvers = {
       return staticContentRepository.getVersions(parent.id);
     },
 
+    /**
+     * Resolve pageSlug field from the page slugs mapping table
+     * @param {Object} parent - The static content object
+     * @returns {Promise<string>} The page slug
+     */
+    pageSlug: async (parent) => {
+      if (!parent.pageKey) {
+        return null;
+      }
+
+      try {
+        const pageSlugEntry = await staticPageSlugRepository.findByPageKey(parent.pageKey);
+        return pageSlugEntry ? pageSlugEntry.slug : null;
+      } catch (err) {
+        console.warn(`Error resolving pageSlug for pageKey ${parent.pageKey}:`, err.message);
+        return null;
+      }
+    },
+
     // The parent already has camelCase fields from database.js
     // Just add default values to ensure non-null fields
     headerClass: (parent) => parent.headerClass || 'h2',
@@ -352,6 +413,27 @@ const resolvers = {
       }
 
       return organizerRepository.findById(parent.changedBy);
+    },
+
+    /**
+     * Resolve pageSlug field from the current state in page slugs mapping table
+     * @param {Object} parent - The version object
+     * @returns {Promise<string>} The page slug
+     */
+    pageSlug: async (parent) => {
+      // Get the page key from the current content
+      const content = await staticContentRepository.findById(parent.contentId);
+      if (!content || !content.pageKey) {
+        return null;
+      }
+
+      try {
+        const pageSlugEntry = await staticPageSlugRepository.findByPageKey(content.pageKey);
+        return pageSlugEntry ? pageSlugEntry.slug : null;
+      } catch (err) {
+        console.warn(`Error resolving pageSlug for version of content ID ${parent.contentId}:`, err.message);
+        return null;
+      }
     },
 
     // The parent already has camelCase fields from database.js
