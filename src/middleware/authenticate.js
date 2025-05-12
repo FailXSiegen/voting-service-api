@@ -1,4 +1,6 @@
 import * as jwt from "jsonwebtoken";
+import { updateLastActivity } from "../repository/event-user-repository";
+import { findOneByRefreshToken } from "../repository/jwt-refresh-token-repository";
 
 export default async function (req, res, next) {
   // If JWT is disabled, skip authentication
@@ -21,6 +23,20 @@ export default async function (req, res, next) {
     try {
       // Try to parse the request body
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+
+      // Check if it's the KeepAlive query - update last_activity if token exists
+      if (body.operationName === 'KeepAlive' && req.cookies && req.cookies.refreshToken) {
+        const token = req.cookies.refreshToken;
+        try {
+          const tokenRecord = await findOneByRefreshToken(token);
+          if (tokenRecord && tokenRecord.eventUserId) {
+            await updateLastActivity(tokenRecord.eventUserId);
+          }
+        } catch (e) {
+          // Just log the error, don't block the request
+          console.warn('Error updating activity timestamp:', e.message);
+        }
+      }
 
       // Check if it's a public query - these should be allowed without auth
       if (body.query && (

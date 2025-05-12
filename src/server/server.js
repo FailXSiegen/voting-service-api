@@ -15,6 +15,10 @@ import {
   onDisconnectWebsocket,
   onSubscribeWebsocket,
 } from "../auth/websocket-events";
+import { startInactivityCleanup, stopInactivityCleanup } from "../services/inactivity-cleanup";
+
+// Handle für den Inaktivitäts-Cleanup-Timer
+let inactivityCleanupInterval = null;
 
 export default function () {
   resetEventUserOnlineState();
@@ -39,7 +43,7 @@ export default function () {
   });
   app.use(cookieParser(process.env.COOKIE_SIGN_SECRET));
   app.use(express.json());
-  
+
   // Apply authentication after body parsing
   app.use(authenticate);
 
@@ -75,12 +79,25 @@ export default function () {
     console.info(
       `Running WS Server at ws://localhost:${process.env.APP_PORT}${process.env.WEBSOCKET_ENDPOINT}`,
     );
+
+    // Starte den Inaktivitäts-Cleanup-Job nach dem Serverstart
+    inactivityCleanupInterval = startInactivityCleanup();
+  });
+
+  // Bei Server-Shutdown den Cleanup-Job beenden
+  process.on('SIGTERM', () => {
+    stopInactivityCleanup(inactivityCleanupInterval);
+  });
+
+  process.on('SIGINT', () => {
+    stopInactivityCleanup(inactivityCleanupInterval);
+    process.exit(0);
   });
 }
 
 function resetEventUserOnlineState() {
   // Set each event user to offline on server start up.
-  query("UPDATE event_user SET online = ?", [false]).catch((error) => {
+  query("UPDATE event_user SET online = ?, last_activity = NULL", [false]).catch((error) => {
     console.error(error);
   });
 }

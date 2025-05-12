@@ -275,6 +275,19 @@ export async function findActivePollByUserId(eventUserId) {
   return Array.isArray(result) ? result[0] || null : null;
 }
 
+/**
+ * Findet alle Events, die aktuell aktive Abstimmungen haben
+ * @returns {Promise<Array>} - Liste aller Event-IDs mit aktiven Abstimmungen
+ */
+export async function findEventsWithActivePoll() {
+  return await query(`
+    SELECT DISTINCT poll.event_id AS id
+    FROM poll
+    INNER JOIN poll_result ON poll.id = poll_result.poll_id
+    WHERE poll_result.closed = 0
+  `);
+}
+
 export async function getPollOverview(eventId) {
   return await query(
     `

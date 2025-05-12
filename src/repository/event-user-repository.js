@@ -49,12 +49,22 @@ export async function toggleUserOnlineStateByRequestToken(token, online) {
     UPDATE event_user
     INNER JOIN jwt_refresh_token
     ON jwt_refresh_token.event_user_id = event_user.id
-    SET event_user.online = ?
+    SET event_user.online = ?, event_user.last_activity = ?
     WHERE jwt_refresh_token.token = ?
   `;
 
-  // Update online state.
-  await query(sql, [online, token]);
+  const timestamp = getCurrentUnixTimeStamp();
+
+  // Update online state and last activity timestamp
+  await query(sql, [online, timestamp, token]);
+}
+
+export async function updateLastActivity(eventUserId) {
+  const timestamp = getCurrentUnixTimeStamp();
+  return await query(
+    "UPDATE event_user SET last_activity = ?, online = true WHERE id = ?",
+    [timestamp, eventUserId]
+  );
 }
 
 export async function create(input) {
@@ -78,8 +88,9 @@ export async function remove(id) {
 }
 
 export async function setEventUserOnline(id) {
+  const timestamp = getCurrentUnixTimeStamp();
   return await query(
-    "UPDATE event_user SET online = true WHERE id = ? AND online = false",
-    [id],
+    "UPDATE event_user SET online = true, last_activity = ? WHERE id = ? AND online = false",
+    [timestamp, id],
   );
 }
