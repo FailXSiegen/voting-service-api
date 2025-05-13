@@ -119,7 +119,7 @@ export async function onDisconnectWebsocket(ctx) {
   }
 
   // Extract the token from the received cookies.
-  await toggleUserOnlineStateByRequestToken(token, true);
+  await toggleUserOnlineStateByRequestToken(token, false);
   const tokenRecord = await findOneByRefreshToken(token);
   if (!tokenRecord) {
     return;
