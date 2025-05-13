@@ -1,4 +1,4 @@
-import { updatePollResultMaxVotes } from "../repository/poll/poll-result-repository";
+import { updatePollResultMaxVotes, findLeftAnswersCount } from "../repository/poll/poll-result-repository";
 import {
   createPollUserWithPollResultId,
   existAsPollUserInCurrentVote,
@@ -10,6 +10,9 @@ import {
   calculateRealVoteCycle
 } from "../repository/poll/poll-user-voted-repository";
 import { findOneById } from "../repository/event-user-repository";
+import { pubsub } from "../server/graphql";
+import { POLL_ANSWER_LIFE_CYCLE } from "../graphql/resolver/subscription/subscription-types";
+import { query } from "../lib/database";
 
 /**
  * Creates a new poll user record, if the event-user id does not yet exist.
@@ -17,18 +20,66 @@ import { findOneById } from "../repository/event-user-repository";
  * @param {number} eventUserId
  */
 export async function createPollUserIfNeeded(pollResultId, eventUserId) {
-  const userExists = await existAsPollUserInCurrentVote(
-    pollResultId,
-    eventUserId,
-  );
-  if (userExists === null) {
-    const result = await createPollUserWithPollResultId(
+  console.log(`[DEBUG] createPollUserIfNeeded called for pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
+
+  try {
+    const userExists = await existAsPollUserInCurrentVote(
       pollResultId,
       eventUserId,
     );
-    if (result) {
-      await updatePollResultMaxVotes(pollResultId, eventUserId);
+
+
+    // userExists === null bedeutet, dass der Nutzer nicht existiert
+    // userExists ist ein Array, wenn der Nutzer gefunden wurde
+    if (!userExists || userExists.length === 0) {
+
+      const result = await createPollUserWithPollResultId(
+        pollResultId,
+        eventUserId,
+      );
+
+      if (result) {
+        await updatePollResultMaxVotes(pollResultId, eventUserId);
+
+        // Nach dem Hinzufügen des Benutzers die aktuellen Zahlen holen und ein Subscription-Event auslösen
+        try {
+          // Event-ID aus der Poll-ID ermitteln
+          const eventIdResult = await query(
+            "SELECT poll.event_id FROM poll INNER JOIN poll_result ON poll.id = poll_result.poll_id WHERE poll_result.id = ?",
+            [pollResultId]
+          );
+
+          const eventId = eventIdResult?.[0]?.event_id;
+
+
+          if (eventId) {
+            // Aktuelle Abstimmungszahlen abrufen
+            const leftAnswersDataSet = await findLeftAnswersCount(pollResultId);
+
+            // Event auslösen, um alle Clients zu aktualisieren
+            if (leftAnswersDataSet) {
+              pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
+                ...leftAnswersDataSet,
+                eventId: eventId,
+              });
+              console.log(`[DEBUG] Published POLL_ANSWER_LIFE_CYCLE event for eventId ${eventId}`);
+            }
+          }
+        } catch (error) {
+          console.error("[ERROR] Fehler beim Aktualisieren der Teilnehmerzahlen:", error);
+        }
+
+        return { success: true, message: "User added to poll" };
+      }
+
+      return { success: false, message: "Failed to add user to poll" };
+    } else {
+      return { success: true, message: "User already exists in poll" };
     }
+  } catch (error) {
+    console.error(`[ERROR] Error in createPollUserIfNeeded: ${error.message}`);
+    console.error(error.stack);
+    return { success: false, message: error.message };
   }
 }
 

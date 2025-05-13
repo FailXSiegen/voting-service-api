@@ -136,15 +136,12 @@ export async function findLeftAnswersCount(pollResultId) {
         ? parseInt(votedUsersQuery[0].total, 10) || 0
         : 0;
 
-      // Count eligible users
+      // Count eligible users from poll_user table instead of filtering by online status
+      // This ensures consistency with what's shown in the poll details view
       const eligibleUsersQuery = await query(
-        `SELECT COUNT(event_user.id) AS total
-         FROM poll 
-         INNER JOIN event_user ON poll.event_id = event_user.event_id
-         WHERE poll.id = ? 
-         AND event_user.verified = 1 
-         AND event_user.allow_to_vote = 1 
-         AND event_user.online = 1`,
+        `SELECT COUNT(DISTINCT poll_user.event_user_id) AS total
+         FROM poll_user
+         WHERE poll_user.poll_id = ?`,
         [pollId]
       );
 

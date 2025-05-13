@@ -6,6 +6,8 @@ import {
 } from "./../lib/database";
 import { hash } from "../lib/crypto";
 import { getCurrentUnixTimeStamp } from "../lib/time-stamp";
+import { createPollUserIfNeeded } from "../service/poll-service";
+import { findActivePoll } from "./poll/poll-result-repository";
 
 export async function findOneById(id) {
   const result = await query("SELECT * FROM event_user WHERE id = ?", [id]);
@@ -44,19 +46,77 @@ export async function findOnlineEventUserByEventId(eventId) {
 /**
  * todo refactor to two methods. one fetching the token record. the other triggers the online state.
  */
-export async function toggleUserOnlineStateByRequestToken(token, online) {
-  const sql = `
-    UPDATE event_user
-    INNER JOIN jwt_refresh_token
-    ON jwt_refresh_token.event_user_id = event_user.id
-    SET event_user.online = ?, event_user.last_activity = ?
-    WHERE jwt_refresh_token.token = ?
-  `;
 
+export async function toggleUserOnlineStateByRequestToken(token, online) {
+  // Timestamp für den letzten Aktivitätszeitpunkt
   const timestamp = getCurrentUnixTimeStamp();
 
-  // Update online state and last activity timestamp
-  await query(sql, [online, timestamp, token]);
+  // 1. Finde den EventUser anhand des Tokens - wir brauchen diese Info in beiden Fällen
+  const findEventUserSql = `
+    SELECT event_user.id, event_user.event_id
+    FROM event_user
+    INNER JOIN jwt_refresh_token
+    ON jwt_refresh_token.event_user_id = event_user.id
+    WHERE jwt_refresh_token.token = ?
+  `;
+  const eventUserResult = await query(findEventUserSql, [token]);
+  const eventUser = eventUserResult[0];
+
+  if (!eventUser) {
+    // Kein EventUser gefunden, nichts zu tun
+    return;
+  }
+
+  // Wenn wir den Nutzer als online markieren sollen
+  if (online === true) {
+    // Update online-Status und Timestamp
+    const sql = `
+      UPDATE event_user
+      SET event_user.online = ?, event_user.last_activity = ?
+      WHERE event_user.id = ?
+    `;
+    await query(sql, [online, timestamp, eventUser.id]);
+
+    // WICHTIG: Prüfe, ob ein aktiver Poll existiert und füge Nutzer hinzu, falls ja
+    try {
+      const activePoll = await findActivePoll(eventUser.event_id);
+      if (activePoll) {
+        console.info(`[INFO] Aktiver Poll (${activePoll.id}) gefunden für Event ${eventUser.event_id}, füge Benutzer ${eventUser.id} als Teilnehmer hinzu`);
+        await createPollUserIfNeeded(activePoll.id, eventUser.id);
+      }
+    } catch (error) {
+      console.error(`[ERROR] Fehler beim Hinzufügen des Benutzers ${eventUser.id} zum aktiven Poll:`, error);
+    }
+
+    return;
+  }
+
+  // Andernfalls (wenn wir offline markieren sollen), prüfen wir, ob ein aktiver Poll existiert
+  const checkActivePollSql = `
+    SELECT poll.id FROM poll
+    WHERE poll.event_id = ? AND poll.status = 'open'
+  `;
+  const activePollResult = await query(checkActivePollSql, [eventUser.event_id]);
+
+  // Wenn ein aktiver Poll existiert, aktualisieren wir nur den last_activity Zeitstempel,
+  // aber nicht den Online-Status (der User bleibt online)
+  if (activePollResult && activePollResult.length > 0) {
+    console.info(`[INFO] Benutzer ${eventUser.id} wird nicht als offline markiert, da ein aktiver Poll existiert`);
+    const updateActivitySql = `
+      UPDATE event_user
+      SET event_user.last_activity = ?
+      WHERE event_user.id = ?
+    `;
+    await query(updateActivitySql, [timestamp, eventUser.id]);
+  } else {
+    // Kein aktiver Poll, wir können den Benutzer offline setzen
+    const sql = `
+      UPDATE event_user
+      SET event_user.online = ?, event_user.last_activity = ?
+      WHERE event_user.id = ?
+    `;
+    await query(sql, [online, timestamp, eventUser.id]);
+  }
 }
 
 export async function updateLastActivity(eventUserId) {

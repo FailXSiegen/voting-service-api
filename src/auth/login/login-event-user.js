@@ -14,10 +14,13 @@ import { pubsub } from "../../server/graphql";
 import {
   EVENT_USER_LIFE_CYCLE,
   NEW_EVENT_USER,
+  POLL_ANSWER_LIFE_CYCLE
 } from "../../graphql/resolver/subscription/subscription-types";
 import { InactiveEventLoginError } from "../../errors/event/InactiveEventLoginError";
 import { EventNotFoundError } from "../../errors/event/EventNotFoundError";
 import { InvalidAnonymousLoginError } from "../../errors/event/InvalidAnonymousLoginError";
+import { findActivePoll, findLeftAnswersCount } from "../../repository/poll/poll-result-repository";
+import { createPollUserIfNeeded } from "../../service/poll-service";
 
 async function buildNewEventUserObject(
   username,
@@ -115,6 +118,29 @@ export async function loginEventUser({
 
   // Update user as online.
   await update({ id: eventUser.id, online: true });
+
+
+  try {
+    const activePollResult = await findActivePoll(eventId);
+
+    if (activePollResult) {
+      // Always attempt to add the user regardless of allowToVote status
+      const addResult = await createPollUserIfNeeded(activePollResult.id, eventUser.id);
+
+      // Publish updated poll information to all clients
+      const leftAnswersDataSet = await findLeftAnswersCount(activePollResult.id);
+
+      if (leftAnswersDataSet) {
+        pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
+          ...leftAnswersDataSet,
+          eventId: eventId,
+        });
+      }
+    }
+  } catch (error) {
+    console.error(`[ERROR] Error adding user to active poll: ${error.message}`);
+    console.error(error.stack);
+  }
 
   // Create jwt and refresh token.
   const refreshToken = await addRefreshToken("event-user", eventUser.id);
