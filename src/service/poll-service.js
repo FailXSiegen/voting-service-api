@@ -20,7 +20,6 @@ import { query } from "../lib/database";
  * @param {number} eventUserId
  */
 export async function createPollUserIfNeeded(pollResultId, eventUserId) {
-  console.log(`[DEBUG] createPollUserIfNeeded called for pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
 
   try {
     const userExists = await existAsPollUserInCurrentVote(
@@ -62,7 +61,6 @@ export async function createPollUserIfNeeded(pollResultId, eventUserId) {
                 ...leftAnswersDataSet,
                 eventId: eventId,
               });
-              console.log(`[DEBUG] Published POLL_ANSWER_LIFE_CYCLE event for eventId ${eventId}`);
             }
           }
         } catch (error) {
