@@ -94,7 +94,7 @@ export async function toggleUserOnlineStateByRequestToken(token, online) {
   // Andernfalls (wenn wir offline markieren sollen), prüfen wir, ob ein aktiver Poll existiert
   const checkActivePollSql = `
     SELECT poll.id FROM poll
-    WHERE poll.event_id = ? AND poll.status = 'open'
+    WHERE poll.event_id = ? AND poll.closed = '0'
   `;
   const activePollResult = await query(checkActivePollSql, [eventUser.event_id]);
 
