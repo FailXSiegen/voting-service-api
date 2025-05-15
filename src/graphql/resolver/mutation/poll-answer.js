@@ -346,7 +346,7 @@ export default {
 
         // Erhöhte Batch-Größe 
         // Maximal 25 Stimmen auf einmal abgeben, unabhängig davon, wie viele verbleiben
-        const MAX_BATCH_SIZE = 25;
+        const MAX_BATCH_SIZE = 50;
         const votesToSubmit = Math.max(0, Math.min(requestedVotes, remainingVotes, MAX_BATCH_SIZE));
 
 

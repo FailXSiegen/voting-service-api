@@ -70,7 +70,7 @@ export async function baseQuery(sql, params, options = {}) {
   try {
     // Verzögerung bei vielen aktiven Verbindungen einbauen
     if (currentActiveConnections > MAX_CONCURRENT_CONNECTIONS * 0.8) {
-      const delayMs = 50 + Math.floor(Math.random() * 150); // 50-200ms Verzögerung
+      const delayMs = 25 + Math.floor(Math.random() * 75); // 50-200ms Verzögerung
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
 

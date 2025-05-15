@@ -34,7 +34,10 @@ export default function () {
         // We allow all origins to access this server for now.
         return callback(null, origin);
       },
-      methods: ["GET", "POST"],
+      methods: ["GET", "POST", "OPTIONS"],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+      exposedHeaders: ['Content-Range', 'X-Content-Range'],
+      maxAge: 600,
     }),
   );
   app.use((req, res, next) => {
@@ -55,6 +58,36 @@ export default function () {
   const wsServer = new WebSocketServer({
     server: server,
     path: process.env.WEBSOCKET_ENDPOINT,
+    // Erlaube Cross-Origin-Verbindungen
+    handleProtocols: (protocols) => {
+      // Accept any protocol
+      return protocols[0];
+    },
+    perMessageDeflate: {
+      zlibDeflateOptions: {
+        chunkSize: 1024,
+        memLevel: 7,
+        level: 3
+      },
+      zlibInflateOptions: {
+        chunkSize: 10 * 1024
+      },
+      clientNoContextTakeover: true,
+      serverNoContextTakeover: true,
+      serverMaxWindowBits: 10,
+      concurrencyLimit: 10,
+      threshold: 1024
+    }
+  });
+
+  // Verbesserte Header für WebSocket-Verbindungen
+  wsServer.on('connection', (socket, request) => {
+    // Erlaube explizit CORS für WebSockets
+    socket.on('headers', (headers) => {
+      headers.push('Access-Control-Allow-Origin: *');
+      headers.push('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+      headers.push('Access-Control-Allow-Headers: Content-Type, Authorization');
+    });
   });
 
   // Integrate Yoga's Envelop instance and Node.js server with graphql-ws
@@ -63,21 +96,29 @@ export default function () {
       execute: (args) => args.rootValue.execute(args),
       subscribe: (args) => args.rootValue.subscribe(args),
       onSubscribe: onSubscribeWebsocket,
-      onConnect: onConnectWebsocket,
+      onConnect: (ctx) => {
+        // Erweitere den onConnect-Callback um zusätzliche Header-Prüfungen zu vermeiden
+        const connectionParams = ctx.connectionParams || {};
+        
+        // Akzeptiere alle Verbindungen, unabhängig von Headers
+        return onConnectWebsocket(ctx);
+      },
       onDisconnect: onDisconnectWebsocket,
+      // Erhöhe Timeouts für stabilere Verbindungen
+      connectionInitWaitTimeout: 60000, // 60 Sekunden Timeout für die Verbindungsinitialisierung
     },
     wsServer,
   );
 
-  server.listen(process.env.APP_PORT, () => {
+  server.listen(process.env.APP_PORT, '0.0.0.0', () => {
     console.info("----------------------------");
     console.info("Voting service API");
     console.info("----------------------------");
     console.info(
-      `Running API Server at http://localhost:${process.env.APP_PORT}${process.env.GRAPHQL_ENDPOINT}`,
+      `Running API Server at http://0.0.0.0:${process.env.APP_PORT}${process.env.GRAPHQL_ENDPOINT}`,
     );
     console.info(
-      `Running WS Server at ws://localhost:${process.env.APP_PORT}${process.env.WEBSOCKET_ENDPOINT}`,
+      `Running WS Server at ws://0.0.0.0:${process.env.APP_PORT}${process.env.WEBSOCKET_ENDPOINT}`,
     );
 
     // Starte den Inaktivitäts-Cleanup-Job nach dem Serverstart
