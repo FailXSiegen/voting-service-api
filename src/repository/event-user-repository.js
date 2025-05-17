@@ -44,9 +44,54 @@ export async function findOnlineEventUserByEventId(eventId) {
 }
 
 /**
+ * Neue Direktmethode zum Aktualisieren des Online-Status eines Benutzers ohne Refresh-Token
+ * Diese Funktion wird für die JWT-Auth in WebSockets verwendet
+ */
+export async function updateEventUserOnlineState(eventUserId, online) {
+  // Timestamp für den letzten Aktivitätszeitpunkt
+  const timestamp = getCurrentUnixTimeStamp();
+  
+  try {
+    // Find the event user first to check if it exists and to get the event_id
+    const eventUserResult = await query("SELECT id, event_id FROM event_user WHERE id = ?", [eventUserId]);
+    const eventUser = eventUserResult[0];
+    
+    if (!eventUser) {
+      console.warn(`[WARN] Event-User mit ID ${eventUserId} nicht gefunden`);
+      return false;
+    }
+    
+    // Update the online status
+    const sql = `
+      UPDATE event_user
+      SET event_user.online = ?, event_user.last_activity = ?
+      WHERE event_user.id = ?
+    `;
+    await query(sql, [online, timestamp, eventUserId]);
+    
+    // If setting to online, check for active polls
+    if (online === true) {
+      try {
+        const activePoll = await findActivePoll(eventUser.event_id);
+        if (activePoll) {
+          console.info(`[INFO] Aktiver Poll (${activePoll.id}) gefunden für Event ${eventUser.event_id}, füge Benutzer ${eventUserId} als Teilnehmer hinzu`);
+          await createPollUserIfNeeded(activePoll.id, eventUserId);
+        }
+      } catch (error) {
+        console.error(`[ERROR] Fehler beim Hinzufügen des Benutzers ${eventUserId} zum aktiven Poll:`, error);
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error(`[ERROR] Fehler beim Aktualisieren des Online-Status für Benutzer ${eventUserId}:`, error);
+    return false;
+  }
+}
+
+/**
  * todo refactor to two methods. one fetching the token record. the other triggers the online state.
  */
-
 export async function toggleUserOnlineStateByRequestToken(token, online) {
   // Timestamp für den letzten Aktivitätszeitpunkt
   const timestamp = getCurrentUnixTimeStamp();

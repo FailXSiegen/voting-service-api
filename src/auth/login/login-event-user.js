@@ -152,6 +152,8 @@ export async function loginEventUser({
       verified: eventUser.verified,
     },
     role: "event-user",
+    // Für WebSocket-Authentifizierung hinzufügen
+    eventUserId: eventUser.id 
   };
   const token = await generateJwt(claims);
   const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);

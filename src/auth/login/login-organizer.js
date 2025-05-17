@@ -24,6 +24,8 @@ export default async function loginOrganizer({ username, password }) {
   const claims = {
     user: { id: organizer.id, type: "organizer" },
     role: "organizer",
+    // Für Organizer fügen wir keine eventUserId hinzu, da diese nicht existiert
+    organizerId: organizer.id  // Stattdessen setzen wir die organizerId für WebSocket-Auth
   };
   const token = await generateJwt(claims);
   const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
