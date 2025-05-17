@@ -1,5 +1,6 @@
 import mysql from "promise-mysql";
 import humps from "humps";
+// Wir entfernen den child_process Import, da wir keine Server-Admin-Befehle ausführen werden
 
 const config = {
   host: process.env.DATABSE_HOST,
@@ -9,12 +10,81 @@ const config = {
   database: process.env.DATABSE_NAME,
   connectionLimit: 800,
   trace: process.env.ENABLE_DEBUG === "1",
+  acquireTimeout: 30000,   // 30 Sekunden Timeout für Verbindungsaufbau
+  connectTimeout: 30000,   // 30 Sekunden Timeout für initiale Verbindung
+  waitForConnections: true, // Wartet auf verfügbare Verbindungen statt Fehler zu werfen
+  queueLimit: 0,           // Keine Begrenzung der Warteschlange (0 = unbegrenzt)
 };
 
 // Einfacher Semaphor für die Begrenzung der gleichzeitigen Datenbankverbindungen
-const MAX_CONCURRENT_CONNECTIONS = 800; // Maximal 50 gleichzeitige Verbindungen
+const MAX_CONCURRENT_CONNECTIONS = 800; // Maximale gleichzeitige Verbindungen
 let currentActiveConnections = 0;
 const pendingConnections = [];
+
+// Track failed connections to implement a circuit breaker pattern
+let failedConnections = 0;
+let lastResetTime = Date.now();
+let isInCooldownPeriod = false;
+let cooldownEndTime = 0;
+
+/**
+ * Implementierung eines einfachen Circuit Breakers für Datenbankverbindungen
+ * - Verfolgt fehlgeschlagene Verbindungsversuche
+ * - Bei zu vielen Fehlern in kurzer Zeit: Cooldown-Periode aktivieren
+ * - Während der Cooldown-Periode: Künstliche Verzögerung bei neuen Verbindungen
+ */
+function trackConnectionFailure(errorCode) {
+  // Nur bestimmte Fehler zählen (host blockiert, Verbindungsfehler)
+  const trackableErrors = ['ER_HOST_IS_BLOCKED', 'ECONNREFUSED', 'ETIMEDOUT', 'PROTOCOL_CONNECTION_LOST'];
+  
+  if (!trackableErrors.includes(errorCode)) {
+    return; // Andere Fehler nicht verfolgen
+  }
+  
+  // Zurücksetzen des Zählers nach einer bestimmten Zeit
+  const now = Date.now();
+  if (now - lastResetTime > 60000) { // 1 Minute
+    failedConnections = 0;
+    lastResetTime = now;
+  }
+  
+  // Fehler zählen
+  failedConnections++;
+  
+  // Wenn zu viele Fehler auftreten, Cooldown-Periode aktivieren
+  if (failedConnections > 10 && !isInCooldownPeriod) {
+    isInCooldownPeriod = true;
+    cooldownEndTime = now + 30000; // 30 Sekunden Cooldown
+    console.warn(`[WARN:DATABASE] Activating connection cooldown period for 30 seconds due to multiple failures`);
+  }
+}
+
+/**
+ * Prüft, ob wir uns in einer Cooldown-Periode befinden und wartet gegebenenfalls
+ * @returns {Promise<void>}
+ */
+async function handleConnectionCooldown() {
+  if (!isInCooldownPeriod) {
+    return; // Keine Cooldown-Periode aktiv
+  }
+  
+  const now = Date.now();
+  
+  // Prüfen, ob die Cooldown-Periode abgelaufen ist
+  if (now >= cooldownEndTime) {
+    isInCooldownPeriod = false;
+    failedConnections = 0;
+    console.log(`[INFO:DATABASE] Connection cooldown period ended`);
+    return;
+  }
+  
+  // Während der Cooldown-Periode: Verzögerung bei neuen Verbindungsversuchen
+  const remainingCooldown = cooldownEndTime - now;
+  const delayTime = Math.min(remainingCooldown, 5000); // Maximal 5 Sekunden Verzögerung
+  
+  console.log(`[INFO:DATABASE] In connection cooldown. Delaying new connection by ${delayTime}ms`);
+  await new Promise(resolve => setTimeout(resolve, delayTime));
+}
 
 // Hilfsfunktion zum Warten auf eine verfügbare Verbindung
 async function waitForAvailableConnection() {
@@ -68,20 +138,129 @@ export async function baseQuery(sql, params, options = {}) {
   await waitForAvailableConnection();
 
   try {
+    // Prüfe auf Cooldown-Periode und handle sie
+    await handleConnectionCooldown();
+    
     // Verzögerung bei vielen aktiven Verbindungen einbauen
     if (currentActiveConnections > MAX_CONCURRENT_CONNECTIONS * 0.8) {
-      const delayMs = 25 + Math.floor(Math.random() * 75); // 50-200ms Verzögerung
+      const delayMs = 25 + Math.floor(Math.random() * 75); // 25-100ms Verzögerung
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
 
-    connection = await mysql.createConnection(config);
-    const result = await connection.query(sql, params);
-    return result;
-  } catch (err) {
-    console.error(`[ERROR:DATABASE] Query failed: ${err.message}`, err);
-    if (throwError) {
-      throw err;
+    // Implementiere Wiederholungslogik bei Verbindungsfehlern
+    let retries = 5; // Erhöhe die Anzahl der Wiederholungsversuche
+    let lastError = null;
+    
+    while (retries > 0) {
+      try {
+        // Vor jedem Verbindungsversuch nochmal auf Cooldown prüfen
+        if (retries < 5) { // Nicht beim ersten Versuch
+          await handleConnectionCooldown();
+        }
+        
+        // Exponentielles Backoff für wiederholte Versuche
+        if (retries < 5) { // Nicht beim ersten Versuch
+          const backoffDelay = Math.pow(2, 5 - retries) * 100; // 200ms, 400ms, 800ms, 1600ms
+          const jitter = Math.floor(Math.random() * 100); // 0-100ms zufällige Verzögerung
+          await new Promise(resolve => setTimeout(resolve, backoffDelay + jitter));
+        }
+        
+        // Verbindung herstellen
+        connection = await mysql.createConnection(config);
+        
+        // Hauptabfrage ausführen
+        const result = await connection.query(sql, params);
+        
+        // Bei Erfolg: Verbindung schließen und Ergebnis zurückgeben
+        return result;
+      } catch (err) {
+        lastError = err;
+        
+        // Bei einem Fehler: Nachverfolgung für den Circuit Breaker aktualisieren
+        if (err.code) {
+          trackConnectionFailure(err.code);
+        }
+        
+        // ER_HOST_IS_BLOCKED-Fehler behandeln
+        if (err.code === 'ER_HOST_IS_BLOCKED') {
+          console.warn(`[WARN:DATABASE] Host is blocked. Retrying with increasing delay. Attempts left: ${retries-1}`);
+          
+          // Längere Wartezeit für HOST_IS_BLOCKED-Fehler
+          const blockDelay = Math.pow(2, 5 - retries) * 500; // 500ms bis 8s
+          await new Promise(resolve => setTimeout(resolve, blockDelay));
+          
+          // Schließe vorherige Verbindung, falls vorhanden
+          if (connection) {
+            try {
+              await connection.end();
+              connection = null;
+            } catch (endErr) {
+              // Ignoriere Fehler beim Schließen
+            }
+          }
+          
+          retries--;
+          continue;
+        }
+        
+        // Bei anderen Verbindungsfehlern auch erneut versuchen
+        if (err.code && (
+            err.code === 'ECONNREFUSED' || 
+            err.code === 'ETIMEDOUT' || 
+            err.code === 'PROTOCOL_CONNECTION_LOST' ||
+            err.code === 'ENOTFOUND' ||
+            err.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR')) {
+          console.warn(`[WARN:DATABASE] Connection error (${err.code}). Retrying with delay. Attempts left: ${retries-1}`);
+          
+          // Warte und versuche es erneut (exponential backoff mit Jitter)
+          const connectionDelay = Math.pow(2, 5 - retries) * 200;
+          const jitter = Math.floor(Math.random() * 100);
+          await new Promise(resolve => setTimeout(resolve, connectionDelay + jitter));
+          
+          // Schließe vorherige Verbindung, falls vorhanden
+          if (connection) {
+            try {
+              await connection.end();
+              connection = null;
+            } catch (endErr) {
+              // Ignoriere Fehler beim Schließen
+            }
+          }
+          
+          retries--;
+          continue;
+        }
+        
+        // Bei anderen Fehlern nach dem ersten Versuch nochmal versuchen
+        if (retries === 5) {
+          console.warn(`[WARN:DATABASE] Query error: ${err.message}. Retrying once.`);
+          retries--;
+          
+          // Schließe vorherige Verbindung, falls vorhanden
+          if (connection) {
+            try {
+              await connection.end();
+              connection = null;
+            } catch (endErr) {
+              // Ignoriere Fehler beim Schließen
+            }
+          }
+          
+          continue;
+        }
+        
+        // Bei anderen Fehlern nach wiederholten Versuchen abbrechen
+        break;
+      }
     }
+    
+    // Wenn wir hier ankommen, sind alle Wiederholungsversuche fehlgeschlagen
+    console.error(`[ERROR:DATABASE] Query failed after ${5-retries} retries: ${lastError ? lastError.message : 'Unknown error'}`, lastError);
+    
+    if (throwError) {
+      throw lastError || new Error('Database query failed after multiple retries');
+    }
+    
     return null;
   } finally {
     if (connection) {

@@ -344,9 +344,10 @@ export default {
         const requestedVotes = input.voteCycle || 1;
         const remainingVotes = totalAllowedVotes - actualAnswerCount;
 
-        // Erhöhte Batch-Größe 
-        // Maximal 25 Stimmen auf einmal abgeben, unabhängig davon, wie viele verbleiben
-        const MAX_BATCH_SIZE = 50;
+        // Stark erhöhte Batch-Größe für bessere Performance bei Load Tests
+        // Maximal 500 Stimmen auf einmal abgeben, unabhängig davon, wie viele verbleiben
+        // Dies beschleunigt die Verarbeitung bei großen Vote-Batches erheblich
+        const MAX_BATCH_SIZE = 500;
         const votesToSubmit = Math.max(0, Math.min(requestedVotes, remainingVotes, MAX_BATCH_SIZE));
 
 
@@ -425,10 +426,9 @@ export default {
               console.warn(`[DEBUG:POLL_ANSWER] Vote ${index}/${votesToSubmit} insertion failed`);
             }
 
-            // Verzögerung zwischen den Einsätzen reduziert
-            if (index < votesToSubmit) {
-              await new Promise(resolve => setTimeout(resolve, 50)); // 50ms Verzögerung
-            }
+            // OPTIMIERT: Komplett entfernte Verzögerung zwischen den Einsätzen für maximale Performance
+            // Die Verzögerungslogik wurde vollständig entfernt, um die Verarbeitung zu beschleunigen
+            // Dies ist besonders wichtig für Load-Tests mit vielen gleichzeitigen Abstimmungen
           }
 
           // Verify database changes after insertion

@@ -13,26 +13,64 @@ import { findEventsWithActivePoll } from "../repository/poll/poll-result-reposit
 // Konfiguration für Inaktivitäts-Timeout in Sekunden (15 Minuten)
 const INACTIVITY_TIMEOUT = 900;
 
+// Load-Test-Modus-Flag (kann über die Umgebungsvariable gesetzt werden)
+const LOAD_TEST_MODE = process.env.LOAD_TEST_MODE === '1';
+
+// Verlängerter Timeout für Load-Tests (2 Stunden)
+const LOAD_TEST_INACTIVITY_TIMEOUT = 7200; // 2 Stunden
+
 /**
  * Startet den periodischen Inaktivitäts-Cleanup-Job
  * @param {number} interval - Intervall in Millisekunden für die Ausführung des Jobs (Standard: 60 Sekunden)
  * @returns {NodeJS.Timeout} - Handle für den Interval-Timer zum späteren Stoppen
  */
 export function startInactivityCleanup(interval = 60000) {
-  console.info(`[Inactivity Cleanup] Service started, checking every ${interval / 1000} seconds, timeout set to ${INACTIVITY_TIMEOUT} seconds`);
+  // Timeout basierend auf dem Modus wählen
+  const activeTimeout = LOAD_TEST_MODE ? LOAD_TEST_INACTIVITY_TIMEOUT : INACTIVITY_TIMEOUT;
+  
+  console.info(`[Inactivity Cleanup] Service started, checking every ${interval / 1000} seconds, timeout set to ${activeTimeout} seconds`);
+  console.info(`[Inactivity Cleanup] Load-Test-Modus: ${LOAD_TEST_MODE ? 'AKTIV' : 'INAKTIV'}`);
+  
+  // Bei aktivem Load-Test-Modus Warnhinweis ausgeben
+  if (LOAD_TEST_MODE) {
+    console.info('[Inactivity Cleanup] ⚠️ LOAD-TEST-MODUS: Verlängerter Inaktivitäts-Timeout aktiv (2 Stunden)');
+  }
 
   // Job alle 60 Sekunden ausführen
   const cleanupInterval = setInterval(async () => {
     try {
       // Aktuelle Zeit abrufen
       const timestamp = getCurrentUnixTimeStamp();
-      const cutoffTime = timestamp - INACTIVITY_TIMEOUT;
+      
+      // Im Load-Test-Modus längeren Timeout verwenden
+      const activeTimeout = LOAD_TEST_MODE ? LOAD_TEST_INACTIVITY_TIMEOUT : INACTIVITY_TIMEOUT;
+      const cutoffTime = timestamp - activeTimeout;
 
       // Events mit aktiven Abstimmungen abrufen - diese Benutzer werden nicht als offline markiert
       const eventsWithActivePoll = await findEventsWithActivePoll();
 
       // IDs der Events mit aktiven Abstimmungen extrahieren
-      const activeEventIds = eventsWithActivePoll.map(event => event.id);
+      let activeEventIds = eventsWithActivePoll.map(event => event.id);
+      
+      // Bei aktivem Load-Test-Modus die Verarbeitung stark einschränken
+      if (LOAD_TEST_MODE) {
+        // Prüfen, ob wir eventuell einen "loadtest" Event haben oder einen mit "load" im Namen
+        const loadTestEvents = await query(
+          `SELECT id FROM event WHERE name LIKE '%load%' OR slug LIKE '%load%'`
+        );
+        
+        if (Array.isArray(loadTestEvents) && loadTestEvents.length > 0) {
+          const loadEventIds = loadTestEvents.map(e => e.id);
+          console.info(`[Inactivity Cleanup] Load-Test-Events gefunden, IDs: ${loadEventIds.join(', ')}. Diese werden vom Cleanup ausgeschlossen.`);
+          
+          // Füge diese IDs zu den aktiven Event-IDs hinzu
+          loadEventIds.forEach(id => {
+            if (!activeEventIds.includes(id)) {
+              activeEventIds.push(id);
+            }
+          });
+        }
+      }
 
       // SQL für Update vorbereiten
       let sql = `
@@ -45,10 +83,21 @@ export function startInactivityCleanup(interval = 60000) {
       // Parameter für die Query vorbereiten
       const params = [cutoffTime];
 
+      // Im Load-Test-Modus können wir den Cleanup vollständig überspringen
+      if (LOAD_TEST_MODE && process.env.DISABLE_CLEANUP_IN_LOADTEST === '1') {
+        console.info(`[Inactivity Cleanup] Load-Test-Modus mit DISABLE_CLEANUP_IN_LOADTEST aktiv, überspringe Cleanup vollständig`);
+        return;
+      }
+      
       // Wenn es Events mit aktiven Abstimmungen gibt, diese ausschließen
       if (activeEventIds.length > 0) {
         sql += ` AND event_id NOT IN (${activeEventIds.map(() => '?').join(',')})`;
         params.push(...activeEventIds);
+      }
+      
+      // Im Load-Test-Modus einen Hinweis ausgeben
+      if (LOAD_TEST_MODE) {
+        console.info(`[Inactivity Cleanup] Load-Test-Modus aktiv. Timeout verlängert auf ${LOAD_TEST_INACTIVITY_TIMEOUT} Sekunden.`);
       }
 
       // Ausführen der Aktualisierung
@@ -59,7 +108,7 @@ export function startInactivityCleanup(interval = 60000) {
       }
 
       if (activeEventIds.length > 0) {
-        console.info(`[Inactivity Cleanup] ${activeEventIds.length} Events mit aktiven Abstimmungen ausgeschlossen`);
+        console.info(`[Inactivity Cleanup] ${activeEventIds.length} Events mit aktiven Abstimmungen oder Load-Tests ausgeschlossen`);
       }
     } catch (error) {
       console.error('[Inactivity Cleanup] Fehler beim Aktualisieren inaktiver Benutzer:', error);

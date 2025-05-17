@@ -61,15 +61,30 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
     await query("START TRANSACTION", [], { throwError: true });
 
     try {
-      // FIRST: Check if the poll is already closed or has reached its limits
+      // OPTIMIERT: Check if the poll is already closed but ohne FOR UPDATE Lock, um Concurrency zu erhöhen
+      // Wir reduzieren die Lock-Zeit indem wir erst nur prüfen, ob der Poll geschlossen ist
+      const pollStatusQuery = await query(
+        `SELECT pr.id, pr.max_votes AS maxVotes, pr.max_vote_cycles AS maxVoteCycles, 
+                pr.closed AS closed
+         FROM poll_result pr
+         WHERE pr.id = ?`,
+        [input.pollResultId]
+      );
+      
+      // Falls der Poll geschlossen ist, können wir sofort abbrechen ohne weitere Locks
+      if (Array.isArray(pollStatusQuery) && pollStatusQuery.length > 0 && pollStatusQuery[0].closed === 1) {
+        console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING vote: Poll ${input.pollResultId} is already closed (fast path)`);
+        await query("COMMIT", [], { throwError: true });
+        return null;
+      }
+      
+      // Nur wenn der Poll offen ist, holen wir die Antworten mit Lock
       const pollQuery = await query(
         `SELECT pr.id, pr.max_votes AS maxVotes, pr.max_vote_cycles AS maxVoteCycles, 
                 pr.closed AS closed, 
-                COUNT(pa.id) AS currentAnswersCount
+                (SELECT COUNT(*) FROM poll_answer WHERE poll_result_id = pr.id) AS currentAnswersCount
          FROM poll_result pr
-         LEFT JOIN poll_answer pa ON pa.poll_result_id = pr.id
          WHERE pr.id = ?
-         GROUP BY pr.id
          FOR UPDATE`,
         [input.pollResultId]
       );
@@ -106,18 +121,66 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
         : 0;
 
 
-      // Get the event user's vote amount
+      // OPTIMIERT: Überprüfe zuerst die Stimmberechtigung ohne Sperren
+      // Dies reduziert Locks bei gleichzeitigen Abstimmungen erheblich
+      const userQueryNoLock = await query(
+        `SELECT vote_amount AS voteAmount FROM event_user WHERE id = ?`,
+        [input.eventUserId]
+      );
+
+      const maxVotes = Array.isArray(userQueryNoLock) && userQueryNoLock.length > 0
+        ? parseInt(userQueryNoLock[0].voteAmount, 10) || 0
+        : 0;
+      
+      // Wenn der Benutzer keine Stimmberechtigung hat, können wir sofort abbrechen
+      if (maxVotes <= 0) {
+        console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING vote: User ${input.eventUserId} has no vote rights (voteAmount: ${maxVotes})`);
+        await query("COMMIT", [], { throwError: true });
+        return null;
+      }
+      
+      // Nur wenn der Benutzer Stimmrechte hat, holen wir die Daten mit Lock
+      // Dies ist notwendig für die Konsistenz beim Verändern von Daten
       const userQuery = await query(
         `SELECT vote_amount AS voteAmount FROM event_user WHERE id = ? FOR UPDATE`,
         [input.eventUserId]
       );
-
-      const maxVotes = Array.isArray(userQuery) && userQuery.length > 0
+      
+      // Nochmalige Überprüfung mit Lock (falls zwischen den Abfragen etwas geändert wurde)
+      const maxVotesWithLock = Array.isArray(userQuery) && userQuery.length > 0
         ? parseInt(userQuery[0].voteAmount, 10) || 0
         : 0;
+        
+      if (maxVotesWithLock <= 0) {
+        console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING vote: User ${input.eventUserId} lost vote rights between queries`);
+        await query("COMMIT", [], { throwError: true });
+        return null;
+      }
 
 
-      // Check vote_cycle for SECRET polls
+      // OPTIMIERT: Check vote_cycle for SECRET polls ohne FOR UPDATE Lock
+      // Erst ohne Lock prüfen, ob die Stimme zulässig wäre
+      const voteCycleQueryNoLock = await query(
+        `SELECT vote_cycle as voteCycle, version FROM poll_user_voted
+          WHERE poll_result_id = ? AND event_user_id = ?`,
+        [input.pollResultId, input.eventUserId]
+      );
+
+      // Vorprüfung ohne Lock, um schnell ungültige Stimmen abzuweisen
+      if (Array.isArray(voteCycleQueryNoLock) && voteCycleQueryNoLock.length > 0) {
+        const voteCycle = parseInt(voteCycleQueryNoLock[0].voteCycle, 10) || 0;
+        const version = parseInt(voteCycleQueryNoLock[0].version, 10) || 0;
+        const currentCount = Math.max(voteCycle, version);
+
+        // Block insertion if it would exceed the limit (schneller Pfad ohne Lock)
+        if (currentCount > maxVotesWithLock) {
+          console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING SECRET vote (fast path): User ${input.eventUserId} exceeded limit (${currentCount}/${maxVotesWithLock})`);
+          await query("COMMIT", [], { throwError: true });
+          return null;
+        }
+      }
+      
+      // Nur wenn die Vorprüfung ok ist, mit Lock abfragen für die tatsächliche Transaktion
       const voteCycleQuery = await query(
         `SELECT vote_cycle as voteCycle, version FROM poll_user_voted
           WHERE poll_result_id = ? AND event_user_id = ?
@@ -130,10 +193,9 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
         const version = parseInt(voteCycleQuery[0].version, 10) || 0;
         const currentCount = Math.max(voteCycle, version);
 
-
-        // Block insertion if it would exceed the limit
-        if (currentCount > maxVotes) {
-          console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING SECRET vote: User ${input.eventUserId} exceeded limit (${currentCount}/${maxVotes})`);
+        // Nochmalige Prüfung mit Lock (falls sich etwas zwischen den Abfragen geändert hat)
+        if (currentCount > maxVotesWithLock) {
+          console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING SECRET vote: User ${input.eventUserId} exceeded limit (${currentCount}/${maxVotesWithLock})`);
           await query("COMMIT", [], { throwError: true });
           return null;
         }
@@ -142,21 +204,37 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
 
       // THIRD: Now perform the actual insertion based on poll type
       if (input.type === "PUBLIC") {
-        // Get poll user ID with lock
-        const pollUserQuery = await query(
+        // OPTIMIERT: Get poll user ID ohne Lock für schnellere Parallelverarbeitung
+        const pollUserQueryNoLock = await query(
           `SELECT poll_user.id FROM poll_user
            INNER JOIN poll_result ON poll_user.poll_id = poll_result.poll_id
-           WHERE poll_user.event_user_id = ? AND poll_result.id = ?
-           FOR UPDATE`,
+           WHERE poll_user.event_user_id = ? AND poll_result.id = ?`,
           [input.eventUserId, input.pollResultId]
         );
 
-        const pollUserId = Array.isArray(pollUserQuery) && pollUserQuery.length > 0
-          ? pollUserQuery[0].id
+        const pollUserId = Array.isArray(pollUserQueryNoLock) && pollUserQueryNoLock.length > 0
+          ? pollUserQueryNoLock[0].id
           : null;
 
         if (!pollUserId) {
           console.error(`[ERROR:INSERT_ANSWER][${executionId}] Could not find poll_user for eventUserId=${input.eventUserId}, pollResultId=${input.pollResultId}`);
+          await query("ROLLBACK", [], { throwError: true });
+          return null;
+        }
+        
+        // Prüfen wir noch einmal mit Lock, aber nur wenn wir einen gültigen poll_user gefunden haben
+        // Dies ist notwendig, um sicherzustellen, dass der poll_user nicht in der Zwischenzeit gelöscht wurde
+        const pollUserQuery = await query(
+          `SELECT id FROM poll_user WHERE id = ? FOR UPDATE`,
+          [pollUserId]
+        );
+        
+        const pollUserIdWithLock = Array.isArray(pollUserQuery) && pollUserQuery.length > 0
+          ? pollUserQuery[0].id
+          : null;
+          
+        if (!pollUserIdWithLock) {
+          console.error(`[ERROR:INSERT_ANSWER][${executionId}] poll_user ${pollUserId} was deleted between queries`);
           await query("ROLLBACK", [], { throwError: true });
           return null;
         }
@@ -165,9 +243,10 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
         // Nur die Vote-Cycles sind entscheidend für die Schließung einer Abstimmung, nicht die Anzahl der tatsächlich abgegebenen Stimmen.
         // Stellen wir sicher, dass diese Bedingung nicht mehr zum automatischen Schließen der Abstimmung führt.
 
-        // Zur Information protokollieren wir aber weiterhin die aktuelle Anzahl
+        // OPTIMIERT: Verzicht auf count mit FOR UPDATE Lock, um Parallelverarbeitung zu ermöglichen
+        // Stattdessen zählen wir ohne Lock - nur für Logging-Zwecke, keine Entscheidung basiert darauf
         const finalCountQuery = await query(
-          `SELECT COUNT(*) AS total FROM poll_answer WHERE poll_result_id = ? FOR UPDATE`,
+          `SELECT COUNT(*) AS total FROM poll_answer WHERE poll_result_id = ?`,
           [input.pollResultId]
         );
 
@@ -190,9 +269,10 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
         // Nur die Vote-Cycles sind entscheidend für die Schließung einer Abstimmung, nicht die Anzahl der tatsächlich abgegebenen Stimmen.
         // Stellen wir sicher, dass diese Bedingung nicht mehr zum automatischen Schließen der Abstimmung führt.
 
-        // Zur Information protokollieren wir aber weiterhin die aktuelle Anzahl
+        // OPTIMIERT: Verzicht auf count mit FOR UPDATE Lock, um Parallelverarbeitung zu ermöglichen
+        // Stattdessen zählen wir ohne Lock - nur für Logging-Zwecke, keine Entscheidung basiert darauf
         const finalCountQuery = await query(
-          `SELECT COUNT(*) AS total FROM poll_answer WHERE poll_result_id = ? FOR UPDATE`,
+          `SELECT COUNT(*) AS total FROM poll_answer WHERE poll_result_id = ?`,
           [input.pollResultId]
         );
 
