@@ -364,16 +364,14 @@ export async function countActualAnswersForUser(pollResultId, eventUserId) {
  * Erhöht den vote_cycle eines Benutzers NACHDEM die Stimme erfolgreich abgegeben wurde
  * @param {number} pollResultId - Die ID des Abstimmungsergebnisses
  * @param {number} eventUserId - Die ID des Benutzers
+ * @param {number} incrementBy - Optional: Anzahl der Schritte, um die erhöht werden soll (für Bulk-Voting)
  * @returns {Promise<boolean>} - true bei Erfolg, false bei Fehler
  */
-export async function incrementVoteCycleAfterVote(pollResultId, eventUserId) {
-
+export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, incrementBy = 1) {
   try {
-
     await query("START TRANSACTION");
 
     try {
-
       const userQuery = await query(
         `SELECT vote_amount AS voteAmount
          FROM event_user 
@@ -403,55 +401,110 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId) {
 
       const currentVoteCycle = parseInt(voteQuery[0].voteCycle, 10) || 0;
       const currentVersion = parseInt(voteQuery[0].version, 10) || 0;
+      
       // Check if voteCycle and version are out of sync in the locked record
       if (currentVoteCycle !== currentVersion) {
         console.warn(`[WARN:INC_VOTE_CYCLE] voteCycle and version are out of sync in locked record! voteCycle=${currentVoteCycle}, version=${currentVersion}`);
       }
 
-      // Stimme inkrementieren, wenn wir UNTER dem Maximum sind
-      // WICHTIG: Der vote_cycle wird nach jeder vollständigen Stimmabgabe erhöht
-      // Da wir jetzt mit vote_cycle=0 starten, bedeutet vote_cycle=0, dass noch keine Stimme abgegeben wurde,
-      // vote_cycle=1 bedeutet 1 Stimme abgegeben, usw.
-      if (currentVoteCycle <= maxVotes) {
-        const newVoteCycle = currentVoteCycle + 1;
-
-        const updateResult = await query(
-          `UPDATE poll_user_voted
-           SET vote_cycle = vote_cycle + 1, version = version + 1
-           WHERE poll_result_id = ? AND event_user_id = ? AND vote_cycle < ?`,
-          [pollResultId, eventUserId, maxVotes]
-        );
-
-
-        // Verify the update occurred
-        const verifyQuery = await query(
-          `SELECT vote_cycle AS voteCycle, version
-           FROM poll_user_voted
-           WHERE poll_result_id = ? AND event_user_id = ?
-           FOR UPDATE`,
-          [pollResultId, eventUserId]
-        );
-
-        const updatedVoteCycle = Array.isArray(verifyQuery) && verifyQuery.length > 0
-          ? parseInt(verifyQuery[0].voteCycle, 10) || 0
-          : 0;
-
-        const updatedVersion = Array.isArray(verifyQuery) && verifyQuery.length > 0
-          ? parseInt(verifyQuery[0].version, 10) || 0
-          : 0;
-
-
-        if (updatedVoteCycle !== newVoteCycle || updatedVersion !== newVoteCycle) {
-          console.warn(`[WARN:INC_VOTE_CYCLE] Vote fields were not incremented as expected! Expected both at: ${newVoteCycle}, Actual: voteCycle=${updatedVoteCycle}, version=${updatedVersion}`);
+      // Prüfen, ob wir durch die Erhöhung das Maximum überschreiten würden
+      if (currentVoteCycle + incrementBy <= maxVotes) {
+        // Wir können um die volle angefragte Inkrementanzahl erhöhen
+        console.log(`[DEBUG:INC_VOTE_CYCLE] Versuche vote_cycle um ${incrementBy} zu erhöhen von ${currentVoteCycle} zu ${currentVoteCycle + incrementBy}`);
+        
+        try {
+          // WICHTIGER FIX: Entferne die Bedingung für vote_cycle + ? <= ?, da diese zu restriktiv sein könnte
+          // Wir haben bereits geprüft, ob wir das Maximum überschreiten würden
+          const updateResult = await query(
+            `UPDATE poll_user_voted
+             SET vote_cycle = vote_cycle + ?, version = version + ?
+             WHERE poll_result_id = ? AND event_user_id = ?`,
+            [incrementBy, incrementBy, pollResultId, eventUserId]
+          );
+          
+          console.log(`[DEBUG:INC_VOTE_CYCLE] Update-Ergebnis: ${JSON.stringify(updateResult)}`);
+          
+          // Direkt die erwarteten Werte berechnen
+          const newVoteCycle = currentVoteCycle + incrementBy;
+          
+          // Verify the update occurred
+          const verifyQuery = await query(
+            `SELECT vote_cycle AS voteCycle, version
+             FROM poll_user_voted
+             WHERE poll_result_id = ? AND event_user_id = ?
+             FOR UPDATE`,
+            [pollResultId, eventUserId]
+          );
+          
+          if (Array.isArray(verifyQuery) && verifyQuery.length > 0) {
+            const updatedVoteCycle = parseInt(verifyQuery[0].voteCycle, 10) || 0;
+            const updatedVersion = parseInt(verifyQuery[0].version, 10) || 0;
+            
+            console.log(`[DEBUG:INC_VOTE_CYCLE] Verifizierung: voteCycle=${updatedVoteCycle}, version=${updatedVersion}, erwartet=${newVoteCycle}`);
+            
+            if (updatedVoteCycle !== newVoteCycle || updatedVersion !== newVoteCycle) {
+              console.warn(`[WARN:INC_VOTE_CYCLE] Vote fields were not incremented as expected! Expected both at: ${newVoteCycle}, Actual: voteCycle=${updatedVoteCycle}, version=${updatedVersion}`);
+            } else {
+              console.log(`[DEBUG:INC_VOTE_CYCLE] Erfolgreiche Erhöhung: voteCycle und version auf ${newVoteCycle}`);
+            }
+          } else {
+            console.warn(`[WARN:INC_VOTE_CYCLE] Konnte Aktualisierung nicht verifizieren: Kein Eintrag gefunden für pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
+          }
+        } catch (updateError) {
+          console.error(`[ERROR:INC_VOTE_CYCLE] Fehler beim Update: ${updateError.message}`);
+          throw updateError; // Re-throw error to be caught by the outer try/catch
         }
 
-        await query("COMMIT");
-
-        return true;
+      } else if (currentVoteCycle < maxVotes) {
+        // Wir können nur bis zum Maximum erhöhen
+        const remainingVotes = maxVotes - currentVoteCycle;
+        console.warn(`[WARN:INC_VOTE_CYCLE] Nur ${remainingVotes} von ${incrementBy} angeforderten Stimmen können erhöht werden (Maximum erreicht)`);
+        
+        try {
+          const updateResult = await query(
+            `UPDATE poll_user_voted
+             SET vote_cycle = ?, version = ?
+             WHERE poll_result_id = ? AND event_user_id = ?`,
+            [maxVotes, maxVotes, pollResultId, eventUserId]
+          );
+          
+          console.log(`[DEBUG:INC_VOTE_CYCLE] Update-Ergebnis (auf Maximum): ${JSON.stringify(updateResult)}`);
+          
+          // Verify the update occurred
+          const verifyQuery = await query(
+            `SELECT vote_cycle AS voteCycle, version
+             FROM poll_user_voted
+             WHERE poll_result_id = ? AND event_user_id = ?
+             FOR UPDATE`,
+            [pollResultId, eventUserId]
+          );
+          
+          if (Array.isArray(verifyQuery) && verifyQuery.length > 0) {
+            const updatedVoteCycle = parseInt(verifyQuery[0].voteCycle, 10) || 0;
+            const updatedVersion = parseInt(verifyQuery[0].version, 10) || 0;
+            
+            console.log(`[DEBUG:INC_VOTE_CYCLE] Verifizierung (auf Maximum): voteCycle=${updatedVoteCycle}, version=${updatedVersion}, erwartet=${maxVotes}`);
+            
+            if (updatedVoteCycle !== maxVotes || updatedVersion !== maxVotes) {
+              console.warn(`[WARN:INC_VOTE_CYCLE] Vote fields were not set to maximum as expected! Expected both at: ${maxVotes}, Actual: voteCycle=${updatedVoteCycle}, version=${updatedVersion}`);
+            } else {
+              console.log(`[DEBUG:INC_VOTE_CYCLE] Erfolgreiche Begrenzung auf Maximum: voteCycle und version auf ${maxVotes}`);
+            }
+          } else {
+            console.warn(`[WARN:INC_VOTE_CYCLE] Konnte Aktualisierung auf Maximum nicht verifizieren: Kein Eintrag gefunden für pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
+          }
+        } catch (updateError) {
+          console.error(`[ERROR:INC_VOTE_CYCLE] Fehler beim Update auf Maximum: ${updateError.message}`);
+          throw updateError; // Re-throw error to be caught by the outer try/catch
+        }
       } else {
-        await query("COMMIT");
-        return true;
+        // Benutzer hat bereits die maximale Anzahl von Stimmen abgegeben
+        console.warn(`[WARN:INC_VOTE_CYCLE] Benutzer ${eventUserId} hat bereits alle ${maxVotes} Stimmen abgegeben. Keine weitere Erhöhung möglich.`);
       }
+
+      await query("COMMIT");
+      return true;
+      
     } catch (txError) {
       // Bei Fehler: Transaktion zurückrollen
       console.error(`[ERROR] incrementVoteCycleAfterVote: Transaktionsfehler:`, txError);

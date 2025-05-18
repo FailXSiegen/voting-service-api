@@ -22,6 +22,7 @@ import {
 // daher importieren wir incrementVoteCycleAfterVote nicht mehr
 import { incrementVoteCycleAfterVote } from "../../../repository/poll/poll-user-voted-repository";
 import { query } from "../../../lib/database";
+import { getCurrentUnixTimeStamp } from "../../../lib/time-stamp";
 import poll from "./poll";
 
 /**
@@ -672,5 +673,320 @@ export default {
     }
 
     return true;
+  },
+
+  /**
+   * Bulk vote submission for identical votes - optimizes performance when a user
+   * submits multiple identical votes at once
+   * 
+   * @param {Object} _ - GraphQL parent object (not used)
+   * @param {Object} args - GraphQL arguments
+   * @param {Object} args.input - BulkPollSubmitAnswerInput data
+   * @returns {Promise<number>} - Number of votes successfully submitted
+   */
+  createBulkPollSubmitAnswer: async (_, { input }) => {
+    // Generate a unique execution ID for this request for tracking
+    const executionId = Math.random().toString(36).substring(2, 10);
+    const timestamp = new Date().getTime();
+    
+    // Explizite Debug-Ausgabe - gut sichtbar für Loganalyse
+    console.log("==================================================");
+    console.log(`BULK VOTE AKTIVIERT: ${input.voteCount} Stimmen für User ${input.eventUserId}`);
+    console.log(`BULK VOTE START: ${new Date().toISOString()}`);
+    console.log("==================================================");
+    
+    console.info(`[INFO:BULK_VOTE][${executionId}] Processing bulk vote request for ${input.voteCount} votes, user ${input.eventUserId}, poll ${input.pollId}`);
+
+    // Extract poll data
+    const pollId = input.pollId;
+    const pollResult = await findOneByPollId(input.pollId);
+    if (!pollResult) {
+      console.error(`[ERROR:BULK_VOTE][${executionId}] Missing poll result for pollId ${input.pollId}`);
+      throw Error("Missing poll result record!");
+    }
+
+    const eventId = await findEventIdByPollResultId(pollResult.id);
+    if (!eventId) {
+      console.error(`[ERROR:BULK_VOTE][${executionId}] Missing event for pollResultId ${pollResult.id}`);
+      throw Error("Missing related event record!");
+    }
+
+    // Check if poll is already closed
+    const pollStatusCheck = await query(
+      "SELECT closed FROM poll_result WHERE id = ?",
+      [pollResult.id]
+    );
+
+    const isAlreadyClosed = Array.isArray(pollStatusCheck) &&
+      pollStatusCheck.length > 0 &&
+      pollStatusCheck[0].closed === 1;
+
+    if (isAlreadyClosed) {
+      console.warn(`[WARN:BULK_VOTE][${executionId}] Poll ${pollResult.id} is already closed, cannot submit votes`);
+      return 0;
+    }
+
+    // Get user data to validate vote limit
+    const eventUser = await findOneById(input.eventUserId);
+    if (!eventUser) {
+      console.error(`[ERROR:BULK_VOTE][${executionId}] Event user ${input.eventUserId} not found!`);
+      throw Error("Event user not found!");
+    }
+
+    // Validate user is allowed to vote
+    if (!eventUser.verified || !eventUser.allowToVote) {
+      console.warn(`[WARN:BULK_VOTE][${executionId}] User ${input.eventUserId} is not verified or not allowed to vote`);
+      return 0;
+    }
+
+    // Check existing vote state for user
+    const userVotedQuery = await query(
+      `SELECT vote_cycle AS voteCycle FROM poll_user_voted 
+       WHERE poll_result_id = ? AND event_user_id = ?`,
+      [pollResult.id, input.eventUserId]
+    );
+    
+    const currentVoteCycle = Array.isArray(userVotedQuery) && userVotedQuery.length > 0
+      ? parseInt(userVotedQuery[0].voteCycle, 10) || 0
+      : 0;
+
+    // Calculate vote limits
+    const maxAllowedVotes = parseInt(eventUser.voteAmount, 10) || 0;
+    const remainingVotes = Math.max(0, maxAllowedVotes - currentVoteCycle);
+    
+    // Cap requested votes to remaining votes
+    const votesToSubmit = Math.min(input.voteCount, remainingVotes);
+    
+    if (votesToSubmit <= 0) {
+      console.warn(`[WARN:BULK_VOTE][${executionId}] User ${input.eventUserId} has no remaining votes (max: ${maxAllowedVotes}, used: ${currentVoteCycle})`);
+      return 0;
+    }
+
+    console.info(`[INFO:BULK_VOTE][${executionId}] Will submit ${votesToSubmit} of ${input.voteCount} requested votes (remaining: ${remainingVotes})`);
+
+    let successfulVotes = 0;
+
+    // Start transaction for the entire bulk operation
+    await query("START TRANSACTION", [], { throwError: true });
+
+    try {
+      // Create poll user if needed
+      await createPollUserIfNeeded(pollResult.id, input.eventUserId);
+      
+      // Wichtig: Stelle sicher, dass der poll_user_voted Eintrag existiert
+      // (Wenn er nicht existiert, erstelle ihn mit vote_cycle = 0, sodass er später aktualisiert werden kann)
+      if (!Array.isArray(userVotedQuery) || userVotedQuery.length === 0) {
+        console.log(`[INFO:BULK_VOTE][${executionId}] Creating new poll_user_voted entry for user ${input.eventUserId}`);
+        // Hole den Username
+        const usernameQuery = await query(
+          `SELECT username FROM event_user WHERE id = ?`,
+          [input.eventUserId]
+        );
+        
+        if (Array.isArray(usernameQuery) && usernameQuery.length > 0) {
+          const username = usernameQuery[0].username;
+          const createDatetime = getCurrentUnixTimeStamp();
+          
+          await query(
+            `INSERT INTO poll_user_voted 
+             (event_user_id, username, poll_result_id, vote_cycle, create_datetime, version)
+             VALUES (?, ?, ?, 0, ?, 0)`,
+            [input.eventUserId, username, pollResult.id, createDatetime]
+          );
+          
+          console.log(`[INFO:BULK_VOTE][${executionId}] Successfully created poll_user_voted entry for user ${input.eventUserId}`);
+        } else {
+          console.warn(`[WARN:BULK_VOTE][${executionId}] Could not find username for user ${input.eventUserId}`);
+        }
+      } else {
+        console.log(`[INFO:BULK_VOTE][${executionId}] poll_user_voted entry already exists for user ${input.eventUserId}`);
+      }
+
+      // Get timestamp for all inserts
+      const timestamp = getCurrentUnixTimeStamp();
+
+      // Insert votes in bulk based on poll type
+      if (input.type === "PUBLIC") {
+        // Get poll user ID for PUBLIC polls
+        const pollUserQuery = await query(
+          `SELECT poll_user.id FROM poll_user
+           INNER JOIN poll_result ON poll_user.poll_id = poll_result.poll_id
+           WHERE poll_user.event_user_id = ? AND poll_result.id = ? FOR UPDATE`,
+          [input.eventUserId, pollResult.id]
+        );
+
+        if (!Array.isArray(pollUserQuery) || pollUserQuery.length === 0) {
+          console.error(`[ERROR:BULK_VOTE][${executionId}] Could not find poll_user for eventUserId=${input.eventUserId}, pollResultId=${pollResult.id}`);
+          await query("ROLLBACK", [], { throwError: true });
+          return 0;
+        }
+
+        const pollUserId = pollUserQuery[0].id;
+
+        // Construct bulk insert values
+        // For large vote counts, we'll use chunked inserts to avoid extremely long queries
+        const CHUNK_SIZE = 500; // Maximum votes per query
+        const totalChunks = Math.ceil(votesToSubmit / CHUNK_SIZE);
+        
+        for (let chunk = 0; chunk < totalChunks; chunk++) {
+          const startIdx = chunk * CHUNK_SIZE;
+          const endIdx = Math.min(startIdx + CHUNK_SIZE, votesToSubmit);
+          const chunkSize = endIdx - startIdx;
+          
+          // Build the bulk values string for this chunk
+          const valuesList = [];
+          for (let i = 0; i < chunkSize; i++) {
+            valuesList.push(`(${pollResult.id}, ${input.possibleAnswerId || 'NULL'}, ${input.answerContent ? `'${input.answerContent.replace(/'/g, "''")}'` : 'NULL'}, ${pollUserId}, ${timestamp})`);
+          }
+          
+          const bulkValues = valuesList.join(',');
+          
+          // Execute the chunked insert
+          await query(
+            `INSERT INTO poll_answer 
+             (poll_result_id, poll_possible_answer_id, answer_content, poll_user_id, create_datetime)
+             VALUES ${bulkValues}`,
+            []
+          );
+        }
+      } else {
+        // SECRET poll bulk insert (without poll_user_id)
+        const CHUNK_SIZE = 500; // Maximum votes per query
+        const totalChunks = Math.ceil(votesToSubmit / CHUNK_SIZE);
+        
+        for (let chunk = 0; chunk < totalChunks; chunk++) {
+          const startIdx = chunk * CHUNK_SIZE;
+          const endIdx = Math.min(startIdx + CHUNK_SIZE, votesToSubmit);
+          const chunkSize = endIdx - startIdx;
+          
+          // Build the bulk values string for this chunk
+          const valuesList = [];
+          for (let i = 0; i < chunkSize; i++) {
+            valuesList.push(`(${pollResult.id}, ${input.possibleAnswerId || 'NULL'}, ${input.answerContent ? `'${input.answerContent.replace(/'/g, "''")}'` : 'NULL'}, ${timestamp})`);
+          }
+          
+          const bulkValues = valuesList.join(',');
+          
+          // Execute the chunked insert
+          await query(
+            `INSERT INTO poll_answer 
+             (poll_result_id, poll_possible_answer_id, answer_content, create_datetime)
+             VALUES ${bulkValues}`,
+            []
+          );
+        }
+      }
+
+      // Verify inserts by counting
+      const verifyInsertQuery = await query(
+        `SELECT COUNT(*) AS insertCount 
+         FROM poll_answer 
+         WHERE poll_result_id = ? AND create_datetime = ?`,
+        [pollResult.id, timestamp]
+      );
+
+      const insertCount = Array.isArray(verifyInsertQuery) && verifyInsertQuery.length > 0
+        ? parseInt(verifyInsertQuery[0].insertCount, 10) || 0
+        : 0;
+
+      if (insertCount < votesToSubmit) {
+        console.warn(`[WARN:BULK_VOTE][${executionId}] Expected to insert ${votesToSubmit} votes, but only found ${insertCount}`);
+      }
+
+      // WICHTIGER FIX: Erhöhe den Zyklus um die Anzahl der tatsächlich eingefügten Stimmen
+      // Dies ist wichtig, um den Client-seitigen Zähler korrekt zu aktualisieren
+      const incrementBy = insertCount > 0 ? insertCount : 1; // Mindestens 1, um konsistent zu bleiben
+      const incrementResult = await incrementVoteCycleAfterVote(pollResult.id, input.eventUserId, incrementBy);
+      
+      if (!incrementResult) {
+        console.warn(`[WARN:BULK_VOTE][${executionId}] Failed to increment vote cycle by ${incrementBy}`);
+      } else {
+        console.log(`[INFO:BULK_VOTE][${executionId}] Successfully incremented vote cycle by ${incrementBy}`);
+      }
+
+      // Commit transaction
+      await query("COMMIT", [], { throwError: true });
+      successfulVotes = insertCount;
+      
+      // Explizite Debug-Ausgabe nach erfolgreicher Verarbeitung
+      const endTimestamp = new Date().getTime();
+      const duration = Math.max(0, endTimestamp - timestamp); // Stelle sicher, dass wir keine negativen Werte erhalten
+      
+      console.log("==================================================");
+      console.log(`BULK VOTE ERFOLGREICH: ${successfulVotes}/${input.voteCount} Stimmen für User ${input.eventUserId}`);
+      console.log(`BULK VOTE DAUER: ${duration}ms`);
+      console.log("==================================================");
+      
+      console.info(`[INFO:BULK_VOTE][${executionId}] Successfully submitted ${successfulVotes} votes in bulk`);
+
+      // Get updated poll answer counts for notification
+      const leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);
+      
+      if (leftAnswersDataSet) {
+        // Notify subscribers about updated vote counts
+        pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
+          pollResultId: leftAnswersDataSet.pollResultId || 0,
+          maxVotes: leftAnswersDataSet.maxVotes || 0,
+          maxVoteCycles: leftAnswersDataSet.maxVoteCycles || 0,
+          pollUserVoteCycles: leftAnswersDataSet.pollUserVoteCycles || 0,
+          pollUserVotedCount: leftAnswersDataSet.pollUserVotedCount || 0,
+          pollAnswersCount: leftAnswersDataSet.pollAnswersCount || 0,
+          pollUserCount: leftAnswersDataSet.pollUserCount || 0,
+          usersCompletedVoting: leftAnswersDataSet.usersCompletedVoting || 0,
+          eventId: eventId
+        });
+        
+        // Check if this was the user's last vote
+        const newVoteCycleQuery = await query(
+          `SELECT vote_cycle AS voteCycle FROM poll_user_voted 
+           WHERE poll_result_id = ? AND event_user_id = ?`,
+          [pollResult.id, input.eventUserId]
+        );
+        
+        const newVoteCycle = Array.isArray(newVoteCycleQuery) && newVoteCycleQuery.length > 0
+          ? parseInt(newVoteCycleQuery[0].voteCycle, 10) || 0
+          : 0;
+          
+        // If user has reached vote limit, check if all users have completed voting
+        if (newVoteCycle >= maxAllowedVotes) {
+          // Check if ALL users have completed their voting
+          const allUsersQuery = await query(
+            `SELECT COUNT(*) AS totalUsers FROM event_user WHERE event_id = ? AND vote_amount > 0`,
+            [eventId]
+          );
+
+          const votedUsersQuery = await query(
+            `SELECT COUNT(*) AS votedUsers FROM poll_user_voted puv
+             JOIN event_user eu ON puv.event_user_id = eu.id
+             WHERE puv.poll_result_id = ? AND eu.vote_amount > 0 AND puv.vote_cycle >= eu.vote_amount`,
+            [pollResult.id]
+          );
+
+          const totalEligibleUsers = Array.isArray(allUsersQuery) && allUsersQuery.length > 0
+            ? parseInt(allUsersQuery[0].totalUsers, 10) || 0
+            : 0;
+
+          const usersCompletedVoting = Array.isArray(votedUsersQuery) && votedUsersQuery.length > 0
+            ? parseInt(votedUsersQuery[0].votedUsers, 10) || 0
+            : 0;
+
+          // Only close the poll if ALL eligible users have voted
+          if (totalEligibleUsers > 0 && usersCompletedVoting >= totalEligibleUsers) {
+            await publishPollClosedEvent(pollResult.id, eventId, pollId);
+            console.info(`[INFO:BULK_VOTE][${executionId}] All users have completed voting, closing poll ${pollResult.id}`);
+          }
+        }
+      } else {
+        // leftAnswersDataSet is null - poll might be closed now
+        await publishPollLifeCycle(pollResult.id);
+      }
+
+      return successfulVotes;
+    } catch (error) {
+      // Rollback on any error
+      await query("ROLLBACK", [], { throwError: true });
+      console.error(`[ERROR:BULK_VOTE][${executionId}] Transaction error:`, error);
+      return 0;
+    }
   },
 };
