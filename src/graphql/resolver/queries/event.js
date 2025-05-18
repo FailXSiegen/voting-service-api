@@ -1,6 +1,7 @@
 import {
   findById,
   findByIdAndOrganizerId,
+  findByIdAndOrganizerIdIncludingOriginal,
   findExpired,
   findUpcoming,
   findAllUpcomingEvents,
@@ -67,7 +68,8 @@ export default {
   },
   event: async (_, { id, organizerId }) => {
     try {
-      const event = await findByIdAndOrganizerId(id, organizerId);
+      // First try to find the event with the current organizer or as original organizer
+      const event = await findByIdAndOrganizerIdIncludingOriginal(id, organizerId);
       if (!event) {
         throw new EventNotFoundError();
       }

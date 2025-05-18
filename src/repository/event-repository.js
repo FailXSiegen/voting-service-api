@@ -17,6 +17,14 @@ export async function findByIdAndOrganizerId(id, organizerId) {
   return Array.isArray(result) ? result[0] || null : null;
 }
 
+export async function findByIdAndOrganizerIdIncludingOriginal(id, organizerId) {
+  const result = await query(
+    "SELECT * FROM event WHERE id = ? AND (organizer_id = ? OR original_organizer_id = ?) AND deleted = 0",
+    [id, organizerId, organizerId],
+  );
+  return Array.isArray(result) ? result[0] || null : null;
+}
+
 export async function findOneBySlug(slug) {
   const result = await query(
     "SELECT * FROM event WHERE slug = ?  AND deleted = 0",
@@ -150,8 +158,32 @@ export async function create(input) {
 }
 
 export async function update(input) {
-  input.modifiedDatetime = getCurrentUnixTimeStamp();
-  await updateQuery("event", input);
+  // First check if the user is authorized to update this event
+  // We need to verify if they are either the current organizer or the original organizer
+  const event = await query(
+    "SELECT * FROM event WHERE id = ? AND deleted = 0",
+    [input.id]
+  );
+  
+  if (!event || event.length === 0) {
+    throw new Error("Event not found");
+  }
+  
+  const eventData = event[0];
+  const organizerId = input.organizerId;
+  
+  // If organizerId is not provided in input, or matches the event's organizer_id,
+  // or matches the original_organizer_id, then allow the update
+  if (
+    !organizerId ||
+    parseInt(organizerId) === parseInt(eventData.organizerId) ||
+    (eventData.originalOrganizerId && parseInt(organizerId) === parseInt(eventData.originalOrganizerId))
+  ) {
+    input.modifiedDatetime = getCurrentUnixTimeStamp();
+    await updateQuery("event", input);
+  } else {
+    throw new Error("Not authorized to update this event");
+  }
 }
 
 export async function transferToOrganizer(eventId, newOrganizerId) {
@@ -194,6 +226,16 @@ export async function resetToOriginalOrganizer(eventId) {
  * @returns {Promise<boolean>} - true bei Erfolg
  */
 export async function remove(organizerId, id) {
+  // First check if the organizer has rights to remove the event
+  const event = await query(
+    "SELECT * FROM event WHERE id = ? AND (organizer_id = ? OR original_organizer_id = ?) AND deleted = 0",
+    [id, organizerId, organizerId]
+  );
+  
+  if (!event || event.length === 0) {
+    return false;
+  }
+  
   // 1. Lösche poll_user_voted Einträge
   await query(
     `DELETE poll_user_voted 
@@ -201,8 +243,8 @@ export async function remove(organizerId, id) {
      INNER JOIN poll_result ON poll_user_voted.poll_result_id = poll_result.id 
      INNER JOIN poll ON poll_result.poll_id = poll.id 
      INNER JOIN event ON poll.event_id = event.id 
-     WHERE event.organizer_id = ? AND event.id = ?`,
-    [organizerId, id],
+     WHERE event.id = ?`,
+    [id],
   );
 
   // 2. Lösche poll_possible_answer Einträge
@@ -211,8 +253,8 @@ export async function remove(organizerId, id) {
      FROM poll_possible_answer 
      INNER JOIN poll ON poll_possible_answer.poll_id = poll.id 
      INNER JOIN event ON poll.event_id = event.id 
-     WHERE event.organizer_id = ? AND event.id = ?`,
-    [organizerId, id],
+     WHERE event.id = ?`,
+    [id],
   );
 
   // 3. Lösche poll_answer Einträge
@@ -222,8 +264,8 @@ export async function remove(organizerId, id) {
      INNER JOIN poll_result ON poll_answer.poll_result_id = poll_result.id 
      INNER JOIN poll ON poll_result.poll_id = poll.id 
      INNER JOIN event ON poll.event_id = event.id 
-     WHERE event.organizer_id = ? AND event.id = ?`,
-    [organizerId, id],
+     WHERE event.id = ?`,
+    [id],
   );
 
   // 4. Lösche poll_user Einträge
@@ -232,8 +274,8 @@ export async function remove(organizerId, id) {
      FROM poll_user 
      INNER JOIN poll ON poll_user.poll_id = poll.id 
      INNER JOIN event ON poll.event_id = event.id 
-     WHERE event.organizer_id = ? AND event.id = ?`,
-    [organizerId, id],
+     WHERE event.id = ?`,
+    [id],
   );
 
   // 5. Lösche poll_result Einträge
@@ -242,8 +284,8 @@ export async function remove(organizerId, id) {
      FROM poll_result 
      INNER JOIN poll ON poll_result.poll_id = poll.id 
      INNER JOIN event ON poll.event_id = event.id 
-     WHERE event.organizer_id = ? AND event.id = ?`,
-    [organizerId, id],
+     WHERE event.id = ?`,
+    [id],
   );
 
   // 6. Lösche poll Einträge
@@ -251,18 +293,18 @@ export async function remove(organizerId, id) {
     `DELETE poll 
      FROM poll 
      INNER JOIN event ON poll.event_id = event.id 
-     WHERE event.organizer_id = ? AND event.id = ?`,
-    [organizerId, id],
+     WHERE event.id = ?`,
+    [id],
   );
 
-  // 7. Lösche event_user_auth_token Einträge - NEUE ZEILE
+  // 7. Lösche event_user_auth_token Einträge
   await query(
     `DELETE euat 
      FROM event_user_auth_token euat
      INNER JOIN event_user ON euat.event_user_id = event_user.id 
      INNER JOIN event ON event_user.event_id = event.id 
-     WHERE event.organizer_id = ? AND event.id = ?`,
-    [organizerId, id],
+     WHERE event.id = ?`,
+    [id],
   );
 
   // 8. Lösche jwt_refresh_token Einträge
@@ -271,8 +313,8 @@ export async function remove(organizerId, id) {
      FROM jwt_refresh_token 
      INNER JOIN event_user ON jwt_refresh_token.event_user_id = event_user.id 
      INNER JOIN event ON event_user.event_id = event.id 
-     WHERE event.organizer_id = ? AND event.id = ?`,
-    [organizerId, id],
+     WHERE event.id = ?`,
+    [id],
   );
 
   // 9. Lösche event_user Einträge
@@ -280,16 +322,16 @@ export async function remove(organizerId, id) {
     `DELETE event_user 
      FROM event_user 
      INNER JOIN event ON event_user.event_id = event.id 
-     WHERE event.organizer_id = ? AND event.id = ?`,
-    [organizerId, id],
+     WHERE event.id = ?`,
+    [id],
   );
 
   // 10. Lösche das Event selbst
   await query(
     `DELETE event 
      FROM event 
-     WHERE event.organizer_id = ? AND event.id = ?`,
-    [organizerId, id],
+     WHERE event.id = ?`,
+    [id],
   );
 
   return true;

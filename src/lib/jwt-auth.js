@@ -17,3 +17,26 @@ export async function verifyJwt(token) {
   });
   return result;
 }
+
+/**
+ * Generates a new JWT token for event users when their verification status changes
+ * @param {number} eventUserId - ID of the event user
+ * @param {number} eventId - ID of the event
+ * @param {boolean} verificationStatus - Current verification status
+ * @returns {Promise<string>} - New JWT token
+ */
+export async function refreshUserJwtAfterVerification(eventUserId, eventId, verificationStatus) {
+  const claims = {
+    user: {
+      id: eventUserId,
+      eventId,
+      type: "event-user",
+      verified: verificationStatus,
+    },
+    role: "event-user",
+    // For WebSocket authentication
+    eventUserId
+  };
+  
+  return await generateJwt(claims);
+}

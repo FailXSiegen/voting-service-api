@@ -180,6 +180,8 @@ type Subscription {
   pollAnswerLifeCycle(eventId: ID): PollAnswerLifeCyclePayLoad!
   # Separate subscription for voting details updates without affecting the poll form
   votingDetailsUpdate(eventId: ID!): ActivePollEventUser
+  # Notifies when a token refresh is required (e.g. verification status changed)
+  tokenRefreshRequired(eventUserId: ID): TokenRefreshPayload!
 }
 type Organizer {
   id: ID!
@@ -585,6 +587,17 @@ type Media {
   fileSize: Int!
   createdBy: Organizer
   uploadedAt: String!
+}
+
+# Token refresh notification payload
+type TokenRefreshPayload {
+  eventUserId: ID!
+  userId: ID!
+  userType: String!
+  token: String!
+  reason: String
+  previousVerificationStatus: Boolean
+  currentVerificationStatus: Boolean
 }
 
 # System settings for global configuration

@@ -4,6 +4,7 @@ import {
   UPDATE_EVENT_USER_ACCESS_RIGHTS,
   NEW_EVENT_USER,
   EVENT_USER_LIFE_CYCLE,
+  TOKEN_REFRESH_REQUIRED,
 } from "./subscription-types";
 
 export default {
@@ -33,5 +34,18 @@ export default {
     resolve: (payload) => {
       return payload;
     },
+  },
+  [TOKEN_REFRESH_REQUIRED]: {
+    subscribe: (_, args) =>
+      pipe(
+        pubsub.subscribe(TOKEN_REFRESH_REQUIRED),
+        filter((payload) => {
+          if (!args.eventUserId) {
+            return false; // Require eventUserId to be specified
+          }
+          return parseInt(payload.eventUserId) === parseInt(args.eventUserId);
+        }),
+      ),
+    resolve: (payload) => payload,
   },
 };
