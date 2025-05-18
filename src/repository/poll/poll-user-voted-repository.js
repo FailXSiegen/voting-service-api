@@ -401,7 +401,7 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
 
       const currentVoteCycle = parseInt(voteQuery[0].voteCycle, 10) || 0;
       const currentVersion = parseInt(voteQuery[0].version, 10) || 0;
-      
+
       // Check if voteCycle and version are out of sync in the locked record
       if (currentVoteCycle !== currentVersion) {
         console.warn(`[WARN:INC_VOTE_CYCLE] voteCycle and version are out of sync in locked record! voteCycle=${currentVoteCycle}, version=${currentVersion}`);
@@ -409,9 +409,6 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
 
       // Prüfen, ob wir durch die Erhöhung das Maximum überschreiten würden
       if (currentVoteCycle + incrementBy <= maxVotes) {
-        // Wir können um die volle angefragte Inkrementanzahl erhöhen
-        console.log(`[DEBUG:INC_VOTE_CYCLE] Versuche vote_cycle um ${incrementBy} zu erhöhen von ${currentVoteCycle} zu ${currentVoteCycle + incrementBy}`);
-        
         try {
           // WICHTIGER FIX: Entferne die Bedingung für vote_cycle + ? <= ?, da diese zu restriktiv sein könnte
           // Wir haben bereits geprüft, ob wir das Maximum überschreiten würden
@@ -421,12 +418,11 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
              WHERE poll_result_id = ? AND event_user_id = ?`,
             [incrementBy, incrementBy, pollResultId, eventUserId]
           );
-          
-          console.log(`[DEBUG:INC_VOTE_CYCLE] Update-Ergebnis: ${JSON.stringify(updateResult)}`);
-          
+
+
           // Direkt die erwarteten Werte berechnen
           const newVoteCycle = currentVoteCycle + incrementBy;
-          
+
           // Verify the update occurred
           const verifyQuery = await query(
             `SELECT vote_cycle AS voteCycle, version
@@ -435,17 +431,14 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
              FOR UPDATE`,
             [pollResultId, eventUserId]
           );
-          
+
           if (Array.isArray(verifyQuery) && verifyQuery.length > 0) {
             const updatedVoteCycle = parseInt(verifyQuery[0].voteCycle, 10) || 0;
             const updatedVersion = parseInt(verifyQuery[0].version, 10) || 0;
-            
-            console.log(`[DEBUG:INC_VOTE_CYCLE] Verifizierung: voteCycle=${updatedVoteCycle}, version=${updatedVersion}, erwartet=${newVoteCycle}`);
-            
+
+
             if (updatedVoteCycle !== newVoteCycle || updatedVersion !== newVoteCycle) {
               console.warn(`[WARN:INC_VOTE_CYCLE] Vote fields were not incremented as expected! Expected both at: ${newVoteCycle}, Actual: voteCycle=${updatedVoteCycle}, version=${updatedVersion}`);
-            } else {
-              console.log(`[DEBUG:INC_VOTE_CYCLE] Erfolgreiche Erhöhung: voteCycle und version auf ${newVoteCycle}`);
             }
           } else {
             console.warn(`[WARN:INC_VOTE_CYCLE] Konnte Aktualisierung nicht verifizieren: Kein Eintrag gefunden für pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
@@ -459,7 +452,7 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
         // Wir können nur bis zum Maximum erhöhen
         const remainingVotes = maxVotes - currentVoteCycle;
         console.warn(`[WARN:INC_VOTE_CYCLE] Nur ${remainingVotes} von ${incrementBy} angeforderten Stimmen können erhöht werden (Maximum erreicht)`);
-        
+
         try {
           const updateResult = await query(
             `UPDATE poll_user_voted
@@ -467,9 +460,7 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
              WHERE poll_result_id = ? AND event_user_id = ?`,
             [maxVotes, maxVotes, pollResultId, eventUserId]
           );
-          
-          console.log(`[DEBUG:INC_VOTE_CYCLE] Update-Ergebnis (auf Maximum): ${JSON.stringify(updateResult)}`);
-          
+
           // Verify the update occurred
           const verifyQuery = await query(
             `SELECT vote_cycle AS voteCycle, version
@@ -478,17 +469,13 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
              FOR UPDATE`,
             [pollResultId, eventUserId]
           );
-          
+
           if (Array.isArray(verifyQuery) && verifyQuery.length > 0) {
             const updatedVoteCycle = parseInt(verifyQuery[0].voteCycle, 10) || 0;
             const updatedVersion = parseInt(verifyQuery[0].version, 10) || 0;
-            
-            console.log(`[DEBUG:INC_VOTE_CYCLE] Verifizierung (auf Maximum): voteCycle=${updatedVoteCycle}, version=${updatedVersion}, erwartet=${maxVotes}`);
-            
+
             if (updatedVoteCycle !== maxVotes || updatedVersion !== maxVotes) {
               console.warn(`[WARN:INC_VOTE_CYCLE] Vote fields were not set to maximum as expected! Expected both at: ${maxVotes}, Actual: voteCycle=${updatedVoteCycle}, version=${updatedVersion}`);
-            } else {
-              console.log(`[DEBUG:INC_VOTE_CYCLE] Erfolgreiche Begrenzung auf Maximum: voteCycle und version auf ${maxVotes}`);
             }
           } else {
             console.warn(`[WARN:INC_VOTE_CYCLE] Konnte Aktualisierung auf Maximum nicht verifizieren: Kein Eintrag gefunden für pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
@@ -504,7 +491,7 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
 
       await query("COMMIT");
       return true;
-      
+
     } catch (txError) {
       // Bei Fehler: Transaktion zurückrollen
       console.error(`[ERROR] incrementVoteCycleAfterVote: Transaktionsfehler:`, txError);
