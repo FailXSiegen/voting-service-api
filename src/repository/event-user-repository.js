@@ -52,22 +52,37 @@ export async function updateEventUserOnlineState(eventUserId, online) {
   const timestamp = getCurrentUnixTimeStamp();
   
   try {
-    // Find the event user first to check if it exists and to get the event_id
-    const eventUserResult = await query("SELECT id, event_id FROM event_user WHERE id = ?", [eventUserId]);
+    // Find the event user first to check if it exists and to get the event_id and current status
+    const eventUserResult = await query("SELECT id, event_id, online FROM event_user WHERE id = ?", [eventUserId]);
     const eventUser = eventUserResult[0];
     
     if (!eventUser) {
       console.warn(`[WARN] Event-User mit ID ${eventUserId} nicht gefunden`);
       return false;
     }
+
+    // Protokolliere Statusänderungen für besseres Debugging
+    console.info(`[INFO] updateEventUserOnlineState: Benutzer ${eventUserId} Status: ${eventUser.online ? 'online' : 'offline'} -> ${online ? 'online' : 'offline'}`);
     
-    // Update the online status
+    // Prüfe, ob sich der Status tatsächlich ändert (0/1 in MySQL zu boolean)
+    const currentOnline = eventUser.online == 1;
+    
+    // Update the online status - nur wenn sich der Status ändert oder es ein Aktivitätsupdate ist
     const sql = `
       UPDATE event_user
       SET event_user.online = ?, event_user.last_activity = ?
       WHERE event_user.id = ?
     `;
     await query(sql, [online, timestamp, eventUserId]);
+
+    // Wichtig: PubSub Event nur auslösen, wenn sich der Status tatsächlich geändert hat
+    // Dadurch verhindern wir doppelte Events, die zu Verwirrung führen können
+    if (currentOnline !== online) {
+      console.info(`[INFO] Sende PubSub Event für Benutzer ${eventUserId}: Status von ${currentOnline} zu ${online}`);
+      // Wir importieren pubsub hier nicht, da das zu zirkulären Abhängigkeiten führen würde
+      // Stattdessen geben wir ein Flag zurück, damit websocket-events.js weiß, dass ein Event gesendet werden sollte
+      return { shouldPublish: true, eventUserId, online };
+    }
     
     // If setting to online, check for active polls
     if (online === true) {
@@ -82,10 +97,10 @@ export async function updateEventUserOnlineState(eventUserId, online) {
       }
     }
     
-    return true;
+    return { shouldPublish: false };
   } catch (error) {
     console.error(`[ERROR] Fehler beim Aktualisieren des Online-Status für Benutzer ${eventUserId}:`, error);
-    return false;
+    return { shouldPublish: false };
   }
 }
 

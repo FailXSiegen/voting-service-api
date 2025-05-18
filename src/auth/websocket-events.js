@@ -76,7 +76,16 @@ export async function onConnectWebsocket(ctx) {
                 if (eventUser) {
                   // Hier direkt via Event-User-ID als online markieren (ohne refreshToken)
                   // Die neue updateEventUserOnlineState-Funktion verwenden
-                  await updateEventUserOnlineState(parseInt(eventUserId), true);
+                  const result = await updateEventUserOnlineState(parseInt(eventUserId), true);
+                  
+                  // Prüfen, ob wir ein PubSub-Event senden sollen
+                  if (result && result.shouldPublish === true) {
+                    console.info(`[INFO] Sende eventUserLifeCycle Event: User ${eventUserId} ist jetzt online`);
+                    pubsub.publish("eventUserLifeCycle", {
+                      online: true,
+                      eventUserId: parseInt(eventUserId)
+                    });
+                  }
                 }
               } catch (userLookupError) {
                 console.warn("[WARN] JWT-Auth: Event-User nicht gefunden:", userLookupError);
@@ -94,7 +103,16 @@ export async function onConnectWebsocket(ctx) {
                 try {
                   const eventUser = await findEventUserById(parseInt(eventUserId));
                   if (eventUser) {
-                    await updateEventUserOnlineState(parseInt(eventUserId), true);
+                    const result = await updateEventUserOnlineState(parseInt(eventUserId), true);
+                    
+                    // Prüfen, ob wir ein PubSub-Event senden sollen
+                    if (result && result.shouldPublish === true) {
+                      console.info(`[INFO] Sende eventUserLifeCycle Event: User ${eventUserId} ist jetzt online (von user.id)`);
+                      pubsub.publish("eventUserLifeCycle", {
+                        online: true,
+                        eventUserId: parseInt(eventUserId)
+                      });
+                    }
                   }
                 } catch (userLookupError) {
                   console.warn("[WARN] JWT-Auth: Event-User nicht gefunden:", userLookupError);
@@ -231,13 +249,16 @@ export async function onDisconnectWebsocket(ctx) {
             const eventUserId = decodedToken.eventUserId;
 
             // Direkt via Event-User-ID als offline markieren
-            await updateEventUserOnlineState(parseInt(eventUserId), false);
-
-            // Event User Lifecycle Event auslösen
-            pubsub.publish("eventUserLifeCycle", {
-              online: false,
-              eventUserId: parseInt(eventUserId)
-            });
+            const result = await updateEventUserOnlineState(parseInt(eventUserId), false);
+            
+            // Event User Lifecycle Event nur auslösen, wenn sich der Status geändert hat
+            if (result && result.shouldPublish === true) {
+              console.info(`[INFO] Sende eventUserLifeCycle Event: User ${eventUserId} ist jetzt offline`);
+              pubsub.publish("eventUserLifeCycle", {
+                online: false,
+                eventUserId: parseInt(eventUserId)
+              });
+            }
 
             // Wir haben den Offline-Status bereits aktualisiert, also hier fertig
             return;
@@ -250,13 +271,16 @@ export async function onDisconnectWebsocket(ctx) {
               const eventUserId = decodedToken.user.id;
 
               // Direkt via Event-User-ID als offline markieren
-              await updateEventUserOnlineState(parseInt(eventUserId), false);
-
-              // Event User Lifecycle Event auslösen
-              pubsub.publish("eventUserLifeCycle", {
-                online: false,
-                eventUserId: parseInt(eventUserId)
-              });
+              const result = await updateEventUserOnlineState(parseInt(eventUserId), false);
+              
+              // Event User Lifecycle Event nur auslösen, wenn sich der Status geändert hat
+              if (result && result.shouldPublish === true) {
+                console.info(`[INFO] Sende eventUserLifeCycle Event: User ${eventUserId} ist jetzt offline (von user.id)`);
+                pubsub.publish("eventUserLifeCycle", {
+                  online: false,
+                  eventUserId: parseInt(eventUserId)
+                });
+              }
 
               // Wir haben den Offline-Status bereits aktualisiert, also hier fertig
               return;
