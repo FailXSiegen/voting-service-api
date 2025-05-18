@@ -27,16 +27,34 @@ export const yoga = createYoga({
     const baseContext = { pubsub };
 
     try {
-      // Sicherheitsprüfung: Überprüfe, ob request und headers existieren
-      if (!request || !request.headers || typeof request.headers.get !== 'function') {
-        console.warn('Fehlende Header in GraphQL-Kontext-Anfrage');
-        return baseContext;
+      // Extrahiere den JWT-Token aus dem Authorization-Header, wenn vorhanden
+      let token = null;
+      
+      // Verbesserte Prüfung für WebSocket und HTTP-Anfragen
+      if (request && request.headers && typeof request.headers.get === 'function') {
+        // HTTP-Anfragen haben ein headers-Objekt mit get-Methode
+        const authHeader = request.headers.get('authorization');
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          token = authHeader.split(' ')[1];
+        }
+      } else if (request && request.headers && typeof request.headers === 'object') {
+        // Fallback für WebSocket-Anfragen, die eventuell ein anderes headers-Format haben
+        const authHeader = request.headers.authorization || 
+                          (request.headers.Authorization) || 
+                          '';
+        if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+          token = authHeader.split(' ')[1];
+        }
+      } else if (request && request.connectionParams) {
+        // Direkte Unterstützung für WebSocket connectionParams
+        const authHeader = request.connectionParams.authorization || '';
+        if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+          token = authHeader.split(' ')[1];
+        }
       }
       
-      // Extrahiere den JWT-Token aus dem Authorization-Header
-      const authHeader = request.headers.get('authorization');
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
+      // Wenn wir einen Token haben, verifizieren und dekodieren
+      if (token) {
         const { verifyJwt } = require('../lib/jwt-auth');
 
         try {

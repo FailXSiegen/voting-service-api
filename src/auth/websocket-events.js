@@ -59,13 +59,11 @@ export async function onConnectWebsocket(ctx) {
         try {
           // JWT-Token dekodieren (ohne Überprüfung)
           const decodedToken = jwt.decode(jwtToken);
-          
-          // Debug: Vollständige Token-Struktur loggen
-          console.info("[DEBUG] Decodiertes JWT Token:", JSON.stringify(decodedToken));
 
-          if (decodedToken && (decodedToken.eventUserId || decodedToken.userId || decodedToken.organizerId || 
-              (decodedToken.user && decodedToken.user.id))) {
-            
+
+          if (decodedToken && (decodedToken.eventUserId || decodedToken.userId || decodedToken.organizerId ||
+            (decodedToken.user && decodedToken.user.id))) {
+
             // Falls der JWT das eventUserId-Feld enthält (für Teilnehmer)
             if (decodedToken.eventUserId) {
               token = null; // Kein refreshToken erforderlich
@@ -84,9 +82,6 @@ export async function onConnectWebsocket(ctx) {
                 console.warn("[WARN] JWT-Auth: Event-User nicht gefunden:", userLookupError);
               }
             } else if (decodedToken.organizerId) {
-              // Organizer sind zugelassen, müssen aber nicht als "online" markiert werden,
-              // da sie keine Event-User sind
-              console.info("[INFO] Organizer mit ID " + decodedToken.organizerId + " verbunden");
               isAuthorized = true;
             } else if (decodedToken.user && decodedToken.user.id) {
               // Wir haben eine Benutzer-ID im Token, aber nicht als dediziertes Feld
@@ -95,9 +90,6 @@ export async function onConnectWebsocket(ctx) {
                 token = null; // Kein refreshToken erforderlich
                 eventUserId = decodedToken.user.id;
                 isAuthorized = true;
-                
-                console.info("[INFO] Event-User-ID aus user-Feld extrahiert:", eventUserId);
-
                 // Benutzer als online markieren
                 try {
                   const eventUser = await findEventUserById(parseInt(eventUserId));
@@ -108,7 +100,6 @@ export async function onConnectWebsocket(ctx) {
                   console.warn("[WARN] JWT-Auth: Event-User nicht gefunden:", userLookupError);
                 }
               } else if (decodedToken.user.type === "organizer" && decodedToken.role === "organizer") {
-                console.info("[INFO] Organizer mit ID " + decodedToken.user.id + " verbunden (aus user-Feld)");
                 isAuthorized = true;
               }
             }
@@ -160,7 +151,7 @@ export async function onConnectWebsocket(ctx) {
   try {
     await toggleUserOnlineStateByRequestToken(token, true);
     const tokenRecord = await findOneByRefreshToken(token);
-    
+
     if (!tokenRecord) {
       console.warn("[WARN] Token im System nicht gefunden");
       return;
@@ -180,7 +171,7 @@ export async function onConnectWebsocket(ctx) {
     const eventUser = await findEventUserById(
       parseInt(tokenRecord.eventUserId),
     );
-    
+
     if (!eventUser) {
       console.error(`Event user with id ${tokenRecord.eventUserId} not found.`);
       return;
@@ -235,9 +226,6 @@ export async function onDisconnectWebsocket(ctx) {
         try {
           // JWT-Token dekodieren (ohne Überprüfung)
           const decodedToken = jwt.decode(jwtToken);
-          
-          // Debug: Vollständige Token-Struktur loggen
-          console.info("[DEBUG] Decodiertes JWT Token (Disconnect):", JSON.stringify(decodedToken));
 
           if (decodedToken && decodedToken.eventUserId) {
             const eventUserId = decodedToken.eventUserId;
@@ -254,16 +242,13 @@ export async function onDisconnectWebsocket(ctx) {
             // Wir haben den Offline-Status bereits aktualisiert, also hier fertig
             return;
           } else if (decodedToken && decodedToken.organizerId) {
-            // Organizer haben keinen Online-Status, aber wir loggen den Disconnect
-            console.info("[INFO] Organizer mit ID " + decodedToken.organizerId + " getrennt");
             // Wir markieren den Trennung als erfolgreich behandelt
             return;
           } else if (decodedToken && decodedToken.user && decodedToken.user.id) {
             // Benutzer-ID aus dem user-Feld extrahieren
             if (decodedToken.user.type === "event-user" && decodedToken.role === "event-user") {
               const eventUserId = decodedToken.user.id;
-              console.info("[INFO] Event-User-ID aus user-Feld extrahiert (Disconnect):", eventUserId);
-              
+
               // Direkt via Event-User-ID als offline markieren
               await updateEventUserOnlineState(parseInt(eventUserId), false);
 
@@ -328,7 +313,7 @@ export async function onDisconnectWebsocket(ctx) {
   try {
     await toggleUserOnlineStateByRequestToken(token, false);
     const tokenRecord = await findOneByRefreshToken(token);
-    
+
     if (!tokenRecord) {
       console.warn("[WARN] Token für Disconnect nicht gefunden");
       return;
