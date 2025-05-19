@@ -46,7 +46,82 @@ export async function onConnectWebsocket(ctx) {
   // OPTIMIERUNG: Prüfen, ob JWT-Authentifizierung deaktiviert ist
   if (process.env.ENABLE_JWT !== "1") {
     console.info("[INFO] JWT-Authentifizierung deaktiviert, Client wird automatisch autorisiert");
-    return; // Bei deaktivierter JWT-Authentifizierung sofort durchlassen
+    
+    // Erweiterung: Versuche Benutzer-Metadaten aus den Verbindungsparametern oder Cookies zu extrahieren
+    try {
+      let eventUserId = null;
+      
+      // Versuche, einen WebSocket connectionParam für eventUserId zu finden
+      if (ctx.connectionParams && ctx.connectionParams.eventUserId) {
+        eventUserId = parseInt(ctx.connectionParams.eventUserId);
+        console.info(`[INFO] WebSocket connectionParam enthält eventUserId: ${eventUserId}`);
+      }
+      
+      // Prüfe auf ein JWT-Token, selbst wenn JWT-Auth deaktiviert ist
+      else if (ctx.connectionParams && ctx.connectionParams.authorization) {
+        try {
+          const authHeader = ctx.connectionParams.authorization;
+          if (authHeader.startsWith('Bearer ')) {
+            const jwtToken = authHeader.substring(7);
+            const decodedToken = jwt.decode(jwtToken);
+            
+            if (decodedToken && decodedToken.eventUserId) {
+              eventUserId = parseInt(decodedToken.eventUserId);
+              console.info(`[INFO] JWT-Token enthält eventUserId: ${eventUserId}`);
+            }
+            else if (decodedToken && decodedToken.user && decodedToken.user.type === "event-user") {
+              eventUserId = parseInt(decodedToken.user.id);
+              console.info(`[INFO] JWT-Token enthält User-ID im user-Objekt: ${eventUserId}`);
+            }
+          }
+        } catch (error) {
+          console.warn("[WARN] Fehler beim Extrahieren der User-ID aus JWT-Token:", error);
+        }
+      }
+      
+      // Wenn wir eine eventUserId gefunden haben, aktualisiere den Online-Status
+      if (eventUserId) {
+        try {
+          const eventUser = await findEventUserById(eventUserId);
+          if (eventUser) {
+            // Benutzer als online markieren
+            const result = await updateEventUserOnlineState(eventUserId, true);
+            
+            // PubSub-Event senden, wenn nötig
+            if (result && result.shouldPublish === true) {
+              console.info(`[INFO] Sende eventUserLifeCycle Event mit deaktiviertem JWT: User ${eventUserId} ist jetzt online`);
+              pubsub.publish("eventUserLifeCycle", {
+                online: true,
+                eventUserId: eventUserId
+              });
+            }
+            
+            // Aktive Umfragen verarbeiten
+            const activePollResult = await findActivePoll(eventUser.eventId);
+            if (activePollResult && eventUser.allowToVote) {
+              await createPollUserIfNeeded(activePollResult.id, eventUser.id);
+              
+              const leftAnswersDataSet = await findLeftAnswersCount(
+                activePollResult.id,
+              );
+              if (leftAnswersDataSet) {
+                pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
+                  ...leftAnswersDataSet,
+                  eventId: eventUser.eventId,
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(`[WARN] Fehler beim Aktualisieren des Online-Status für User ${eventUserId} mit deaktiviertem JWT:`, error);
+        }
+      }
+    } catch (error) {
+      console.error("[ERROR] Fehler beim Verarbeiten der WebSocket-Verbindung mit deaktiviertem JWT:", error);
+    }
+    
+    // Bei deaktivierter JWT-Authentifizierung trotzdem weitermachen
+    return;
   }
 
   // Variable für den Token und eventUserId initialisieren
@@ -238,7 +313,63 @@ export async function onDisconnectWebsocket(ctx) {
   // OPTIMIERUNG: Prüfen, ob JWT-Authentifizierung deaktiviert ist
   if (process.env.ENABLE_JWT !== "1") {
     console.info("[INFO] JWT-Authentifizierung deaktiviert, Client-Disconnect wird ohne Auth verarbeitet");
-    return; // Bei deaktivierter JWT-Authentifizierung sofort beenden
+    
+    // Erweiterung: Versuche Benutzer-Metadaten aus den Verbindungsparametern oder Cookies zu extrahieren
+    try {
+      let eventUserId = null;
+      
+      // Versuche, einen WebSocket connectionParam für eventUserId zu finden
+      if (ctx.connectionParams && ctx.connectionParams.eventUserId) {
+        eventUserId = parseInt(ctx.connectionParams.eventUserId);
+        console.info(`[INFO] WebSocket Disconnect mit eventUserId: ${eventUserId}`);
+      }
+      
+      // Prüfe auf ein JWT-Token, selbst wenn JWT-Auth deaktiviert ist
+      else if (ctx.connectionParams && ctx.connectionParams.authorization) {
+        try {
+          const authHeader = ctx.connectionParams.authorization;
+          if (authHeader.startsWith('Bearer ')) {
+            const jwtToken = authHeader.substring(7);
+            const decodedToken = jwt.decode(jwtToken);
+            
+            if (decodedToken && decodedToken.eventUserId) {
+              eventUserId = parseInt(decodedToken.eventUserId);
+              console.info(`[INFO] Disconnect JWT-Token enthält eventUserId: ${eventUserId}`);
+            }
+            else if (decodedToken && decodedToken.user && decodedToken.user.type === "event-user") {
+              eventUserId = parseInt(decodedToken.user.id);
+              console.info(`[INFO] Disconnect JWT-Token enthält User-ID im user-Objekt: ${eventUserId}`);
+            }
+          }
+        } catch (error) {
+          console.warn("[WARN] Fehler beim Extrahieren der User-ID aus JWT-Token beim Disconnect:", error);
+        }
+      }
+      
+      // Wenn wir eine eventUserId gefunden haben, aktualisiere den Online-Status
+      if (eventUserId) {
+        try {
+          // Benutzer als offline markieren
+          const result = await updateEventUserOnlineState(eventUserId, false);
+          
+          // PubSub-Event senden, wenn nötig
+          if (result && result.shouldPublish === true) {
+            console.info(`[INFO] Sende eventUserLifeCycle Event mit deaktiviertem JWT: User ${eventUserId} ist jetzt offline`);
+            pubsub.publish("eventUserLifeCycle", {
+              online: false,
+              eventUserId: eventUserId
+            });
+          }
+        } catch (error) {
+          console.warn(`[WARN] Fehler beim Aktualisieren des Offline-Status für User ${eventUserId} mit deaktiviertem JWT:`, error);
+        }
+      }
+    } catch (error) {
+      console.error("[ERROR] Fehler beim Verarbeiten des WebSocket-Disconnects mit deaktiviertem JWT:", error);
+    }
+    
+    // Bei deaktivierter JWT-Authentifizierung beenden
+    return;
   }
 
   // Variable für den Token initialisieren
