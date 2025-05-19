@@ -23,9 +23,17 @@ export default async function logoutRequest(req, res) {
       false,
       tokenRecord.eventUserId,
     ]);
+    // Fetch the event user to get the event ID
+    const eventUserResult = await query(
+      "SELECT id, event_id FROM event_user WHERE id = ?",
+      [tokenRecord.eventUserId]
+    );
+    const eventUser = Array.isArray(eventUserResult) ? eventUserResult[0] || null : null;
+
     pubsub.publish(EVENT_USER_LIFE_CYCLE, {
       online: false,
       eventUserId: tokenRecord.eventUserId,
+      eventId: eventUser ? eventUser.event_id : null
     });
     await query("DELETE FROM event_user_auth_token WHERE event_user_id = ?", [
       tokenRecord.eventUserId,

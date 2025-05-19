@@ -109,10 +109,10 @@ export async function loginEventUser({
       await update(eventUser);
     }
 
-    // Notify subscribers for updated event user.
     pubsub.publish(EVENT_USER_LIFE_CYCLE, {
       online: true,
       eventUserId: eventUser.id,
+      eventId: eventId
     });
   }
 
@@ -153,7 +153,7 @@ export async function loginEventUser({
     },
     role: "event-user",
     // Für WebSocket-Authentifizierung hinzufügen
-    eventUserId: eventUser.id 
+    eventUserId: eventUser.id
   };
   const token = await generateJwt(claims);
   const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
