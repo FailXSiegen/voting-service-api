@@ -2,8 +2,13 @@ import { makeExecutableSchema } from "@graphql-tools/schema";
 import typeDefs from "../../res/schema.graphql";
 import resolvers from "../graphql/resolvers";
 import { createYoga, useExtendContext, createPubSub } from "graphql-yoga";
+import ThrottledPubSub from "../lib/pubsub-throttle";
 
-export const pubsub = createPubSub();
+// Create the base PubSub instance
+const basePubSub = createPubSub();
+
+// Create a throttled wrapper around it
+export const pubsub = new ThrottledPubSub(basePubSub);
 
 export const schema = makeExecutableSchema({
   typeDefs,

@@ -13,26 +13,60 @@ export default {
       pipe(
         pubsub.subscribe(UPDATE_EVENT_USER_ACCESS_RIGHTS),
         filter((payload) => {
-          if (!args.eventUserId) {
-            return true; // Allow organizers to get notified without eventUserId variable.
+          // Require either eventUserId match or explicit organizer flag
+          if (!args.eventUserId && args.isOrganizer === true) {
+            return true; // Allow organizers to get notified without eventUserId
           }
-          return parseInt(payload.eventUserId) === parseInt(args.eventUserId);
+          // Otherwise require eventUserId match
+          return payload.eventUserId && args.eventUserId && 
+                 (parseInt(payload.eventUserId, 10) === parseInt(args.eventUserId, 10));
         }),
       ),
     resolve: (payload) => payload,
   },
   [NEW_EVENT_USER]: {
-    subscribe: () => {
-      return pubsub.subscribe(NEW_EVENT_USER);
+    subscribe: (_, args) => 
+      pipe(
+        pubsub.subscribe(NEW_EVENT_USER),
+        filter((payload) => {
+          // Only send to the event they belong to
+          if (!args.eventId || !payload.eventId) {
+            return false;
+          }
+          return parseInt(payload.eventId, 10) === parseInt(args.eventId, 10);
+        }),
+      ),
+    resolve: (payload) => {
+      // Return minimal required information
+      return {
+        eventId: payload.eventId,
+        eventUser: payload.eventUser
+      };
     },
-    resolve: (payload) => payload,
   },
   [EVENT_USER_LIFE_CYCLE]: {
-    subscribe: () => {
-      return pubsub.subscribe(EVENT_USER_LIFE_CYCLE);
-    },
+    subscribe: (_, args) => 
+      pipe(
+        pubsub.subscribe(EVENT_USER_LIFE_CYCLE),
+        filter((payload) => {
+          // Require event matching to prevent global broadcasts
+          if (args.eventId && payload.eventId) {
+            return parseInt(payload.eventId, 10) === parseInt(args.eventId, 10);
+          }
+          // Fall back to eventUserId if event filtering not provided
+          if (args.eventUserId && payload.eventUserId) {
+            return parseInt(payload.eventUserId, 10) === parseInt(args.eventUserId, 10);
+          }
+          return false;
+        }),
+      ),
     resolve: (payload) => {
-      return payload;
+      // Return only required fields
+      return {
+        online: payload.online,
+        eventUserId: payload.eventUserId,
+        eventId: payload.eventId
+      };
     },
   },
   [TOKEN_REFRESH_REQUIRED]: {

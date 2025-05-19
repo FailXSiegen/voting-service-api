@@ -8,14 +8,18 @@ export default {
       pipe(
         pubsub.subscribe(POLL_ANSWER_LIFE_CYCLE),
         filter((payload) => {
-          if (!args.eventId) {
-            return true;
+          // Always require eventId filtering to prevent unnecessary message delivery
+          if (!args.eventId || !payload.eventId) {
+            return false;
           }
-          return parseInt(payload.eventId) === parseInt(args.eventId);
+          // Use strict equality check with parseInt for numeric comparison
+          return parseInt(payload.eventId, 10) === parseInt(args.eventId, 10);
         }),
       ),
     resolve: (payload) => {
-      // Stelle sicher, dass alle erforderlichen Felder vorhanden sind
+      // Ensure we don't return more data than needed and provide defaults for safety
+      if (!payload) return null;
+      
       return {
         pollResultId: payload.pollResultId || 0,
         maxVotes: payload.maxVotes || 0,
@@ -24,6 +28,8 @@ export default {
         pollUserVotedCount: payload.pollUserVotedCount || 0,
         pollAnswersCount: payload.pollAnswersCount || 0,
         pollUserCount: payload.pollUserCount || 0,
+        // Include usersCompletedVoting if available (added in newer versions)
+        usersCompletedVoting: payload.usersCompletedVoting || 0,
         eventId: payload.eventId || 0
       };
     },

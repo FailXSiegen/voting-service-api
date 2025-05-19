@@ -94,11 +94,22 @@ async function publishPollClosedEvent(pollResultId, eventId, pollId = null) {
   completePoll.possibleAnswers = possibleAnswers;
 
   // Publish the event
+  // CRITICAL: When publishing poll closed events, we must ensure they are delivered
+  // Don't throttle, don't debounce, but still deduplicate just in case
+  // Force immediate delivery with priority flag
   pubsub.publish(POLL_LIFE_CYCLE, {
     eventId: eventId,
     state: "closed",
     poll: completePoll,
     pollResultId: pollResultId
+  }, {
+    // No throttling for poll state changes - critical real-time updates
+    throttleMs: 0,
+    debounceMs: 0,
+    cacheState: true,
+    skipIfEqual: false, // Always send even if payload looks the same
+    filterBy: { pollResultId, state: "closed" },
+    priority: true  // Mark as high priority event
   });
 
 }
@@ -214,6 +225,14 @@ export default {
                 state: "closed",
                 poll: completePoll,
                 pollResultId: pollResult.id
+              }, {
+                // No throttling for poll state changes - critical real-time updates
+                throttleMs: 0,
+                debounceMs: 0,
+                cacheState: true,
+                skipIfEqual: false, // Always send even if payload looks the same
+                filterBy: { pollResultId: pollResult.id, state: "closed" },
+                priority: true  // Mark as high priority event
               });
             } else {
               console.error(`[ERROR:POLL_ANSWER] Could not find complete poll data for poll ${pollId}`);
@@ -234,6 +253,14 @@ export default {
                   possibleAnswers: []
                 },
                 pollResultId: pollResult.id
+              }, {
+                // No throttling for poll state changes - critical real-time updates
+                throttleMs: 0,
+                debounceMs: 0,
+                cacheState: true,
+                skipIfEqual: false, // Always send even if payload looks the same
+                filterBy: { pollResultId: pollResult.id, state: "closed" },
+                priority: true  // Mark as high priority event
               });
             }
           }
@@ -608,6 +635,11 @@ export default {
         pollUserCount: leftAnswersDataSet.pollUserCount || 0,
         usersCompletedVoting: leftAnswersDataSet.usersCompletedVoting || 0,
         eventId: eventId
+      }, {
+        throttleMs: 1000, // Limit to one update per second
+        cacheState: true, // Only send if data changed
+        filterBy: { pollResultId: leftAnswersDataSet.pollResultId }, // Per-poll throttling
+        compareFields: ['pollUserVotedCount', 'pollAnswersCount', 'usersCompletedVoting'] // Critical fields
       });
     } else {
       // If leftAnswersDataSet is null it could be because:
@@ -664,6 +696,7 @@ export default {
 
       // Only close the poll if ALL eligible users have voted
       if (totalEligibleUsers > 0 && usersCompletedVoting >= totalEligibleUsers) {
+        console.info(`[INFO:POLL_ANSWER] All users have completed voting, closing poll ${pollResult.id} in event ${eventId}`);
         await publishPollClosedEvent(pollResult.id, eventId, pollId);
       }
 
@@ -1015,6 +1048,11 @@ export default {
           pollUserCount: leftAnswersDataSet.pollUserCount || 0,
           usersCompletedVoting: leftAnswersDataSet.usersCompletedVoting || 0,
           eventId: eventId
+        }, {
+          throttleMs: 1000, // Limit to one update per second
+          cacheState: true, // Only send if data changed
+          filterBy: { pollResultId: leftAnswersDataSet.pollResultId }, // Per-poll throttling
+          compareFields: ['pollUserVotedCount', 'pollAnswersCount', 'usersCompletedVoting'] // Critical fields
         });
 
         // Check if this was the user's last vote
@@ -1053,8 +1091,8 @@ export default {
 
           // Only close the poll if ALL eligible users have voted
           if (totalEligibleUsers > 0 && usersCompletedVoting >= totalEligibleUsers) {
+            console.info(`[INFO:BULK_VOTE][${executionId}] All users have completed voting, closing poll ${pollResult.id} in event ${eventId}`);
             await publishPollClosedEvent(pollResult.id, eventId, pollId);
-            console.info(`[INFO:BULK_VOTE][${executionId}] All users have completed voting, closing poll ${pollResult.id}`);
           }
         }
       } else {
