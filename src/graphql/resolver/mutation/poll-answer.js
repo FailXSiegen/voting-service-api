@@ -842,27 +842,17 @@ export default {
           : 0;
           
         // Dynamische Anpassung der Chunk-Größe basierend auf der Anzahl aktiver Benutzer
-        let CHUNK_SIZE = 500; // Standardwert
-        
-        if (activeUserCount > 100) {
-          // Bei mehr als 100 aktiven Benutzern verkleinern wir die Chunks erheblich
-          CHUNK_SIZE = 200;
-        } else if (activeUserCount > 50) {
-          // Bei mehr als 50 aktiven Benutzern verkleinern wir die Chunks moderat
-          CHUNK_SIZE = 300;
-        }
-        
-        console.log(`[INFO:BULK_VOTE][${executionId}] Using chunk size ${CHUNK_SIZE} for ${activeUserCount} active users`);
-        const totalChunks = Math.ceil(votesToSubmit / CHUNK_SIZE);
+        const chunkSize = 500; // Standardwert für PUBLIC polls
+        const totalChunks = Math.ceil(votesToSubmit / chunkSize);
 
         for (let chunk = 0; chunk < totalChunks; chunk++) {
-          const startIdx = chunk * CHUNK_SIZE;
-          const endIdx = Math.min(startIdx + CHUNK_SIZE, votesToSubmit);
-          const chunkSize = endIdx - startIdx;
+          const startIdx = chunk * chunkSize;
+          const endIdx = Math.min(startIdx + chunkSize, votesToSubmit);
+          const currentBatchSize = endIdx - startIdx;
 
           // Build the bulk values string for this chunk
           const valuesList = [];
-          for (let i = 0; i < chunkSize; i++) {
+          for (let i = 0; i < currentBatchSize; i++) {
             valuesList.push(`(${pollResult.id}, ${input.possibleAnswerId || 'NULL'}, ${input.answerContent ? `'${input.answerContent.replace(/'/g, "''")}'` : 'NULL'}, ${pollUserId}, ${timestamp})`);
           }
 
@@ -878,43 +868,40 @@ export default {
         }
       } else {
         // SECRET poll bulk insert (without poll_user_id)
-        // OPTIMIERUNG: Benutze die gleiche dynamisch berechnete Chunk-Größe wie bei PUBLIC polls
-        // Die Chunk-Größe wurde bereits oben basierend auf der Benutzeranzahl festgelegt
-        // Falls wir hierher kommen ohne dass CHUNK_SIZE gesetzt wurde, setzen wir den Standardwert
-        if (typeof CHUNK_SIZE === 'undefined') {
-          const activeUsersQuery = await query(
-            `SELECT COUNT(*) AS activeUserCount FROM event_user WHERE event_id = ? AND online = 1`,
-            [eventId]
-          );
+        // OPTIMIERUNG: Benutze eine dynamisch berechnete Chunk-Größe
+        // Hole aktive Benutzer für die Berechnung der Chunk-Größe
+        const activeUsersQuery = await query(
+          `SELECT COUNT(*) AS activeUserCount FROM event_user WHERE event_id = ? AND online = 1`,
+          [eventId]
+        );
+        
+        const activeUserCount = Array.isArray(activeUsersQuery) && activeUsersQuery.length > 0
+          ? parseInt(activeUsersQuery[0].activeUserCount, 10) || 0
+          : 0;
           
-          const activeUserCount = Array.isArray(activeUsersQuery) && activeUsersQuery.length > 0
-            ? parseInt(activeUsersQuery[0].activeUserCount, 10) || 0
-            : 0;
-            
-          // Dynamische Anpassung der Chunk-Größe basierend auf der Anzahl aktiver Benutzer
-          CHUNK_SIZE = 500; // Standardwert
-          
-          if (activeUserCount > 100) {
-            // Bei mehr als 100 aktiven Benutzern verkleinern wir die Chunks erheblich
-            CHUNK_SIZE = 200;
-          } else if (activeUserCount > 50) {
-            // Bei mehr als 50 aktiven Benutzern verkleinern wir die Chunks moderat
-            CHUNK_SIZE = 300;
-          }
-          
-          console.log(`[INFO:BULK_VOTE][${executionId}] Using chunk size ${CHUNK_SIZE} for ${activeUserCount} active users`);
+        // Dynamische Anpassung der Chunk-Größe basierend auf der Anzahl aktiver Benutzer
+        let chunkSize = 500; // Standardwert
+        
+        if (activeUserCount > 100) {
+          // Bei mehr als 100 aktiven Benutzern verkleinern wir die Chunks erheblich
+          chunkSize = 200;
+        } else if (activeUserCount > 50) {
+          // Bei mehr als 50 aktiven Benutzern verkleinern wir die Chunks moderat
+          chunkSize = 300;
         }
         
-        const totalChunks = Math.ceil(votesToSubmit / CHUNK_SIZE);
+        console.log(`[INFO:BULK_VOTE][${executionId}] Using chunk size ${chunkSize} for ${activeUserCount} active users`);
+        
+        const totalChunks = Math.ceil(votesToSubmit / chunkSize);
 
         for (let chunk = 0; chunk < totalChunks; chunk++) {
-          const startIdx = chunk * CHUNK_SIZE;
-          const endIdx = Math.min(startIdx + CHUNK_SIZE, votesToSubmit);
-          const chunkSize = endIdx - startIdx;
+          const startIdx = chunk * chunkSize;
+          const endIdx = Math.min(startIdx + chunkSize, votesToSubmit);
+          const currentBatchSize = endIdx - startIdx;
 
           // Build the bulk values string for this chunk
           const valuesList = [];
-          for (let i = 0; i < chunkSize; i++) {
+          for (let i = 0; i < currentBatchSize; i++) {
             valuesList.push(`(${pollResult.id}, ${input.possibleAnswerId || 'NULL'}, ${input.answerContent ? `'${input.answerContent.replace(/'/g, "''")}'` : 'NULL'}, ${timestamp})`);
           }
 
