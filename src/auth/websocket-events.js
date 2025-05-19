@@ -20,12 +20,40 @@ export async function onSubscribeWebsocket(ctx, msg) {
       params: msg.payload,
     });
 
+  // Create base context
+  let contextValue = await contextFactory();
+  
+  // Add user context to subscription context if available
+  if (ctx.connectionParams && ctx.connectionParams.authorization) {
+    try {
+      const authHeader = ctx.connectionParams.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        const jwtToken = authHeader.substring(7);
+        const decodedToken = jwt.decode(jwtToken);
+        
+        // Set user information in the context
+        if (decodedToken && decodedToken.user) {
+          contextValue.user = decodedToken.user;
+        }
+        else if (decodedToken && decodedToken.eventUserId) {
+          // Legacy format support
+          contextValue.user = {
+            id: decodedToken.eventUserId,
+            type: 'event-user'
+          };
+        }
+      }
+    } catch (error) {
+      console.warn("[WARN] Error extracting user context for subscription:", error);
+    }
+  }
+
   const args = {
     schema,
     operationName: msg.payload.operationName,
     document: parse(msg.payload.query),
     variableValues: msg.payload.variables,
-    contextValue: await contextFactory(),
+    contextValue,
     rootValue: {
       execute,
       subscribe,
