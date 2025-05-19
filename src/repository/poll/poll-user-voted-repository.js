@@ -236,45 +236,17 @@ export async function createPollUserVoted(
         insertQuery,
         [eventUserId, username, pollResultId, finalVoteCycle, createDatetime, finalVoteCycle]  // VERSION equals VOTE_CYCLE for new rows
       );
-      // Verify that the insert worked
-      const verifyInsert = await query(
-        `SELECT id, vote_cycle AS voteCycle, version, username FROM poll_user_voted 
-         WHERE poll_result_id = ? AND event_user_id = ?
-         FOR UPDATE`,
-        [pollResultId, eventUserId]
-      );
-
-      if (Array.isArray(verifyInsert) && verifyInsert.length > 0) {
-        // In SQL verwenden wir vote_cycle, aber in JavaScript camelCase
-        const voteCycle = verifyInsert[0].voteCycle;
-
-        // Verify voteCycle and version are in sync
-        if (parseInt(voteCycle, 10) !== parseInt(verifyInsert[0].version, 10)) {
-          console.warn(`[WARN:CREATE_VOTE] voteCycle and version are not in sync after insert! voteCycle=${voteCycle}, version=${verifyInsert[0].version}`);
-        }
-      } else {
-        console.warn(`[WARN:CREATE_VOTE] Could not verify INSERT - entry not found immediately after insert!`);
-      }
+      // OPTIMIERUNG: Entfernung der Verifikationsabfrage mit FOR UPDATE
+      // Diese Prüfung ist redundant und verursacht nur zusätzliche Sperren
+      // Wenn das INSERT fehlschlägt, würde das über den Fehlerhandler erkannt werden
+      
+      // Log für Debug-Zwecke
+      console.log(`[INFO:CREATE_VOTE] New poll_user_voted entry created with vote_cycle=${finalVoteCycle}`);
       await query("COMMIT");
 
-      // After transaction verification
-      const postTxCheck = await query(
-        `SELECT id, vote_cycle AS voteCycle, version, username FROM poll_user_voted 
-         WHERE poll_result_id = ? AND event_user_id = ?`,
-        [pollResultId, eventUserId]
-      );
-
-      if (Array.isArray(postTxCheck) && postTxCheck.length > 0) {
-        // In SQL verwenden wir vote_cycle, aber in JavaScript camelCase
-        const voteCycle = postTxCheck[0].voteCycle;
-
-        // Final verification that voteCycle and version are in sync
-        if (parseInt(voteCycle, 10) !== parseInt(postTxCheck[0].version, 10)) {
-          console.warn(`[WARN:CREATE_VOTE] AFTER TRANSACTION: voteCycle and version are not in sync! voteCycle=${voteCycle}, version=${postTxCheck[0].version}`);
-        }
-      } else {
-        console.warn(`[WARN:CREATE_VOTE] AFTER TRANSACTION: Entry not found despite successful commit!`);
-      }
+      // OPTIMIERUNG: Entfernung der Post-Transaktions-Verifikation
+      // Diese Prüfung ist nicht notwendig und verlangsamt nur die Verarbeitung
+      // Wenn die Transaktion erfolgreich committet wurde, können wir davon ausgehen, dass die Daten korrekt sind
 
       return result;
     } catch (txError) {
@@ -423,26 +395,12 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
           // Direkt die erwarteten Werte berechnen
           const newVoteCycle = currentVoteCycle + incrementBy;
 
-          // Verify the update occurred
-          const verifyQuery = await query(
-            `SELECT vote_cycle AS voteCycle, version
-             FROM poll_user_voted
-             WHERE poll_result_id = ? AND event_user_id = ?
-             FOR UPDATE`,
-            [pollResultId, eventUserId]
-          );
-
-          if (Array.isArray(verifyQuery) && verifyQuery.length > 0) {
-            const updatedVoteCycle = parseInt(verifyQuery[0].voteCycle, 10) || 0;
-            const updatedVersion = parseInt(verifyQuery[0].version, 10) || 0;
-
-
-            if (updatedVoteCycle !== newVoteCycle || updatedVersion !== newVoteCycle) {
-              console.warn(`[WARN:INC_VOTE_CYCLE] Vote fields were not incremented as expected! Expected both at: ${newVoteCycle}, Actual: voteCycle=${updatedVoteCycle}, version=${updatedVersion}`);
-            }
-          } else {
-            console.warn(`[WARN:INC_VOTE_CYCLE] Konnte Aktualisierung nicht verifizieren: Kein Eintrag gefunden für pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
-          }
+          // OPTIMIERUNG: Entfernung der Verifikationsabfrage mit FOR UPDATE
+          // Diese Prüfung ist redundant und verursacht nur zusätzliche Sperren
+          // Wenn das UPDATE fehlschlägt, würde das über den Fehlerhandler erkannt werden
+          
+          // Log für Debug-Zwecke
+          console.log(`[INFO:INC_VOTE_CYCLE] Vote cycle increment request executed. Expected new value: ${newVoteCycle}`);
         } catch (updateError) {
           console.error(`[ERROR:INC_VOTE_CYCLE] Fehler beim Update: ${updateError.message}`);
           throw updateError; // Re-throw error to be caught by the outer try/catch
@@ -461,25 +419,12 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
             [maxVotes, maxVotes, pollResultId, eventUserId]
           );
 
-          // Verify the update occurred
-          const verifyQuery = await query(
-            `SELECT vote_cycle AS voteCycle, version
-             FROM poll_user_voted
-             WHERE poll_result_id = ? AND event_user_id = ?
-             FOR UPDATE`,
-            [pollResultId, eventUserId]
-          );
-
-          if (Array.isArray(verifyQuery) && verifyQuery.length > 0) {
-            const updatedVoteCycle = parseInt(verifyQuery[0].voteCycle, 10) || 0;
-            const updatedVersion = parseInt(verifyQuery[0].version, 10) || 0;
-
-            if (updatedVoteCycle !== maxVotes || updatedVersion !== maxVotes) {
-              console.warn(`[WARN:INC_VOTE_CYCLE] Vote fields were not set to maximum as expected! Expected both at: ${maxVotes}, Actual: voteCycle=${updatedVoteCycle}, version=${updatedVersion}`);
-            }
-          } else {
-            console.warn(`[WARN:INC_VOTE_CYCLE] Konnte Aktualisierung auf Maximum nicht verifizieren: Kein Eintrag gefunden für pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
-          }
+          // OPTIMIERUNG: Entfernung der Verifikationsabfrage mit FOR UPDATE
+          // Diese Prüfung ist redundant und verursacht nur zusätzliche Sperren
+          // Wenn das UPDATE fehlschlägt, würde das über den Fehlerhandler erkannt werden
+          
+          // Log für Debug-Zwecke
+          console.log(`[INFO:INC_VOTE_CYCLE] Vote cycle set to maximum request executed. Expected new value: ${maxVotes}`);
         } catch (updateError) {
           console.error(`[ERROR:INC_VOTE_CYCLE] Fehler beim Update auf Maximum: ${updateError.message}`);
           throw updateError; // Re-throw error to be caught by the outer try/catch

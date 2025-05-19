@@ -718,6 +718,17 @@ export default {
       return 0;
     }
 
+    // OPTIMIERUNG: Implementieren einer Lastverteilung mit Jitter-Verzögerung
+    // Bei vielen gleichzeitigen Anfragen fügen wir eine kleine zufällige Verzögerung ein
+    // Dies verteilt die Last auf dem SQL-Server und reduziert Locks und Ressourcenkonflikte
+    
+    // Berechne eine Verzögerung basierend auf der Benutzer-ID für konsistente Verteilung
+    const jitterMs = (input.eventUserId % 10) * 50; // Erzeugt Verzögerungen zwischen 0-450ms
+    if (jitterMs > 0) {
+      console.log(`[INFO:BULK_VOTE][${executionId}] Adding jitter delay of ${jitterMs}ms for user ${input.eventUserId}`);
+      await new Promise(resolve => setTimeout(resolve, jitterMs));
+    }
+    
     // Get user data to validate vote limit
     const eventUser = await findOneById(input.eventUserId);
     if (!eventUser) {
@@ -817,7 +828,31 @@ export default {
 
         // Construct bulk insert values
         // For large vote counts, we'll use chunked inserts to avoid extremely long queries
-        const CHUNK_SIZE = 500; // Maximum votes per query
+        // OPTIMIERUNG: Passe Chunk-Größe basierend auf der Anzahl der Benutzer an
+        // Bei vielen Benutzern verwenden wir kleinere Chunks für bessere Parallelverarbeitung
+        
+        // Abfrage der aktiven Benutzer im Event
+        const activeUsersQuery = await query(
+          `SELECT COUNT(*) AS activeUserCount FROM event_user WHERE event_id = ? AND online = 1`,
+          [eventId]
+        );
+        
+        const activeUserCount = Array.isArray(activeUsersQuery) && activeUsersQuery.length > 0
+          ? parseInt(activeUsersQuery[0].activeUserCount, 10) || 0
+          : 0;
+          
+        // Dynamische Anpassung der Chunk-Größe basierend auf der Anzahl aktiver Benutzer
+        let CHUNK_SIZE = 500; // Standardwert
+        
+        if (activeUserCount > 100) {
+          // Bei mehr als 100 aktiven Benutzern verkleinern wir die Chunks erheblich
+          CHUNK_SIZE = 200;
+        } else if (activeUserCount > 50) {
+          // Bei mehr als 50 aktiven Benutzern verkleinern wir die Chunks moderat
+          CHUNK_SIZE = 300;
+        }
+        
+        console.log(`[INFO:BULK_VOTE][${executionId}] Using chunk size ${CHUNK_SIZE} for ${activeUserCount} active users`);
         const totalChunks = Math.ceil(votesToSubmit / CHUNK_SIZE);
 
         for (let chunk = 0; chunk < totalChunks; chunk++) {
@@ -843,7 +878,33 @@ export default {
         }
       } else {
         // SECRET poll bulk insert (without poll_user_id)
-        const CHUNK_SIZE = 500; // Maximum votes per query
+        // OPTIMIERUNG: Benutze die gleiche dynamisch berechnete Chunk-Größe wie bei PUBLIC polls
+        // Die Chunk-Größe wurde bereits oben basierend auf der Benutzeranzahl festgelegt
+        // Falls wir hierher kommen ohne dass CHUNK_SIZE gesetzt wurde, setzen wir den Standardwert
+        if (typeof CHUNK_SIZE === 'undefined') {
+          const activeUsersQuery = await query(
+            `SELECT COUNT(*) AS activeUserCount FROM event_user WHERE event_id = ? AND online = 1`,
+            [eventId]
+          );
+          
+          const activeUserCount = Array.isArray(activeUsersQuery) && activeUsersQuery.length > 0
+            ? parseInt(activeUsersQuery[0].activeUserCount, 10) || 0
+            : 0;
+            
+          // Dynamische Anpassung der Chunk-Größe basierend auf der Anzahl aktiver Benutzer
+          CHUNK_SIZE = 500; // Standardwert
+          
+          if (activeUserCount > 100) {
+            // Bei mehr als 100 aktiven Benutzern verkleinern wir die Chunks erheblich
+            CHUNK_SIZE = 200;
+          } else if (activeUserCount > 50) {
+            // Bei mehr als 50 aktiven Benutzern verkleinern wir die Chunks moderat
+            CHUNK_SIZE = 300;
+          }
+          
+          console.log(`[INFO:BULK_VOTE][${executionId}] Using chunk size ${CHUNK_SIZE} for ${activeUserCount} active users`);
+        }
+        
         const totalChunks = Math.ceil(votesToSubmit / CHUNK_SIZE);
 
         for (let chunk = 0; chunk < totalChunks; chunk++) {
@@ -869,7 +930,7 @@ export default {
         }
       }
 
-      // Verify inserts by counting
+      // Verify inserts by counting (kein Lock notwendig, nur für Logging)
       const verifyInsertQuery = await query(
         `SELECT COUNT(*) AS insertCount 
          FROM poll_answer 
@@ -885,17 +946,64 @@ export default {
         console.warn(`[WARN:BULK_VOTE][${executionId}] Expected to insert ${votesToSubmit} votes, but only found ${insertCount}`);
       }
 
-      // WICHTIGER FIX: Erhöhe den Zyklus um die Anzahl der tatsächlich eingefügten Stimmen
-      // Dies ist wichtig, um den Client-seitigen Zähler korrekt zu aktualisieren
+      // OPTIMIERUNG: VoteCycle direkt in derselben Transaktion aktualisieren
+      // anstatt eine neue Transaktion über incrementVoteCycleAfterVote zu starten
       const incrementBy = insertCount > 0 ? insertCount : 1; // Mindestens 1, um konsistent zu bleiben
-      const incrementResult = await incrementVoteCycleAfterVote(pollResult.id, input.eventUserId, incrementBy);
-
-      if (!incrementResult) {
-        console.warn(`[WARN:BULK_VOTE][${executionId}] Failed to increment vote cycle by ${incrementBy}`);
-      } else {
-        console.log(`[INFO:BULK_VOTE][${executionId}] Successfully incremented vote cycle by ${incrementBy}`);
+      
+      try {
+        // Hole maximale Stimmanzahl des Benutzers ohne FOR UPDATE
+        const userQuery = await query(
+          `SELECT vote_amount AS voteAmount FROM event_user WHERE id = ?`,
+          [input.eventUserId]
+        );
+        
+        const maxVotes = Array.isArray(userQuery) && userQuery.length > 0
+          ? parseInt(userQuery[0].voteAmount, 10) || 0
+          : 0;
+        
+        // Aktuelle Stimmen des Benutzers ohne FOR UPDATE
+        const voteQuery = await query(
+          `SELECT vote_cycle AS voteCycle, version 
+           FROM poll_user_voted
+           WHERE poll_result_id = ? AND event_user_id = ?`,
+          [pollResult.id, input.eventUserId]
+        );
+        
+        if (Array.isArray(voteQuery) && voteQuery.length > 0) {
+          const currentVoteCycle = parseInt(voteQuery[0].voteCycle, 10) || 0;
+          const currentVersion = parseInt(voteQuery[0].version, 10) || 0;
+          
+          // Entweder erhöhen oder auf Maximum setzen
+          if (currentVoteCycle + incrementBy <= maxVotes) {
+            // Direkte Aktualisierung ohne erneute Prüfung mit FOR UPDATE
+            await query(
+              `UPDATE poll_user_voted
+               SET vote_cycle = vote_cycle + ?, version = version + ?
+               WHERE poll_result_id = ? AND event_user_id = ?`,
+              [incrementBy, incrementBy, pollResult.id, input.eventUserId]
+            );
+            console.log(`[INFO:BULK_VOTE][${executionId}] Successfully incremented vote cycle by ${incrementBy}`);
+          } else if (currentVoteCycle < maxVotes) {
+            // Auf Maximum setzen
+            const remainingVotes = maxVotes - currentVoteCycle;
+            await query(
+              `UPDATE poll_user_voted
+               SET vote_cycle = ?, version = ?
+               WHERE poll_result_id = ? AND event_user_id = ?`,
+              [maxVotes, maxVotes, pollResult.id, input.eventUserId]
+            );
+            console.log(`[INFO:BULK_VOTE][${executionId}] Set vote cycle to maximum ${maxVotes} (increment of ${remainingVotes})`);
+          } else {
+            console.warn(`[WARN:BULK_VOTE][${executionId}] User ${input.eventUserId} already at maximum votes ${maxVotes}`);
+          }
+        } else {
+          console.warn(`[WARN:BULK_VOTE][${executionId}] Could not find vote_cycle record to update`);
+        }
+      } catch (updateError) {
+        console.error(`[ERROR:BULK_VOTE][${executionId}] Error updating vote cycle: ${updateError.message}`);
+        throw updateError; // Re-throw to be caught by the outer try-catch
       }
-
+      
       // Commit transaction
       await query("COMMIT", [], { throwError: true });
       successfulVotes = insertCount;

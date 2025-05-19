@@ -56,6 +56,17 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
   // Generiere eine eindeutige ID für diese Anfrageausführung zur Nachverfolgung
   const executionId = Math.random().toString(36).substring(2, 10);
 
+  // OPTIMIERUNG: Lastverteilung durch Jitter bei individuellen Votes
+  // Für Bulk-Operationen wird der Jitter in der Bulk-Methode hinzugefügt
+  // Hier fügen wir nur für individuelle Votes Jitter hinzu
+  if (input.eventUserId) {
+    // Kleinere Verzögerung als bei Bulk (0-150ms)
+    const jitterMs = (input.eventUserId % 5) * 30;
+    if (jitterMs > 0) {
+      console.log(`[INFO:INSERT_ANSWER][${executionId}] Adding jitter delay of ${jitterMs}ms for user ${input.eventUserId}`);
+      await new Promise(resolve => setTimeout(resolve, jitterMs));
+    }
+  }
 
   try {
     await query("START TRANSACTION", [], { throwError: true });

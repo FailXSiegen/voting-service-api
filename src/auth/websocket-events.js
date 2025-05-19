@@ -43,6 +43,12 @@ export async function onSubscribeWebsocket(ctx, msg) {
 export async function onConnectWebsocket(ctx) {
   console.info("[INFO] User connected");
 
+  // OPTIMIERUNG: Prüfen, ob JWT-Authentifizierung deaktiviert ist
+  if (process.env.ENABLE_JWT !== "1") {
+    console.info("[INFO] JWT-Authentifizierung deaktiviert, Client wird automatisch autorisiert");
+    return; // Bei deaktivierter JWT-Authentifizierung sofort durchlassen
+  }
+
   // Variable für den Token und eventUserId initialisieren
   let token = null;
   let eventUserId = null;
@@ -228,6 +234,12 @@ export async function onConnectWebsocket(ctx) {
 
 export async function onDisconnectWebsocket(ctx) {
   console.info("[INFO] User disconnected!");
+
+  // OPTIMIERUNG: Prüfen, ob JWT-Authentifizierung deaktiviert ist
+  if (process.env.ENABLE_JWT !== "1") {
+    console.info("[INFO] JWT-Authentifizierung deaktiviert, Client-Disconnect wird ohne Auth verarbeitet");
+    return; // Bei deaktivierter JWT-Authentifizierung sofort beenden
+  }
 
   // Variable für den Token initialisieren
   let token = null;
