@@ -5,10 +5,30 @@ import {
   query,
 } from "./../../lib/database";
 import { getCurrentUnixTimeStamp } from "../../lib/time-stamp";
+import { 
+  getPollResultCache,
+  setPollResultCache,
+  invalidatePollResultCache,
+  invalidateEventPollResultsCache
+} from "../../lib/poll-result-cache";
 
 export async function findOneById(id) {
+  // Try to get from cache first
+  const cachedResult = getPollResultCache(id);
+  if (cachedResult) {
+    return cachedResult;
+  }
+  
+  // Not in cache, get from database
   const result = await query("SELECT * FROM poll_result WHERE id = ?", [id]);
-  return Array.isArray(result) ? result[0] || null : null;
+  const pollResult = Array.isArray(result) ? result[0] || null : null;
+  
+  // If it's closed, cache it for future requests
+  if (pollResult && pollResult.closed === 1) {
+    setPollResultCache(id, pollResult);
+  }
+  
+  return pollResult;
 }
 
 export async function findOneByPollId(pollId) {
@@ -45,7 +65,9 @@ export async function updatePollResultMaxVotes(pollResultId, eventUserId) {
 
 export async function findClosedPollResults(eventId, page, pageSize) {
   const offset = page * pageSize;
-  return await query(
+  
+  // Get results from database
+  const results = await query(
     `
     SELECT poll_result.*
     FROM poll_result
@@ -57,6 +79,20 @@ export async function findClosedPollResults(eventId, page, pageSize) {
   `,
     [eventId, true, pageSize, offset],
   );
+  
+  // Cache each closed poll result
+  if (Array.isArray(results) && results.length > 0) {
+    for (const pollResult of results) {
+      // Add eventId to the poll data for easier cache invalidation by event
+      pollResult.poll = pollResult.poll || {}; 
+      pollResult.poll.eventId = eventId;
+      
+      // Cache the poll result
+      setPollResultCache(pollResult.id, pollResult);
+    }
+  }
+  
+  return results;
 }
 
 /**
@@ -198,42 +234,139 @@ export async function findLeftAnswersCount(pollResultId) {
 }
 
 export async function closePollResult(id) {
-
-  // First check if it's already closed
-  const checkQuery = await query("SELECT closed FROM poll_result WHERE id = ?", [id]);
-  const isAlreadyClosed = Array.isArray(checkQuery) &&
-    checkQuery.length > 0 &&
-    checkQuery[0].closed === 1;
-
-  if (isAlreadyClosed) {
-    return true;
+  // Nutze eine Transaktion für atomare Operationen
+  try {
+    await query("START TRANSACTION");
+    
+    try {
+      // Kombinierte Abfrage: Prüfen und Aktualisieren in einem Schritt
+      const updateResult = await query(
+        `UPDATE poll_result SET closed = 1 
+         WHERE id = ? AND closed = 0`,
+        [id]
+      );
+      
+      // Wenn nichts aktualisiert wurde, war es bereits geschlossen oder existiert nicht
+      if (!updateResult || updateResult.affectedRows === 0) {
+        await query("COMMIT");
+        console.log(`[INFO:POLL] Poll ${id} was already closed or doesn't exist`);
+        return true; // Bereits geschlossen
+      }
+      
+      // In einer Abfrage alle benötigten Daten holen und Event-ID
+      const pollResultData = await query(
+        `SELECT pr.*, p.event_id AS eventId 
+         FROM poll_result pr
+         JOIN poll p ON pr.poll_id = p.id
+         WHERE pr.id = ?`,
+        [id]
+      );
+      
+      // Cache-Update
+      if (Array.isArray(pollResultData) && pollResultData.length > 0) {
+        const pollResult = pollResultData[0];
+        const eventId = pollResult.eventId;
+        
+        // Strukturiere die Daten für den Cache
+        pollResult.poll = pollResult.poll || {};
+        pollResult.poll.eventId = eventId;
+        
+        // Cache für zukünftige Abfragen
+        setPollResultCache(id, pollResult);
+        console.log(`[INFO:POLL] Poll ${id} has been closed and cached`);
+        
+        await query("COMMIT");
+        return true;
+      }
+      
+      await query("COMMIT");
+      return false;
+    } catch (innerError) {
+      console.error(`[ERROR:CLOSE_POLL] Inner transaction error:`, innerError);
+      await query("ROLLBACK");
+      throw innerError;
+    }
+  } catch (error) {
+    console.error(`[ERROR:CLOSE_POLL] Error in closePollResult:`, error);
+    try {
+      await query("ROLLBACK");
+    } catch (e) {
+      // Rollback-Fehler ignorieren
+    }
+    return false;
   }
-
-  const result = await query("UPDATE poll_result SET closed = ? WHERE id = ?", [1, id]);
-
-  // Verify the update worked
-  const verifyQuery = await query("SELECT closed FROM poll_result WHERE id = ?", [id]);
-  if (Array.isArray(verifyQuery) && verifyQuery.length > 0) {
-    const actualClosed = verifyQuery[0].closed === 1;
-    return actualClosed;
-  }
-
-  return false;
 }
 
 export async function closeAllPollResultsByEventId(eventId) {
-  await query(
-    `
-    UPDATE poll_result
-    INNER JOIN poll 
-      ON poll.id = poll_result.poll_id
-    INNER JOIN event 
-      ON event.id = poll.event_id
-    SET poll_result.closed = 1
-    WHERE event.id = ?
-  `,
-    [eventId],
-  );
+  try {
+    await query("START TRANSACTION");
+    
+    try {
+      // Finde alle offenen Poll-IDs in einer optimierten Abfrage
+      const pollResults = await query(
+        `SELECT pr.id, pr.poll_id 
+         FROM poll_result pr
+         JOIN poll p ON pr.poll_id = p.id
+         WHERE p.event_id = ? AND pr.closed = 0`,
+        [eventId]
+      );
+      
+      if (!Array.isArray(pollResults) || pollResults.length === 0) {
+        await query("COMMIT");
+        console.log(`[INFO:POLL] No open polls found for event ${eventId}`);
+        return { success: true, closedCount: 0 };
+      }
+      
+      // Extrahiere IDs für die Batch-Aktualisierung
+      const pollResultIds = pollResults.map(pr => pr.id);
+      
+      // Batch-Update aller Poll-Results auf einmal
+      await query(
+        `UPDATE poll_result 
+         SET closed = 1 
+         WHERE id IN (?)`,
+        [pollResultIds]
+      );
+      
+      // Hole aktualisierte Daten für Cache in einer einzigen Abfrage
+      const updatedPollResults = await query(
+        `SELECT pr.*, p.event_id AS eventId 
+         FROM poll_result pr
+         JOIN poll p ON pr.poll_id = p.id
+         WHERE pr.id IN (?)`,
+        [pollResultIds]
+      );
+      
+      // Cache-Updates in einer Schleife
+      console.log(`[INFO:POLL] Closing and caching ${pollResultIds.length} polls for event ${eventId}`);
+      
+      if (Array.isArray(updatedPollResults)) {
+        for (const pollResult of updatedPollResults) {
+          // Strukturiere für den Cache
+          pollResult.poll = pollResult.poll || {};
+          pollResult.poll.eventId = eventId;
+          
+          // Cache setzen
+          setPollResultCache(pollResult.id, pollResult);
+        }
+      }
+      
+      await query("COMMIT");
+      return { success: true, closedCount: pollResultIds.length, pollResultIds };
+    } catch (innerError) {
+      console.error(`[ERROR:CLOSE_ALL_POLLS] Inner transaction error:`, innerError);
+      await query("ROLLBACK");
+      throw innerError;
+    }
+  } catch (error) {
+    console.error(`[ERROR:CLOSE_ALL_POLLS] Error in closeAllPollResultsByEventId:`, error);
+    try {
+      await query("ROLLBACK");
+    } catch (e) {
+      // Rollback-Fehler ignorieren
+    }
+    return { success: false, error: error.message };
+  }
 }
 
 export async function findActivePoll(eventId) {
@@ -286,7 +419,18 @@ export async function findEventsWithActivePoll() {
 }
 
 export async function getPollOverview(eventId) {
-  return await query(
+  // Cache key for this event's poll overview
+  const cacheKey = `event_${eventId}_poll_overview`;
+  
+  // Check if we have a cached version
+  const cachedResult = getPollResultCache(cacheKey);
+  if (cachedResult) {
+    console.log(`[INFO:CACHE] Returned cached poll overview for event ${eventId}`);
+    return cachedResult;
+  }
+  
+  // Fetch from database
+  const results = await query(
     `
   SELECT
     poll.id, 
@@ -303,10 +447,44 @@ export async function getPollOverview(eventId) {
   `,
     [eventId],
   );
+  
+  // Check if all poll results for this event are closed
+  const hasOpenPolls = await query(
+    `
+    SELECT COUNT(*) AS openPollCount
+    FROM poll_result
+    INNER JOIN poll ON poll_result.poll_id = poll.id
+    WHERE poll.event_id = ? AND poll_result.closed = 0
+    `,
+    [eventId]
+  );
+  
+  const openPollCount = Array.isArray(hasOpenPolls) && hasOpenPolls.length > 0
+    ? parseInt(hasOpenPolls[0].openPollCount, 10) || 0
+    : 0;
+  
+  // Only cache if all polls for this event are closed
+  if (openPollCount === 0 && Array.isArray(results) && results.length > 0) {
+    setPollResultCache(cacheKey, results);
+    console.log(`[INFO:CACHE] Cached poll overview for event ${eventId}`);
+  }
+  
+  return results;
 }
 
 export async function getPollResults(eventId) {
-  return await query(
+  // Cache key for this event's poll results summary
+  const cacheKey = `event_${eventId}_poll_results`;
+  
+  // Check if we have a cached version
+  const cachedResult = getPollResultCache(cacheKey);
+  if (cachedResult) {
+    console.log(`[INFO:CACHE] Returned cached poll results for event ${eventId}`);
+    return cachedResult;
+  }
+  
+  // Fetch from database
+  const results = await query(
     `
     SELECT
     poll.id,
@@ -321,10 +499,44 @@ export async function getPollResults(eventId) {
   `,
     [eventId],
   );
+  
+  // Check if all poll results for this event are closed
+  const hasOpenPolls = await query(
+    `
+    SELECT COUNT(*) AS openPollCount
+    FROM poll_result
+    INNER JOIN poll ON poll_result.poll_id = poll.id
+    WHERE poll.event_id = ? AND poll_result.closed = 0
+    `,
+    [eventId]
+  );
+  
+  const openPollCount = Array.isArray(hasOpenPolls) && hasOpenPolls.length > 0
+    ? parseInt(hasOpenPolls[0].openPollCount, 10) || 0
+    : 0;
+  
+  // Only cache if all polls for this event are closed
+  if (openPollCount === 0 && Array.isArray(results) && results.length > 0) {
+    setPollResultCache(cacheKey, results);
+    console.log(`[INFO:CACHE] Cached poll results for event ${eventId}`);
+  }
+  
+  return results;
 }
 
 export async function getPollResultsDetails(eventId) {
-  return await query(
+  // Cache key for this event's detailed poll results
+  const cacheKey = `event_${eventId}_poll_results_details`;
+  
+  // Check if we have a cached version
+  const cachedResult = getPollResultCache(cacheKey);
+  if (cachedResult) {
+    console.log(`[INFO:CACHE] Returned cached detailed poll results for event ${eventId}`);
+    return cachedResult;
+  }
+  
+  // Fetch from database
+  const results = await query(
     `
     SELECT
     poll.id,
@@ -340,10 +552,44 @@ export async function getPollResultsDetails(eventId) {
   `,
     [eventId],
   );
+  
+  // Check if all poll results for this event are closed
+  const hasOpenPolls = await query(
+    `
+    SELECT COUNT(*) AS openPollCount
+    FROM poll_result
+    INNER JOIN poll ON poll_result.poll_id = poll.id
+    WHERE poll.event_id = ? AND poll_result.closed = 0
+    `,
+    [eventId]
+  );
+  
+  const openPollCount = Array.isArray(hasOpenPolls) && hasOpenPolls.length > 0
+    ? parseInt(hasOpenPolls[0].openPollCount, 10) || 0
+    : 0;
+  
+  // Only cache if all polls for this event are closed
+  if (openPollCount === 0 && Array.isArray(results) && results.length > 0) {
+    setPollResultCache(cacheKey, results);
+    console.log(`[INFO:CACHE] Cached detailed poll results for event ${eventId}`);
+  }
+  
+  return results;
 }
 
 export async function getEventUsersWithVoteCount(eventId) {
-  return await query(
+  // Cache key for this event's user vote count
+  const cacheKey = `event_${eventId}_user_vote_count`;
+  
+  // Check if we have a cached version
+  const cachedResult = getPollResultCache(cacheKey);
+  if (cachedResult) {
+    console.log(`[INFO:CACHE] Returned cached user vote counts for event ${eventId}`);
+    return cachedResult;
+  }
+  
+  // Fetch from database
+  const results = await query(
     `
   SELECT
   poll_user.public_name AS Person,
@@ -357,6 +603,29 @@ export async function getEventUsersWithVoteCount(eventId) {
   `,
     [eventId],
   );
+  
+  // Check if all poll results for this event are closed
+  const hasOpenPolls = await query(
+    `
+    SELECT COUNT(*) AS openPollCount
+    FROM poll_result
+    INNER JOIN poll ON poll_result.poll_id = poll.id
+    WHERE poll.event_id = ? AND poll_result.closed = 0
+    `,
+    [eventId]
+  );
+  
+  const openPollCount = Array.isArray(hasOpenPolls) && hasOpenPolls.length > 0
+    ? parseInt(hasOpenPolls[0].openPollCount, 10) || 0
+    : 0;
+  
+  // Only cache if all polls for this event are closed
+  if (openPollCount === 0 && Array.isArray(results) && results.length > 0) {
+    setPollResultCache(cacheKey, results);
+    console.log(`[INFO:CACHE] Cached user vote counts for event ${eventId}`);
+  }
+  
+  return results;
 }
 
 export async function findActivePollEventUser(eventId) {
@@ -380,9 +649,28 @@ export async function create(input) {
 
 export async function update(input) {
   input.modifiedDatetime = getCurrentUnixTimeStamp();
-  await updateQuery("poll_result", input);
+  
+  // Invalidate cache for this poll result
+  if (input.id) {
+    invalidatePollResultCache(input.id);
+  }
+  
+  const success = await updateQuery("poll_result", input);
+  
+  // If this updated the poll to be closed, re-cache it
+  if (success && input.closed === 1) {
+    const updatedResult = await findOneById(input.id);
+    if (updatedResult) {
+      setPollResultCache(input.id, updatedResult);
+    }
+  }
+  
+  return success;
 }
 
 export async function remove(id) {
+  // Invalidate cache for this poll result
+  invalidatePollResultCache(id);
+  
   return await removeQuery("poll_result", id);
 }

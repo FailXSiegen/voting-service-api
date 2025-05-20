@@ -66,7 +66,6 @@ export async function onSubscribeWebsocket(ctx, msg) {
             if (typeof contextValue.user.id === 'string' && !isNaN(contextValue.user.id)) {
               contextValue.user.id = parseInt(contextValue.user.id, 10);
             }
-            console.log(`[POLL_LIFECYCLE] Setting user context from decoded token: ${JSON.stringify(contextValue.user)}`);
           }
           else if (decodedToken && decodedToken.eventUserId) {
             // Legacy format support with proper parsing of ID
@@ -74,7 +73,6 @@ export async function onSubscribeWebsocket(ctx, msg) {
               id: parseInt(decodedToken.eventUserId, 10),
               type: 'event-user'
             };
-            console.log(`[POLL_LIFECYCLE] Setting user context from legacy decoded token: ${JSON.stringify(contextValue.user)}`);
           }
         }
       }
@@ -392,8 +390,7 @@ export async function onDisconnectWebsocket(ctx) {
             }
             else if (decodedToken && decodedToken.user && decodedToken.user.type === "event-user") {
               eventUserId = parseInt(decodedToken.user.id);
-              console.info(`[INFO] Disconnect JWT-Token enthält User-ID im user-Objekt: ${eventUserId}`);
-            }
+                    }
           }
         } catch (error) {
           console.warn("[WARN] Fehler beim Extrahieren der User-ID aus JWT-Token beim Disconnect:", error);
@@ -491,8 +488,7 @@ export async function onDisconnectWebsocket(ctx) {
 
               // Event User Lifecycle Event nur auslösen, wenn sich der Status geändert hat
               if (result && result.shouldPublish === true) {
-                console.info(`[INFO] Sende eventUserLifeCycle Event: User ${eventUserId} ist jetzt offline (von user.id)`);
-                pubsub.publish("eventUserLifeCycle", {
+                  pubsub.publish("eventUserLifeCycle", {
                   online: false,
                   eventUserId: parseInt(eventUserId),
                   eventId: eventUserLookup.eventId
@@ -544,8 +540,7 @@ export async function onDisconnectWebsocket(ctx) {
 
   // JWT Auth wurde bereits verarbeitet (für User und Organizer) - wir müssen nichts weiter tun
   if (!token) {
-    console.info("[INFO] JWT Disconnect bereits verarbeitet");
-    return;
+        return;
   }
 
   // RefreshToken wurde gefunden, User als offline markieren

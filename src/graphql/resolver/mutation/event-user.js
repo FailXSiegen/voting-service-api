@@ -31,7 +31,7 @@ export default {
       args.input.username,
       args.input.eventId,
     );
-    pubsub.publish(NEW_EVENT_USER, { ...newEventUser });
+    pubsub.publish(NEW_EVENT_USER, { ...newEventUser }, { priority: true });
     return newEventUser;
   },
   updateEventUser: async (_, { input }) => {
