@@ -42,7 +42,7 @@ export default {
           state: "new",
           poll: pollRecord,
           pollResultId: pollResultId,
-        });
+        }, { priority: true });
       }
     } else if (event?.async) {
       await createPollDependencies(
@@ -74,7 +74,7 @@ export default {
           state: "new",
           poll: pollRecord,
           pollResultId: pollResultId,
-        });
+        }, { priority: true });
       }
     }
     return pollRecord;
@@ -95,7 +95,7 @@ export default {
         state: "new",
         poll: pollRecord, // WICHTIG: poll statt pollRecord verwenden
         pollResultId: pollResultId
-      });
+      }, { priority: true });
     }
     return pollRecord;
   },
@@ -140,7 +140,7 @@ export default {
       state: "closed",
       poll: completePoll, // Vollständiges Poll-Objekt mit allen erforderlichen Feldern
       pollResultId: id
-    });
+    }, { priority: true });
 
     return true;
   },
