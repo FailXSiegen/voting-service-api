@@ -29,18 +29,53 @@ export async function onSubscribeWebsocket(ctx, msg) {
       const authHeader = ctx.connectionParams.authorization;
       if (authHeader.startsWith('Bearer ')) {
         const jwtToken = authHeader.substring(7);
-        const decodedToken = jwt.decode(jwtToken);
 
-        // Set user information in the context
-        if (decodedToken && decodedToken.user) {
-          contextValue.user = decodedToken.user;
-        }
-        else if (decodedToken && decodedToken.eventUserId) {
-          // Legacy format support
-          contextValue.user = {
-            id: decodedToken.eventUserId,
-            type: 'event-user'
-          };
+        try {
+          // Use verifyJwt instead of just decoding the token
+          const { verifyJwt } = require('../lib/jwt-auth');
+          const verifiedToken = await verifyJwt(jwtToken);
+
+          // Set user information in the context from verified token
+          if (verifiedToken && verifiedToken.user) {
+            contextValue.user = verifiedToken.user;
+
+            // If it's an event user, load additional information
+            if (verifiedToken.user.type === 'event-user' && verifiedToken.user.id) {
+              const { findOneById } = require('../repository/event-user-repository');
+              const eventUser = await findOneById(parseInt(verifiedToken.user.id));
+              if (eventUser) {
+                contextValue.user.eventUser = eventUser;
+              }
+            }
+          }
+          else if (verifiedToken && verifiedToken.eventUserId) {
+            // Legacy format support with proper parsing of ID
+            contextValue.user = {
+              id: parseInt(verifiedToken.eventUserId, 10),
+              type: 'event-user'
+            };
+          }
+        } catch (verifyError) {
+          // Fallback to decode if verification fails (for backward compatibility)
+          console.warn("[WARN] JWT verification failed, falling back to decode:", verifyError);
+          const decodedToken = jwt.decode(jwtToken);
+
+          // Set user information in the context from decoded token
+          if (decodedToken && decodedToken.user) {
+            contextValue.user = decodedToken.user;
+            if (typeof contextValue.user.id === 'string' && !isNaN(contextValue.user.id)) {
+              contextValue.user.id = parseInt(contextValue.user.id, 10);
+            }
+            console.log(`[POLL_LIFECYCLE] Setting user context from decoded token: ${JSON.stringify(contextValue.user)}`);
+          }
+          else if (decodedToken && decodedToken.eventUserId) {
+            // Legacy format support with proper parsing of ID
+            contextValue.user = {
+              id: parseInt(decodedToken.eventUserId, 10),
+              type: 'event-user'
+            };
+            console.log(`[POLL_LIFECYCLE] Setting user context from legacy decoded token: ${JSON.stringify(contextValue.user)}`);
+          }
         }
       }
     } catch (error) {
@@ -69,11 +104,9 @@ export async function onSubscribeWebsocket(ctx, msg) {
 }
 
 export async function onConnectWebsocket(ctx) {
-  console.info("[INFO] User connected");
 
   // OPTIMIERUNG: Prüfen, ob JWT-Authentifizierung deaktiviert ist
   if (process.env.ENABLE_JWT !== "1") {
-    console.info("[INFO] JWT-Authentifizierung deaktiviert, Client wird automatisch autorisiert");
 
     // Erweiterung: Versuche Benutzer-Metadaten aus den Verbindungsparametern oder Cookies zu extrahieren
     try {
@@ -82,7 +115,6 @@ export async function onConnectWebsocket(ctx) {
       // Versuche, einen WebSocket connectionParam für eventUserId zu finden
       if (ctx.connectionParams && ctx.connectionParams.eventUserId) {
         eventUserId = parseInt(ctx.connectionParams.eventUserId);
-        console.info(`[INFO] WebSocket connectionParam enthält eventUserId: ${eventUserId}`);
       }
 
       // Prüfe auf ein JWT-Token, selbst wenn JWT-Auth deaktiviert ist
@@ -95,11 +127,9 @@ export async function onConnectWebsocket(ctx) {
 
             if (decodedToken && decodedToken.eventUserId) {
               eventUserId = parseInt(decodedToken.eventUserId);
-              console.info(`[INFO] JWT-Token enthält eventUserId: ${eventUserId}`);
             }
             else if (decodedToken && decodedToken.user && decodedToken.user.type === "event-user") {
               eventUserId = parseInt(decodedToken.user.id);
-              console.info(`[INFO] JWT-Token enthält User-ID im user-Objekt: ${eventUserId}`);
             }
           }
         } catch (error) {
@@ -163,7 +193,6 @@ export async function onConnectWebsocket(ctx) {
       const authHeader = ctx.connectionParams.authorization;
       if (authHeader.startsWith('Bearer ')) {
         const jwtToken = authHeader.substring(7);
-        console.info("[INFO] WebSocket mit JWT Bearer-Token Authentifizierung");
 
         try {
           // JWT-Token dekodieren (ohne Überprüfung)
@@ -270,7 +299,6 @@ export async function onConnectWebsocket(ctx) {
 
   // Wenn kein Token verwendet wird (JWT-Auth für Event-User oder Organizer), dann sind wir hier fertig
   if (!token) {
-    console.info("[INFO] JWT Authentication erfolgreich - kein RefreshToken erforderlich");
     return;
   }
 
@@ -337,11 +365,9 @@ export async function onConnectWebsocket(ctx) {
 }
 
 export async function onDisconnectWebsocket(ctx) {
-  console.info("[INFO] User disconnected!");
 
   // OPTIMIERUNG: Prüfen, ob JWT-Authentifizierung deaktiviert ist
   if (process.env.ENABLE_JWT !== "1") {
-    console.info("[INFO] JWT-Authentifizierung deaktiviert, Client-Disconnect wird ohne Auth verarbeitet");
 
     // Erweiterung: Versuche Benutzer-Metadaten aus den Verbindungsparametern oder Cookies zu extrahieren
     try {
@@ -363,7 +389,6 @@ export async function onDisconnectWebsocket(ctx) {
 
             if (decodedToken && decodedToken.eventUserId) {
               eventUserId = parseInt(decodedToken.eventUserId);
-              console.info(`[INFO] Disconnect JWT-Token enthält eventUserId: ${eventUserId}`);
             }
             else if (decodedToken && decodedToken.user && decodedToken.user.type === "event-user") {
               eventUserId = parseInt(decodedToken.user.id);
@@ -381,7 +406,6 @@ export async function onDisconnectWebsocket(ctx) {
           // Erst den EventUser abrufen, um die eventId zu bekommen
           const eventUserLookup = await findEventUserById(parseInt(eventUserId));
           if (!eventUserLookup) {
-            console.warn(`[WARN] Benutzer mit ID ${eventUserId} nicht gefunden beim Disconnect`);
             return;
           }
 
@@ -390,7 +414,6 @@ export async function onDisconnectWebsocket(ctx) {
 
           // PubSub-Event senden, wenn nötig
           if (result && result.shouldPublish === true) {
-            console.info(`[INFO] Sende eventUserLifeCycle Event mit deaktiviertem JWT: User ${eventUserId} ist jetzt offline`);
             pubsub.publish("eventUserLifeCycle", {
               online: false,
               eventUserId: eventUserId,
@@ -419,7 +442,6 @@ export async function onDisconnectWebsocket(ctx) {
       const authHeader = ctx.connectionParams.authorization;
       if (authHeader.startsWith('Bearer ')) {
         const jwtToken = authHeader.substring(7);
-        console.info("[INFO] WebSocket Disconnect mit JWT Token");
 
         try {
           // JWT-Token dekodieren (ohne Überprüfung)
@@ -440,7 +462,6 @@ export async function onDisconnectWebsocket(ctx) {
 
             // Event User Lifecycle Event nur auslösen, wenn sich der Status geändert hat
             if (result && result.shouldPublish === true) {
-              console.info(`[INFO] Sende eventUserLifeCycle Event: User ${eventUserId} ist jetzt offline`);
               pubsub.publish("eventUserLifeCycle", {
                 online: false,
                 eventUserId: parseInt(eventUserId),
@@ -481,12 +502,10 @@ export async function onDisconnectWebsocket(ctx) {
               // Wir haben den Offline-Status bereits aktualisiert, also hier fertig
               return;
             } else if (decodedToken.user.type === "organizer" && decodedToken.role === "organizer") {
-              console.info("[INFO] Organizer mit ID " + decodedToken.user.id + " getrennt (aus user-Feld)");
               return;
             }
           }
           console.warn("[WARN] JWT-Token enthält keine bekannte User-ID für Disconnect");
-          console.warn("[DEBUG] Token Payload (Disconnect):", JSON.stringify(decodedToken));
         } catch (jwtError) {
           console.warn("[WARN] JWT-Token konnte beim Disconnect nicht dekodiert werden:", jwtError);
           console.error(jwtError);
