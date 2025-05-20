@@ -11,7 +11,6 @@ export default {
 
           // Always require eventId filtering to prevent unnecessary message delivery
           if (!args.eventId || !payload.eventId) {
-            console.log("[DEBUG] POLL_ANSWER_LIFE_CYCLE: Filtering out because missing eventId");
             return false;
           }
 
