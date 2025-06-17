@@ -7,8 +7,8 @@ import { closeAllPollResultsByEventId } from "../repository/poll/poll-result-rep
 import mailer from "../lib/email-util";
 
 export default {
-  name: "Close async events (Interval 30 sec)",
-  interval: "*/15 * * * * *",
+  name: "Close async events (every 15 min)",
+  interval: "*/15 * * * *",
   active: true,
   execute: async () => {
     console.info("[cron] Check for async events to close");
