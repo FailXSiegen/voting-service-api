@@ -31,6 +31,17 @@ export default {
     }
     const event = await findOneEventById(poll.eventId);
     const pollRecord = await findOneById(pollId);
+    
+    // Lade die möglichen Antworten für das vollständige Poll-Objekt
+    const possibleAnswersQuery = await query(
+      "SELECT id, content FROM poll_possible_answer WHERE poll_id = ?",
+      [pollId]
+    );
+    const completePoll = {
+      ...pollRecord,
+      possibleAnswers: Array.isArray(possibleAnswersQuery) ? possibleAnswersQuery : []
+    };
+    
     if (args.instantStart) {
       const pollResultId = await createPollDependencies(
         pollRecord,
@@ -40,7 +51,7 @@ export default {
         pubsub.publish(POLL_LIFE_CYCLE, {
           eventId: poll.eventId,
           state: "new",
-          poll: pollRecord,
+          poll: completePoll,
           pollResultId: pollResultId,
         }, { priority: true });
       }
@@ -63,6 +74,17 @@ export default {
       await createPossibleAnswer({ pollId, content: answerInput.content });
     }
     const pollRecord = await findOneById(pollId);
+    
+    // Lade die möglichen Antworten für das vollständige Poll-Objekt
+    const possibleAnswersQuery = await query(
+      "SELECT id, content FROM poll_possible_answer WHERE poll_id = ?",
+      [pollId]
+    );
+    const completePoll = {
+      ...pollRecord,
+      possibleAnswers: Array.isArray(possibleAnswersQuery) ? possibleAnswersQuery : []
+    };
+    
     if (args.instantStart) {
       const pollResultId = await createPollDependencies(
         pollRecord,
@@ -72,7 +94,7 @@ export default {
         pubsub.publish(POLL_LIFE_CYCLE, {
           eventId: poll.eventId,
           state: "new",
-          poll: pollRecord,
+          poll: completePoll,
           pollResultId: pollResultId,
         }, { priority: true });
       }
@@ -84,16 +106,26 @@ export default {
     if (pollRecord === null) {
       throw new Error(`Poll with id ${id} not found!`);
     }
+    
+    // Lade die möglichen Antworten für das vollständige Poll-Objekt
+    const possibleAnswersQuery = await query(
+      "SELECT id, content FROM poll_possible_answer WHERE poll_id = ?",
+      [id]
+    );
+    const completePoll = {
+      ...pollRecord,
+      possibleAnswers: Array.isArray(possibleAnswersQuery) ? possibleAnswersQuery : []
+    };
+    
     const pollResultId = await createPollDependencies(
       pollRecord,
       await findOnlineEventUserByEventId(pollRecord.eventId),
     );
     if (pollResultId) {
-      // Korrektes Format für consistency: poll statt pollRecord
       pubsub.publish(POLL_LIFE_CYCLE, {
         eventId: pollRecord.eventId,
         state: "new",
-        poll: pollRecord, // WICHTIG: poll statt pollRecord verwenden
+        poll: completePoll,
         pollResultId: pollResultId
       }, { priority: true });
     }
@@ -152,7 +184,19 @@ export default {
 async function createPollDependencies(pollRecord, eventUsers) {
   let maxPollVotes = 0;
   if (!eventUsers || !eventUsers?.length > 0) {
-    throw new Error("No event users found!");
+    // Prüfe ob es ein asynchrones Event ist
+    const event = await findOneEventById(pollRecord.eventId);
+    if (!event?.async) {
+      // Nur bei normalen Events einen Fehler werfen
+      throw new Error("No event users found!");
+    }
+    // Bei asynchronen Events: Erstelle poll_result auch ohne EventUser
+    return await createPollResult({
+      pollId: pollRecord.id,
+      type: pollRecord.type,
+      maxVotes: 0,
+      maxVoteCycles: 0,
+    });
   }
   for await (const eventUser of eventUsers) {
     maxPollVotes += eventUser.voteAmount;

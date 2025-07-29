@@ -175,7 +175,7 @@ type Subscription {
   # Notifies about the life cycle of a poll.
   pollLifeCycle(eventId: ID): PollLifeCylclePayload!
   # Notifies about a new event user record.
-  newEventUser: EventUser!
+  newEventUser(eventId: ID!): EventUser!
   # Notifies about event user online states.
   eventUserLifeCycle(eventId: ID): EventUserLifeCyclePayload!
   # Notifies about the count of left poll answers.
@@ -258,6 +258,7 @@ type Poll {
   minVotes: Int
   maxVotes: Int
   allowAbstain: Boolean
+  userVoteCycle(eventUserId: ID!): UserVoteCycleResult
 }
 type OpenPollWithResult {
   id: ID!

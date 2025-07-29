@@ -49,6 +49,13 @@ export async function loginEventUser({
   displayName,
   eventId,
 }) {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[DEBUG] login-event-user.js - Login attempt:', {
+      username,
+      eventId,
+      displayName
+    });
+  }
   const event = await findOneEventById(eventId);
   if (!event) {
     throw new EventNotFoundError();
@@ -81,11 +88,30 @@ export async function loginEventUser({
     if (eventUser === null) {
       throw new Error("Could not create new user!");
     }
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[DEBUG] login-event-user.js - New user created:', {
+        id: eventUser.id,
+        eventId: eventUser.eventId,
+        username: eventUser.username,
+        verified: eventUser.verified
+      });
+    }
 
     // Notify subscribers for new event user.
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[DEBUG] login-event-user.js - Publishing NEW_EVENT_USER event for:', {
+        eventId: eventUser.eventId,
+        userId: eventUser.id,
+        username: eventUser.username,
+        verified: eventUser.verified
+      });
+    }
+    
     pubsub.publish(NEW_EVENT_USER, {
-      ...eventUser,
-    });
+      eventUser: eventUser,
+      eventId: eventUser.eventId
+    }, { priority: true });
   } else {
     let isAuthenticated = false;
     if (eventUser.password === "") {
@@ -109,14 +135,29 @@ export async function loginEventUser({
       await update(eventUser);
     }
 
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[DEBUG] login-event-user.js - Publishing EVENT_USER_LIFE_CYCLE for existing user:', {
+        eventId: eventId,
+        userId: eventUser.id,
+        online: true
+      });
+    }
+    
     pubsub.publish(EVENT_USER_LIFE_CYCLE, {
       online: true,
       eventUserId: eventUser.id,
       eventId: eventId
-    });
+    }, { priority: true });
   }
 
   // Update user as online.
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[DEBUG] login-event-user.js - Updating user online status:', {
+      userId: eventUser.id,
+      eventId: eventUser.eventId,
+      online: true
+    });
+  }
   await update({ id: eventUser.id, online: true });
 
 

@@ -292,11 +292,12 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
           : 0;
 
         // Use insert() instead of raw query for SECRET polls
+        // WICHTIG: Kein Timestamp bei geheimen Wahlen für Anonymität
         await insert("poll_answer", {
           pollResultId: input.pollResultId,
           pollPossibleAnswerId: input.possibleAnswerId,
           answerContent: input.answerContent,
-          createDatetime: getCurrentUnixTimeStamp()
+          createDatetime: null
         });
       }
 

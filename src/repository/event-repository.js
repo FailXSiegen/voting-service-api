@@ -71,6 +71,25 @@ export async function eventIsActive(eventId) {
   return Array.isArray(result) ? result[0].active === 1 : false;
 }
 
+export async function isAsyncEventStarted(eventId) {
+  const result = await query(
+    "SELECT async, scheduled_datetime FROM event WHERE id = ?",
+    [eventId],
+  );
+  if (!Array.isArray(result) || result.length === 0) return true; // Default: allow
+  
+  const event = result[0];
+  
+  // Nur bei asynchronen Events das Startdatum prüfen
+  if (event.async === 1) {
+    const currentTimestamp = getCurrentUnixTimeStamp();
+    return event.scheduledDatetime <= currentTimestamp;
+  }
+  
+  // Normale Events: immer erlauben
+  return true;
+}
+
 export async function findUpcoming(organizerId) {
   const currentTimestamp = getCurrentUnixTimeStamp();
   return await query(

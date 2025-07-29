@@ -216,7 +216,7 @@ export async function onConnectWebsocket(ctx) {
 
                   // Prüfen, ob wir ein PubSub-Event senden sollen
                   if (result && result.shouldPublish === true) {
-                    pubsub.publish("eventUserLifeCycle", {
+                    pubsub.publish(EVENT_USER_LIFE_CYCLE, {
                       online: true,
                       eventUserId: parseInt(eventUserId),
                       eventId: eventUser.eventId
@@ -243,7 +243,7 @@ export async function onConnectWebsocket(ctx) {
 
                     // Prüfen, ob wir ein PubSub-Event senden sollen
                     if (result && result.shouldPublish === true) {
-                      pubsub.publish("eventUserLifeCycle", {
+                      pubsub.publish(EVENT_USER_LIFE_CYCLE, {
                         online: true,
                         eventUserId: parseInt(eventUserId),
                         eventId: eventUser.eventId
@@ -331,7 +331,7 @@ export async function onConnectWebsocket(ctx) {
     }
 
     // Tell subscribers about the successfull connection.
-    pubsub.publish("eventUserLifeCycle", {
+    pubsub.publish(EVENT_USER_LIFE_CYCLE, {
       online: true,
       eventUserId: eventUser.id,
       eventId: eventUser.eventId
@@ -411,7 +411,7 @@ export async function onDisconnectWebsocket(ctx) {
 
           // PubSub-Event senden, wenn nötig
           if (result && result.shouldPublish === true) {
-            pubsub.publish("eventUserLifeCycle", {
+            pubsub.publish(EVENT_USER_LIFE_CYCLE, {
               online: false,
               eventUserId: eventUserId,
               eventId: eventUserLookup.eventId
@@ -459,7 +459,7 @@ export async function onDisconnectWebsocket(ctx) {
 
             // Event User Lifecycle Event nur auslösen, wenn sich der Status geändert hat
             if (result && result.shouldPublish === true) {
-              pubsub.publish("eventUserLifeCycle", {
+              pubsub.publish(EVENT_USER_LIFE_CYCLE, {
                 online: false,
                 eventUserId: parseInt(eventUserId),
                 eventId: eventUserLookup.eventId
@@ -488,7 +488,7 @@ export async function onDisconnectWebsocket(ctx) {
 
               // Event User Lifecycle Event nur auslösen, wenn sich der Status geändert hat
               if (result && result.shouldPublish === true) {
-                  pubsub.publish("eventUserLifeCycle", {
+                  pubsub.publish(EVENT_USER_LIFE_CYCLE, {
                   online: false,
                   eventUserId: parseInt(eventUserId),
                   eventId: eventUserLookup.eventId
@@ -556,7 +556,7 @@ export async function onDisconnectWebsocket(ctx) {
     if (tokenRecord.eventUserId) {
       // Need to fetch the event ID for this user first
       const tokenEventUser = await findEventUserById(parseInt(tokenRecord.eventUserId));
-      pubsub.publish("eventUserLifeCycle", {
+      pubsub.publish(EVENT_USER_LIFE_CYCLE, {
         online: false,
         eventUserId: tokenRecord.eventUserId,
         eventId: tokenEventUser ? tokenEventUser.eventId : null

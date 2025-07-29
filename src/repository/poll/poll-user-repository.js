@@ -58,13 +58,19 @@ export async function createPollUserWithPollResultId(
   eventUserId,
 ) {
   const createDatetime = getCurrentUnixTimeStamp();
+  console.log(`[DEBUG:CREATE_POLL_USER] Starting for pollResultId=${pollResultId}, eventUserId=${eventUserId}`);
+  
   const userInformation = await query(
     `
   SELECT event_user.public_name, event_user.username FROM event_user WHERE event_user.id = ? AND event_user.verified = 1 AND event_user.allow_to_vote = 1
   `,
     [eventUserId],
   );
-  if (Array.isArray(userInformation)) {
+  
+  console.log(`[DEBUG:CREATE_POLL_USER] Query result:`, userInformation);
+  console.log(`[DEBUG:CREATE_POLL_USER] userInformation[0]:`, userInformation?.[0]);
+  
+  if (Array.isArray(userInformation) && userInformation.length > 0) {
     await query(
       `
     INSERT INTO poll_user (event_user_id, public_name, username, poll_id, create_datetime)

@@ -101,6 +101,134 @@ export async function findClosedPollResults(eventId, page, pageSize) {
  * @param {number} pollResultId - ID des Abstimmungsergebnisses
  * @returns {Promise<Object|null>} - Informationen zu verbleibenden Stimmen oder null wenn keine mehr übrig
  */
+/**
+ * Optimized version for async events that skips auto-closure logic
+ * This prevents async polls from being closed when all current users have voted
+ */
+export async function findLeftAnswersCountForAsync(pollResultId) {
+  try {
+    // Start transaction to ensure consistent read
+    await query("START TRANSACTION");
+
+    try {
+      // Fetch poll_result info with lock
+      const pollInfo = await query(
+        `SELECT id, max_votes AS maxVotes, max_vote_cycles AS maxVoteCycles, poll_id AS pollId, closed
+         FROM poll_result 
+         WHERE id = ? 
+         FOR UPDATE`,
+        [pollResultId]
+      );
+
+      if (!Array.isArray(pollInfo) || pollInfo.length === 0) {
+        await query("COMMIT");
+        return null;
+      }
+
+      const maxVotes = parseInt(pollInfo[0].maxVotes, 10) || 0;
+      const maxVoteCycles = parseInt(pollInfo[0].maxVoteCycles, 10) || 0;
+      const pollId = pollInfo[0].pollId;
+      const isClosed = pollInfo[0].closed === 1;
+
+      // If poll is already marked as closed, return null
+      if (isClosed) {
+        await query("COMMIT");
+        return null;
+      }
+
+      // Count total answers (votes cast)
+      const answerCountQuery = await query(
+        `SELECT COUNT(*) AS total FROM poll_answer WHERE poll_result_id = ?`,
+        [pollResultId]
+      );
+
+      const totalAnswers = Array.isArray(answerCountQuery) && answerCountQuery.length > 0
+        ? parseInt(answerCountQuery[0].total, 10) || 0
+        : 0;
+
+      // Get total vote cycles used
+      const voteCycleQuery = await query(
+        `SELECT COALESCE(SUM(vote_cycle), 0) AS totalCycles,
+                COALESCE(SUM(version), 0) AS totalVersions
+         FROM poll_user_voted
+         WHERE poll_result_id = ?`,
+        [pollResultId]
+      );
+
+      const totalVoteCycles = Array.isArray(voteCycleQuery) && voteCycleQuery.length > 0
+        ? parseInt(voteCycleQuery[0].totalCycles, 10) || 0
+        : 0;
+
+      const totalVersions = Array.isArray(voteCycleQuery) && voteCycleQuery.length > 0
+        ? parseInt(voteCycleQuery[0].totalVersions, 10) || 0
+        : 0;
+
+      const effectiveVoteCycles = Math.max(totalVoteCycles, totalVersions);
+      
+      // Count users who have voted
+      const votedUsersQuery = await query(
+        `SELECT COUNT(DISTINCT id) AS total FROM poll_user_voted WHERE poll_result_id = ?`,
+        [pollResultId]
+      );
+
+      const votedUsers = Array.isArray(votedUsersQuery) && votedUsersQuery.length > 0
+        ? parseInt(votedUsersQuery[0].total, 10) || 0
+        : 0;
+
+      // Count eligible users from poll_user table
+      const eligibleUsersQuery = await query(
+        `SELECT COUNT(DISTINCT poll_user.event_user_id) AS total
+         FROM poll_user
+         WHERE poll_user.poll_id = ?`,
+        [pollId]
+      );
+
+      const eligibleUsers = Array.isArray(eligibleUsersQuery) && eligibleUsersQuery.length > 0
+        ? parseInt(eligibleUsersQuery[0].total, 10) || 0
+        : 0;
+
+      // Count users who have completed all their votes
+      const usersWithMaxVotesQuery = await query(
+        `SELECT COUNT(*) AS completedUsers FROM poll_user_voted puv
+         JOIN event_user eu ON puv.event_user_id = eu.id
+         WHERE puv.poll_result_id = ? AND eu.vote_amount > 0 AND puv.vote_cycle >= eu.vote_amount`,
+        [pollResultId]
+      );
+
+      const usersCompletedVoting = Array.isArray(usersWithMaxVotesQuery) && usersWithMaxVotesQuery.length > 0
+        ? parseInt(usersWithMaxVotesQuery[0].completedUsers, 10) || 0
+        : 0;
+
+      // WICHTIG: Für async Events - KEINE Auto-Close-Logik!
+      // Neue User können später noch dazukommen
+
+      await query("COMMIT");
+      return {
+        pollResultId,
+        maxVotes,
+        maxVoteCycles,
+        pollUserVoteCycles: effectiveVoteCycles,
+        pollUserVotedCount: votedUsers,
+        pollAnswersCount: totalAnswers,
+        pollUserCount: eligibleUsers,
+        usersCompletedVoting: usersCompletedVoting
+      };
+    } catch (innerError) {
+      console.error(`[ERROR:LEFT_ANSWERS_ASYNC] Inner transaction error:`, innerError);
+      await query("ROLLBACK");
+      throw innerError;
+    }
+  } catch (error) {
+    console.error(`[ERROR:LEFT_ANSWERS_ASYNC] Error in findLeftAnswersCountForAsync:`, error);
+    try {
+      await query("ROLLBACK");
+    } catch (e) {
+      // Ignore rollback errors
+    }
+    return null;
+  }
+}
+
 export async function findLeftAnswersCount(pollResultId) {
   try {
     // Start transaction to ensure consistent read

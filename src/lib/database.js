@@ -3,11 +3,11 @@ import humps from "humps";
 // Wir entfernen den child_process Import, da wir keine Server-Admin-Befehle ausführen werden
 
 const config = {
-  host: process.env.DATABSE_HOST,
-  port: process.env.DATABSE_PORT,
-  user: process.env.DATABSE_USER,
-  password: process.env.DATABSE_PASSWORD,
-  database: process.env.DATABSE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  user: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  database: process.env.DATABASE_NAME,
   connectionLimit: 800,
   trace: process.env.ENABLE_DEBUG === "1",
   acquireTimeout: 30000,   // 30 Sekunden Timeout für Verbindungsaufbau

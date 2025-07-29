@@ -8,8 +8,19 @@ export default async function (req, res, next) {
     return next();
   }
 
-  // Only apply to GraphQL endpoint
-  if (req.url !== process.env.GRAPHQL_ENDPOINT) {
+  // Skip authentication for public endpoints
+  const publicEndpoints = [
+    '/login',
+    '/login/refresh', 
+    '/login/activate-event-user-auth-token',
+    '/login/event-user-auth-token',
+    '/organizer/validate-hash',
+    '/organizer/password-forgot',
+    '/organizer/create',
+    '/event/verify-slug'
+  ];
+  
+  if (publicEndpoints.includes(req.url) || req.url !== process.env.GRAPHQL_ENDPOINT) {
     return next();
   }
 
@@ -48,6 +59,10 @@ export default async function (req, res, next) {
         body.query.includes('staticContentsByPage') ||
         body.query.includes('GetFaqContent') ||
         body.operationName === 'GetFaqContent' ||
+        // Translations queries
+        body.query.includes('translations') ||
+        body.query.includes('GetTranslations') ||
+        body.operationName === 'GetTranslations' ||
         // WebSocket keep-alive query
         body.query.includes('__typename') ||
         body.operationName === 'KeepAlive'

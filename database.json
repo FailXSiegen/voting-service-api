@@ -2,38 +2,38 @@
     "production": {
         "driver": "mysql",
         "user": {
-            "ENV": "DATABSE_USER"
+            "ENV": "DATABASE_USER"
         },
         "password": {
-            "ENV": "DATABSE_PASSWORD"
+            "ENV": "DATABASE_PASSWORD"
         },
         "host": {
-            "ENV": "DATABSE_HOST"
+            "ENV": "DATABASE_HOST"
         },
         "database": {
-            "ENV": "DATABSE_NAME"
+            "ENV": "DATABASE_NAME"
         },
         "port": {
-            "ENV": "DATABSE_PORT"
+            "ENV": "DATABASE_PORT"
         },
         "multipleStatements": true
     },
     "development": {
         "driver": "mysql",
         "user": {
-            "ENV": "DATABSE_USER"
+            "ENV": "DATABASE_USER"
         },
         "password": {
-            "ENV": "DATABSE_PASSWORD"
+            "ENV": "DATABASE_PASSWORD"
         },
         "host": {
-            "ENV": "DATABSE_HOST"
+            "ENV": "DATABASE_HOST"
         },
         "database": {
-            "ENV": "DATABSE_NAME"
+            "ENV": "DATABASE_NAME"
         },
         "port": {
-            "ENV": "DATABSE_PORT"
+            "ENV": "DATABASE_PORT"
         },
         "multipleStatements": true
     },

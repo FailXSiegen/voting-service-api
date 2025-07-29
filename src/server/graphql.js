@@ -4,6 +4,8 @@ import resolvers from "../graphql/resolvers";
 import { createYoga, useExtendContext, createPubSub } from "graphql-yoga";
 import ThrottledPubSub from "../lib/pubsub-throttle";
 
+const isDev = process.env.NODE_ENV === 'development';
+
 // Create the base PubSub instance
 const basePubSub = createPubSub();
 
@@ -24,10 +26,19 @@ export const yoga = createYoga({
   schema,
   port: process.env.APP_PORT,
   hostname: process.env.APP_DOMAIN,
-  logging: true,
+  logging: isDev ? {
+    debug: (...args) => console.log('[DEBUG] GraphQL Yoga:', ...args),
+    info: (...args) => console.log('[INFO] GraphQL Yoga:', ...args),
+    warn: (...args) => console.warn('[WARN] GraphQL Yoga:', ...args),
+    error: (...args) => console.error('[ERROR] GraphQL Yoga:', ...args),
+  } : false,
   maskedErrors: false,
   // Hier definieren wir eine Funktion, die für jede Anfrage den Kontext erstellt
   context: async ({ request }) => {
+    if (isDev) {
+      console.log('[DEBUG] graphql.js - Creating context for request');
+    }
+    
     // Basis-Kontext
     const baseContext = { pubsub };
 
@@ -41,6 +52,9 @@ export const yoga = createYoga({
         const authHeader = request.headers.get('authorization');
         if (authHeader && authHeader.startsWith('Bearer ')) {
           token = authHeader.split(' ')[1];
+          if (isDev) {
+            console.log('[DEBUG] graphql.js - Found token in HTTP headers');
+          }
         }
       } else if (request && request.headers && typeof request.headers === 'object') {
         // Fallback für WebSocket-Anfragen, die eventuell ein anderes headers-Format haben
@@ -49,12 +63,18 @@ export const yoga = createYoga({
                           '';
         if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
           token = authHeader.split(' ')[1];
+          if (isDev) {
+            console.log('[DEBUG] graphql.js - Found token in WebSocket headers');
+          }
         }
       } else if (request && request.connectionParams) {
         // Direkte Unterstützung für WebSocket connectionParams
         const authHeader = request.connectionParams.authorization || '';
         if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
           token = authHeader.split(' ')[1];
+          if (isDev) {
+            console.log('[DEBUG] graphql.js - Found token in WebSocket connectionParams');
+          }
         }
       }
       
@@ -90,13 +110,24 @@ export const yoga = createYoga({
 
             // Füge den Benutzer zum Kontext hinzu
             baseContext.user = user;
+            if (isDev) {
+              console.log('[DEBUG] graphql.js - User context created:', {
+                type: user.type,
+                id: user.id,
+                eventId: user.eventUser?.eventId || user.organizer?.id
+              });
+            }
           }
         } catch (err) {
-          console.error('Fehler beim Dekodieren des JWT-Tokens im GraphQL-Kontext:', err);
+          if (isDev) {
+            console.error('[ERROR] graphql.js - Fehler beim Dekodieren des JWT-Tokens im GraphQL-Kontext:', err.message);
+          }
         }
       }
     } catch (error) {
-      console.error('Fehler beim Erstellen des GraphQL-Kontexts:', error);
+      if (isDev) {
+        console.error('[ERROR] graphql.js - Fehler beim Erstellen des GraphQL-Kontexts:', error.message);
+      }
     }
 
     return baseContext;

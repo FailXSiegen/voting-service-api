@@ -5,11 +5,11 @@ const humps = require("humps");
 const argon2 = require("argon2");
 
 const config = {
-  host: process.env.DATABSE_HOST,
-  port: process.env.DATABSE_PORT,
-  user: process.env.DATABSE_USER,
-  password: process.env.DATABSE_PASSWORD,
-  database: process.env.DATABSE_NAME,
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATABASE_PORT,
+  user: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  database: process.env.DATABASE_NAME,
   connectionLimit: 100,
   trace: process.env.ENABLE_DEBUG === "1",
 };
@@ -27,16 +27,20 @@ const config = {
 
   // Validate organizer object.
   if (organizer.username === null) {
-    console.error('Missing argument value of "--email".');
+    console.error('Missing argument value of "--username".');
+    process.exit(1);
   }
   if (organizer.email === null) {
-    console.error('Missing argument value of "--username".');
+    console.error('Missing argument value of "--email".');
+    process.exit(1);
   }
-  if (organizer.password === null) {
+  if (organizer.password === null || organizer.password === "") {
     console.error('Missing argument value of "--password".');
+    process.exit(1);
   }
   if (organizer.publicName === null) {
     console.error('Missing argument value of "--public-name".');
+    process.exit(1);
   }
   organizer.password = await argon2.hash(organizer.password);
   organizer.confirmedEmail = true;

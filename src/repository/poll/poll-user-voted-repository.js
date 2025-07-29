@@ -106,13 +106,17 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
         console.warn(`[WARN:VOTE_CYCLE] voteCycle and version are out of sync in locked record! voteCycle=${currentVoteCycle}, version=${currentVersion}`);
       }
 
-      // WICHTIG: Wir prüfen nur, ob der Benutzer noch Stimmen übrig hat, erhöhen aber noch NICHT
+      // WICHTIGER FIX: Wir prüfen nur, ob der Benutzer noch Stimmen übrig hat, erhöhen aber noch NICHT
       // den Vote-Cycle! Dies passiert erst, nachdem die eigentliche Stimme erfolgreich abgegeben wurde.
       // HINWEIS: Da wir jetzt mit vote_cycle=0 starten, bedeutet vote_cycle = 0, dass noch keine Stimme abgegeben wurde!
+      console.log(`[DEBUG:ALLOW_VOTE] Benutzer ${eventUserId}: currentVoteCycle=${currentVoteCycle}, maxVotes=${maxVotes}`);
+      
       if (currentVoteCycle < maxVotes) {
+        console.log(`[DEBUG:ALLOW_VOTE] ✅ ERLAUBT: currentVoteCycle=${currentVoteCycle} < maxVotes=${maxVotes}`);
         await query("COMMIT");
         return true;
       } else {
+        console.log(`[DEBUG:ALLOW_VOTE] ❌ ABGELEHNT: currentVoteCycle=${currentVoteCycle} >= maxVotes=${maxVotes}`);
         await query("COMMIT");
         console.warn(`[WARN:VOTE_CYCLE] Benutzer ${eventUserId} hat Stimmenlimit erreicht: voteCycle=${currentVoteCycle}, maxVotes=${maxVotes}`);
         return false;
@@ -220,8 +224,9 @@ export async function createPollUserVoted(
       // damit der Zyklus erst nach Abgabe der ersten Stimme erhöht wird
       const parsedVoteCycle = parseInt(voteCycle, 10) || 0;
 
-      // Sicherstellen, dass voteCycle nicht höher als erlaubt ist und 0 für den initalen Zustand
-      const finalVoteCycle = Math.min(parsedVoteCycle, maxVotes);
+      // WICHTIGER FIX: Für die initiale Erstellung setzen wir immer 0,
+      // unabhängig vom übergebenen voteCycle-Parameter
+      const finalVoteCycle = 0;
 
       if (finalVoteCycle !== parsedVoteCycle) {
         console.warn(`[WARN] createPollUserVoted: voteCycle auf ${finalVoteCycle} (max) statt ${parsedVoteCycle} begrenzt`);
@@ -379,7 +384,10 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
         console.warn(`[WARN:INC_VOTE_CYCLE] voteCycle and version are out of sync in locked record! voteCycle=${currentVoteCycle}, version=${currentVersion}`);
       }
 
-      // Prüfen, ob wir durch die Erhöhung das Maximum überschreiten würden
+      // WICHTIGER FIX: Prüfen, ob wir durch die Erhöhung das Maximum überschreiten würden
+      // Da wir mit 0 beginnen, sollte nach der Erhöhung der Wert <= maxVotes sein
+      console.log(`[DEBUG:INC_VOTE_CYCLE] Benutzer ${eventUserId}: currentVoteCycle=${currentVoteCycle}, incrementBy=${incrementBy}, maxVotes=${maxVotes}`);
+      
       if (currentVoteCycle + incrementBy <= maxVotes) {
         try {
           // WICHTIGER FIX: Entferne die Bedingung für vote_cycle + ? <= ?, da diese zu restriktiv sein könnte

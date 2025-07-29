@@ -96,14 +96,25 @@ export async function existsPollUserVoted(
   input = {}
 ) {
   try {
+    console.log(`[DEBUG:EXISTS_POLL_USER_VOTED] Starting check for user ${eventUserId}, pollResult ${pollResultId}, multiVote ${multiVote}`);
+    
     // Prüfe, ob der Benutzer bereits in dieser Abstimmung abgestimmt hat
     const userExists = await existInCurrentVote(pollResultId, eventUserId);
+    console.log(`[DEBUG:EXISTS_POLL_USER_VOTED] userExists result:`, userExists);
+    
     // Benutzerinformationen abrufen
     const eventUser = await findOneById(eventUserId);
     if (!eventUser) {
       console.error(`[ERROR] existsPollUserVoted: Benutzer mit ID ${eventUserId} nicht gefunden`);
       return false;
     }
+    
+    console.log(`[DEBUG:EXISTS_POLL_USER_VOTED] eventUser:`, {
+      id: eventUser.id,
+      verified: eventUser.verified,
+      allowToVote: eventUser.allowToVote,
+      voteAmount: eventUser.voteAmount
+    });
 
     // Sicherstellen, dass der Benutzer überhaupt abstimmen darf
     if (!eventUser.verified || !eventUser.allowToVote) {
@@ -120,38 +131,53 @@ export async function existsPollUserVoted(
 
     // Neuen Eintrag erstellen, wenn es der erste ist
     if (!userExists) {
+      console.log(`[DEBUG:EXISTS_POLL_USER_VOTED] User ${eventUserId} hat noch keinen poll_user_voted Eintrag - erstelle neuen`);
+      
       // Ein erster Vote-Cycle von 1 ist der Standardwert für neue Einträge
       // Falls multiVote aktiviert ist und der Client hat mehr angefordert, kann der Wert erhöht werden
 
-      // Das ist der Standardwert für neue Einträge
+      // WICHTIGER FIX: Setze immer 0 als initialen Wert
+      // Das ist der Standardwert für neue Einträge - wir starten immer bei 0
       let voteCycle = 0;
 
-      // Wenn multiVote aktiv ist, können wir einen höheren Wert setzen, aber maximal bis maxVotes
-      if (multiVote) {
-        // Der Client sendet die gewünschte Anzahl der Stimmen, aber wir begrenzen auf maxVotes
-        const requestedVotes = input?.voteCycle || 1;
-        voteCycle = Math.min(maxVotes, Math.max(1, requestedVotes));
-      }
+      // Für MultiVote und SingleVote verwenden wir konsistent den gleichen Ansatz:
+      // Der vote_cycle wird erst NACH erfolgreicher Stimmabgabe erhöht
+      console.log(`[DEBUG:EXISTS_POLL_USER_VOTED] Neuer Eintrag für User ${eventUserId} mit voteCycle=0, maxVotes=${maxVotes}, multiVote=${multiVote}`);
 
       // Repository-Funktion verwenden
       await createPollUserVoted(pollResultId, eventUserId, voteCycle);
+      console.log(`[DEBUG:EXISTS_POLL_USER_VOTED] poll_user_voted Eintrag erstellt für User ${eventUserId}`);
 
-      // Bei MultiVote: Wenn genau die maximale Anzahl von Stimmen angefordert wurde, erlauben wir die Stimmabgabe
+      // KORRIGIERTE MultiVote-Logik: Behandle den Edge Case für Nutzer mit genau 1 Stimme
       if (multiVote) {
+        // Spezielle Behandlung für Nutzer mit genau 1 Stimme in MultiVote-Modus
+        if (maxVotes === 1) {
+          // Bei Nutzern mit nur 1 Stimme: Erlaube die erste Stimme (voteCycle=0)
+          console.log(`[DEBUG:MULTIVOTE] User ${eventUserId} hat nur 1 Stimme - erlaube erste Abstimmung`);
+          return true;
+        }
+        
+        // Für Nutzer mit mehreren Stimmen: Normale MultiVote-Logik
         if (voteCycle === maxVotes) {
           return true; // Die letzte Stimme darf gezählt werden
         } else if (voteCycle > 0) {
           return true; // Auch Teilabstimmungen sind erlaubt
         } else {
-          return false;
+          // Bei voteCycle=0 und maxVotes>1: Erste MultiVote-Runde erlauben
+          console.log(`[DEBUG:MULTIVOTE] User ${eventUserId} beginnt MultiVote (voteCycle=${voteCycle}, maxVotes=${maxVotes})`);
+          return true;
         }
       }
 
+      console.log(`[DEBUG:EXISTS_POLL_USER_VOTED] Returning TRUE for new user ${eventUserId} (single vote mode)`);
       return true; // Bei normalem Modus: Erste Stimme erlauben
     }
 
+    console.log(`[DEBUG:EXISTS_POLL_USER_VOTED] User ${eventUserId} hat bereits poll_user_voted Eintrag - prüfe allowToCreateNewVote`);
     // Existierenden Eintrag aktualisieren - hier verwenden wir die Repository-Funktion
-    return await allowToCreateNewVote(pollResultId, eventUserId);
+    const result = await allowToCreateNewVote(pollResultId, eventUserId);
+    console.log(`[DEBUG:EXISTS_POLL_USER_VOTED] allowToCreateNewVote result for user ${eventUserId}:`, result);
+    return result;
   } catch (error) {
     console.error(`[ERROR] existsPollUserVoted: Fehler bei der Prüfung:`, error);
     return false;

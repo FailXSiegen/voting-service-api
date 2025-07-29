@@ -9,7 +9,8 @@ export default {
         host: process.env.MAIL_HOST,
         port: process.env.MAIL_PORT,
         pool: process.env.MAIL_USE_POOL === "1",
-        secure: process.env.MAIL_USE_TLS === "1",
+        secure: process.env.MAIL_PORT === "465", // SSL for port 465, STARTTLS for 587
+        requireTLS: process.env.MAIL_USE_TLS === "1",
       };
 
       // Add auth if needed.

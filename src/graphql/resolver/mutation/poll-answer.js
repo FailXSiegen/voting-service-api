@@ -1,6 +1,7 @@
 import { insertPollSubmitAnswer } from "../../../repository/poll/poll-answer-repository";
 import {
   findLeftAnswersCount,
+  findLeftAnswersCountForAsync,
   closePollResult,
   findOneByPollId,
 } from "../../../repository/poll/poll-result-repository";
@@ -115,10 +116,21 @@ async function publishPollClosedEvent(pollResultId, eventId, pollId = null) {
 }
 
 
-async function publishPollLifeCycle(pollResultId) {
-  // Close the poll and verify it was closed successfully
-  await closePollResult(pollResultId);
+/**
+ * Helper function to check if an event is asynchronous
+ */
+async function isAsyncEvent(eventId) {
+  const eventQuery = await query(
+    "SELECT async FROM event WHERE id = ?",
+    [eventId]
+  );
+  
+  return Array.isArray(eventQuery) && 
+    eventQuery.length > 0 && 
+    eventQuery[0].async === 1;
+}
 
+async function publishPollLifeCycle(pollResultId) {
   const eventId = await findEventIdByPollResultId(pollResultId);
   if (!eventId) {
     console.warn(
@@ -128,12 +140,21 @@ async function publishPollLifeCycle(pollResultId) {
     return;
   }
 
+  // Check if this is an async event - don't auto-close async event polls
+  if (await isAsyncEvent(eventId)) {
+    console.info(`[INFO:POLL_LIFECYCLE] Skipping auto-close for async event ${eventId}, poll ${pollResultId}`);
+    return;
+  }
+
+  // Close the poll and verify it was closed successfully (only for synchronous events)
+  await closePollResult(pollResultId);
   await publishPollClosedEvent(pollResultId, eventId);
 }
 
 export default {
   // todo refactor + document the logic here.
   createPollSubmitAnswer: async (_, { input }) => {
+    console.log(`[DEBUG:POLL_ANSWER] Starting createPollSubmitAnswer for user ${input.eventUserId}, poll ${input.pollId}`);
 
     const cloneAnswerObject = {};
     const pollId = input.pollId;
@@ -142,12 +163,14 @@ export default {
       console.error(`[DEBUG:POLL_ANSWER] Error: Missing poll result for pollId ${input.pollId}`);
       throw Error("Missing poll result record!");
     }
+    console.log(`[DEBUG:POLL_ANSWER] Found pollResult:`, pollResult);
 
     const eventId = await findEventIdByPollResultId(pollResult.id);
     if (!eventId) {
       console.error(`[DEBUG:POLL_ANSWER] Error: Missing event for pollResultId ${pollResult.id}`);
       throw Error("Missing related event record!");
     }
+
 
     input.pollResultId = pollResult.id; // fixme This is a quick fix because the following code relies on the now missing input.pollResultId.
     Object.assign(cloneAnswerObject, input);
@@ -176,8 +199,17 @@ export default {
       cloneAnswerObject.answerItemLength === cloneAnswerObject.answerItemCount
     ) {
       ;
-      leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);
+      // Use async-optimized version for async events
+      const isAsync = await isAsyncEvent(eventId);
+      if (isAsync) {
+        leftAnswersDataSet = await findLeftAnswersCountForAsync(pollResult.id);
+        console.log(`[DEBUG:POLL_ANSWER] findLeftAnswersCountForAsync returned:`, leftAnswersDataSet);
+      } else {
+        leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);
+        console.log(`[DEBUG:POLL_ANSWER] findLeftAnswersCount returned:`, leftAnswersDataSet);
+      }
       if (leftAnswersDataSet === null) {
+        console.log(`[DEBUG:POLL_ANSWER] leftAnswersDataSet is null - poll may be closed or at capacity`);
 
         // First check if the poll is already closed
         const pollStatusCheck = await query(
@@ -271,15 +303,18 @@ export default {
         return false;
       }
 
+      console.log(`[DEBUG:POLL_ANSWER] Calling existsPollUserVoted for user ${input.eventUserId}, multiVote=${multiVote}`);
       allowToVote = await existsPollUserVoted(
         pollResult.id,
         input.eventUserId,
         multiVote,
         input // Übergebe den gesamten input, damit voteCycle verfügbar ist
       );
+      console.log(`[DEBUG:POLL_ANSWER] existsPollUserVoted returned: ${allowToVote}`);
 
     }
     if (allowToVote) {
+      console.log(`[DEBUG:POLL_ANSWER] Calling createPollUserIfNeeded with pollResultId=${pollResult.id}, eventUserId=${input.eventUserId}`);
       await createPollUserIfNeeded(pollResult.id, input.eventUserId);
       let actualAnswerCount = 0;
       await query("START TRANSACTION", [], { throwError: true });
@@ -567,6 +602,14 @@ export default {
           console.warn(`[DEBUG:POLL_ANSWER] Single vote insertion failed`);
         }
 
+        // If this is the last answer in ballot, update poll_user_voted
+        if (isLastAnswerInBallot) {
+          const incrementedVoteCycle = await incrementVoteCycleAfterVote(pollResult.id, input.eventUserId);
+          if (!incrementedVoteCycle) {
+            console.warn(`[DEBUG:POLL_ANSWER] Increment vote_cycle for single vote failed`);
+          }
+        }
+
         // Verify the poll_user_voted table was updated for single vote too
         const verifyVoteCycleQuery = await query(
           `SELECT vote_cycle AS voteCycle FROM poll_user_voted 
@@ -579,14 +622,13 @@ export default {
           : 0;
 
       }
-      // isLastAnswerInBallot is already defined above
-      if (isLastAnswerInBallot) {
-        const incrementedVoteCycle = await incrementVoteCycleAfterVote(pollResult.id, input.eventUserId);
-        if (!incrementedVoteCycle) {
-          console.warn(`[DEBUG:POLL_ANSWER] Increment vote_cycle for single vote after insertPollSubmitAnswer failed`);
-        }
+      
+      // Use async-optimized version for async events
+      if (await isAsyncEvent(eventId)) {
+        leftAnswersDataSet = await findLeftAnswersCountForAsync(pollResult.id);
+      } else {
+        leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);
       }
-      leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);
 
       if (isLastAnswerInBallot) {
         // Again check if there are votes left.
@@ -619,7 +661,7 @@ export default {
         }
       }
     } else {
-      console.warn(`[DEBUG:POLL_ANSWER] Vote NOT allowed for user ${input.eventUserId}`);
+      console.warn(`[DEBUG:POLL_ANSWER] Vote NOT allowed for user ${input.eventUserId}, allowToVote=${allowToVote}`);
     }
 
     if (leftAnswersDataSet) {
@@ -694,10 +736,14 @@ export default {
         : 0;
 
 
-      // Only close the poll if ALL eligible users have voted
+      // Only close the poll if ALL eligible users have voted (and it's not an async event)
       if (totalEligibleUsers > 0 && usersCompletedVoting >= totalEligibleUsers) {
-        console.info(`[INFO:POLL_ANSWER] All users have completed voting, closing poll ${pollResult.id} in event ${eventId}`);
-        await publishPollClosedEvent(pollResult.id, eventId, pollId);
+        if (await isAsyncEvent(eventId)) {
+          console.info(`[INFO:POLL_ANSWER] All users completed voting in async event ${eventId}, but NOT closing poll ${pollResult.id}`);
+        } else {
+          console.info(`[INFO:POLL_ANSWER] All users have completed voting, closing poll ${pollResult.id} in event ${eventId}`);
+          await publishPollClosedEvent(pollResult.id, eventId, pollId);
+        }
       }
 
       return true;
@@ -735,6 +781,7 @@ export default {
       console.error(`[ERROR:BULK_VOTE][${executionId}] Missing event for pollResultId ${pollResult.id}`);
       throw Error("Missing related event record!");
     }
+
 
     // Check if poll is already closed
     const pollStatusCheck = await query(
@@ -1078,9 +1125,13 @@ export default {
             ? parseInt(votedUsersQuery[0].votedUsers, 10) || 0
             : 0;
 
-          // Only close the poll if ALL eligible users have voted
+          // Only close the poll if ALL eligible users have voted (and it's not an async event)
           if (totalEligibleUsers > 0 && usersCompletedVoting >= totalEligibleUsers) {
-            await publishPollClosedEvent(pollResult.id, eventId, pollId);
+            if (await isAsyncEvent(eventId)) {
+              console.info(`[INFO:BULK_VOTE] All users completed voting in async event ${eventId}, but NOT closing poll ${pollResult.id}`);
+            } else {
+              await publishPollClosedEvent(pollResult.id, eventId, pollId);
+            }
           }
         }
       } else {
