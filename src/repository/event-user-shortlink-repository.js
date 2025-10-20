@@ -1,4 +1,4 @@
-import { query, insert } from "./../lib/database";
+import { query, insert, baseQuery } from "./../lib/database";
 import { getCurrentUnixTimeStamp } from "../lib/time-stamp";
 
 /**
@@ -66,4 +66,17 @@ export async function findEventUsersWithShortlinks(eventId) {
     [eventId, eventId],
   );
   return Array.isArray(result) ? result : [];
+}
+
+/**
+ * Delete all shortlinks for a specific event
+ * @param {number} eventId
+ * @returns {Promise<boolean>}
+ */
+export async function deleteAllByEventId(eventId) {
+  const result = await baseQuery(
+    "DELETE FROM event_user_shortlink WHERE event_id = ?",
+    [eventId],
+  );
+  return result !== null;
 }

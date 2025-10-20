@@ -13,7 +13,8 @@
     "db:restore": "node scripts/restore-db.js",
     "lint": "eslint --ext .js,.vue --ignore-path .gitignore --fix src",
     "format": "prettier src --write",
-    "setup-testdata": "babel-node scripts/test-setup.js"
+    "setup-testdata": "babel-node scripts/test-setup.js",
+    "clear-shortlinks": "babel-node src/scripts/clear-shortlinks.js"
   },
   "keywords": [],
   "author": "Wolf Utz",
