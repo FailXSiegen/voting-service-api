@@ -5,8 +5,11 @@
  * Usage: npm run clear-shortlinks -- <eventId>
  */
 
-import { deleteAllByEventId } from "../repository/event-user-shortlink-repository.js";
-import { findById as findEventById } from "../repository/event-repository.js";
+// Load environment variables first
+require("dotenv").config();
+
+const { deleteAllByEventId } = require("../repository/event-user-shortlink-repository");
+const { findById: findEventById } = require("../repository/event-repository");
 
 async function clearShortlinks() {
   const eventId = process.argv[2];
