@@ -61,9 +61,9 @@ export async function findEventUsersWithShortlinks(eventId) {
       eu.last_activity,
       eus.short_code
     FROM event_user eu
-    LEFT JOIN event_user_shortlink eus ON eu.id = eus.event_user_id
+    LEFT JOIN event_user_shortlink eus ON eu.id = eus.event_user_id AND eus.event_id = ?
     WHERE eu.event_id = ? AND eu.verified = 1`,
-    [eventId],
+    [eventId, eventId],
   );
   return Array.isArray(result) ? result : [];
 }
