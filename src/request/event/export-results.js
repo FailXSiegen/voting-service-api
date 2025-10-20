@@ -4,6 +4,13 @@ import {
   getPollResultsDetails,
   getEventUsersWithVoteCount,
 } from "../../repository/poll/poll-result-repository";
+import {
+  findEventUsersWithShortlinks,
+  create as createShortlink,
+  findByEventUserId,
+} from "../../repository/event-user-shortlink-repository";
+import { findById as findEventById } from "../../repository/event-repository";
+import { generateUniqueShortCode } from "../../lib/shortlink-generator";
 import * as fs from "fs";
 import * as fastcsv from "fast-csv";
 import path from "path";
@@ -28,6 +35,9 @@ export default async function downloadPollResultCsv(req, res) {
       case "pollEventUsersVoted":
         responseData = await getEventUsersWithVoteCount(data.eventId);
         break;
+      case "eventUsersWithShortlinks":
+        responseData = await getEventUsersWithShortlinks(data.eventId);
+        break;
     }
     exportFile(relPath, absPath, responseData, res);
   } catch (error) {
@@ -38,6 +48,47 @@ export default async function downloadPollResultCsv(req, res) {
       }),
     );
   }
+}
+
+async function getEventUsersWithShortlinks(eventId) {
+  const event = await findEventById(eventId);
+  if (!event) {
+    throw new Error("Event not found");
+  }
+
+  const eventUsers = await findEventUsersWithShortlinks(eventId);
+  const baseUrl = process.env.CLIENT_BASE_URL || "http://localhost:5173";
+
+  // Generate shortlinks for users who don't have one
+  const results = [];
+  for (const user of eventUsers) {
+    let shortCode = user.short_code;
+
+    // If user doesn't have a shortlink yet, create one
+    if (!shortCode) {
+      shortCode = await generateUniqueShortCode();
+      await createShortlink(user.id, eventId, shortCode);
+    }
+
+    const shortlink = `${baseUrl}/s/${shortCode}`;
+
+    results.push({
+      Email: user.email,
+      "Public Name": user.public_name || "",
+      Username: user.username,
+      "Allow to Vote": user.allow_to_vote ? "Ja" : "Nein",
+      "Vote Amount": user.vote_amount,
+      Coorganizer: user.coorganizer ? "Ja" : "Nein",
+      Verified: user.verified ? "Ja" : "Nein",
+      Online: user.online ? "Ja" : "Nein",
+      "Last Activity": user.last_activity
+        ? new Date(user.last_activity * 1000).toISOString()
+        : "",
+      Shortlink: shortlink,
+    });
+  }
+
+  return results;
 }
 
 function exportFile(relPath, absPath, responseData, res) {
