@@ -103,4 +103,9 @@ dist/
 # DB
 *.sqlite3
 
+# Backups
+backups/
+*.sql
+*.sql.gz
+
 src/messages*
