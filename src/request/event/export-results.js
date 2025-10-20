@@ -73,17 +73,10 @@ async function getEventUsersWithShortlinks(eventId) {
     const shortlink = `${baseUrl}/s/${shortCode}`;
 
     results.push({
-      Email: user.email,
       "Public Name": user.public_name || "",
       Username: user.username,
-      "Allow to Vote": user.allow_to_vote ? "Ja" : "Nein",
-      "Vote Amount": user.vote_amount,
-      Coorganizer: user.coorganizer ? "Ja" : "Nein",
-      Verified: user.verified ? "Ja" : "Nein",
-      Online: user.online ? "Ja" : "Nein",
-      "Last Activity": user.last_activity
-        ? new Date(user.last_activity * 1000).toISOString()
-        : "",
+      "Stimmberechtigt": user.allow_to_vote ? "Ja" : "Nein",
+      "Stimmenanzahl": user.vote_amount,
       Shortlink: shortlink,
     });
   }
