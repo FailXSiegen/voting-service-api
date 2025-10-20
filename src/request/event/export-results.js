@@ -62,7 +62,7 @@ async function getEventUsersWithShortlinks(eventId) {
   // Generate shortlinks for users who don't have one
   const results = [];
   for (const user of eventUsers) {
-    let shortCode = user.short_code;
+    let shortCode = user.shortCode;
 
     // If user doesn't have a shortlink yet, create one
     if (!shortCode) {
@@ -73,10 +73,10 @@ async function getEventUsersWithShortlinks(eventId) {
     const shortlink = `${baseUrl}/s/${shortCode}`;
 
     results.push({
-      "Public Name": user.public_name || "",
+      "Public Name": user.publicName || "",
       Username: user.username,
-      "Stimmberechtigt": user.allow_to_vote ? "Ja" : "Nein",
-      "Stimmenanzahl": user.vote_amount,
+      "Stimmberechtigt": user.allowToVote ? "Ja" : "Nein",
+      "Stimmenanzahl": user.voteAmount,
       Shortlink: shortlink,
     });
   }
