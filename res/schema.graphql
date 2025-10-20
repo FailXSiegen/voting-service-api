@@ -42,7 +42,7 @@ type Query {
   #debug: cache statistics
   pollCacheStats: PollCacheStats
   # Fetches all poll results by event id.
-  pollResult(eventId: ID, page: Int, pageSize: Int): [PollResult]
+  pollResult(eventId: ID, page: Int, pageSize: Int, includeHidden: Boolean): [PollResult]
   # Fetches a zoom meeting by id
   zoomMeeting(id: ID!): ZoomMeeting
   # Fetches a poll by  id.
@@ -118,6 +118,8 @@ type Mutation {
   startPoll(id: ID!): Poll!
   # Stops a poll.
   stopPoll(id: ID!): Boolean!
+  # Toggle the hidden status of a poll result (hide/show past polls).
+  togglePollResultHidden(pollResultId: ID!): Boolean!
   # Creates a poll answer on poll submit.
   createPollSubmitAnswer(input: PollSubmitAnswerInput!): Boolean
   # Creates multiple identical poll answers in a single batch (optimized for bulk voting)
@@ -296,6 +298,7 @@ type PollResult {
   pollUser: [PollUser!]
   pollAnswer: [PollAnswer!]
   closed: Boolean!
+  hidden: Boolean!
 }
 type PollPossibleAnswer {
   id: ID!

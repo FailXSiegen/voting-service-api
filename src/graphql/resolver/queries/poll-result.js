@@ -5,8 +5,8 @@ import {
 } from "../../../repository/poll/poll-result-repository";
 
 export default {
-  pollResult: async (_, { eventId, page, pageSize }) => {
-    return await findClosedPollResults(eventId, page, pageSize);
+  pollResult: async (_, { eventId, page, pageSize, includeHidden }) => {
+    return await findClosedPollResults(eventId, page, pageSize, includeHidden || false);
   },
   activePoll: async (_, { eventId }) => {
     return await findActivePoll(eventId);

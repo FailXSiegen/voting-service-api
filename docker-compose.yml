@@ -6,7 +6,7 @@ services:
   db:
     container_name: db
     image: mariadb:10.1
-    command: mysqld --character-set-server=utf8 --max_connections=1500
+    command: mysqld --character-set-server=utf8 --max_connections=1500 --innodb_large_prefix=1 --innodb_file_format=Barracuda --innodb_file_per_table=1
     ports:
       - 127.0.0.1:3306:3306
     volumes:

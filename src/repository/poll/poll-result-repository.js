@@ -63,10 +63,14 @@ export async function updatePollResultMaxVotes(pollResultId, eventUserId) {
   return true;
 }
 
-export async function findClosedPollResults(eventId, page, pageSize) {
+export async function findClosedPollResults(eventId, page, pageSize, includeHidden = false) {
   const offset = page * pageSize;
-  
+
   // Get results from database
+  // For organizers: includeHidden = true shows all results
+  // For participants: includeHidden = false filters out hidden results
+  const hiddenFilter = includeHidden ? '' : 'AND poll_result.hidden = 0';
+
   const results = await query(
     `
     SELECT poll_result.*
@@ -74,24 +78,25 @@ export async function findClosedPollResults(eventId, page, pageSize) {
     INNER JOIN poll ON poll.id = poll_result.poll_id
     WHERE poll.event_id = ?
     AND poll_result.closed = ?
+    ${hiddenFilter}
     ORDER BY create_datetime DESC
     LIMIT ? OFFSET ?
   `,
     [eventId, true, pageSize, offset],
   );
-  
+
   // Cache each closed poll result
   if (Array.isArray(results) && results.length > 0) {
     for (const pollResult of results) {
       // Add eventId to the poll data for easier cache invalidation by event
-      pollResult.poll = pollResult.poll || {}; 
+      pollResult.poll = pollResult.poll || {};
       pollResult.poll.eventId = eventId;
-      
+
       // Cache the poll result
       setPollResultCache(pollResult.id, pollResult);
     }
   }
-  
+
   return results;
 }
 
@@ -829,5 +834,41 @@ export async function findActivePublicPollsWithVisibility() {
   } catch (error) {
     console.error('[findActivePublicPollsWithVisibility] Fehler:', error);
     return [];
+  }
+}
+
+/**
+ * Toggle the hidden status of a poll result
+ * @param {number} pollResultId - ID of the poll result
+ * @returns {Promise<boolean>} - Success status
+ */
+export async function togglePollResultHidden(pollResultId) {
+  try {
+    // Get current hidden status
+    const result = await query(
+      "SELECT hidden FROM poll_result WHERE id = ?",
+      [pollResultId]
+    );
+
+    if (!Array.isArray(result) || result.length === 0) {
+      return false;
+    }
+
+    const currentHidden = result[0].hidden;
+    const newHidden = currentHidden === 1 ? 0 : 1;
+
+    // Update hidden status
+    await query(
+      "UPDATE poll_result SET hidden = ? WHERE id = ?",
+      [newHidden, pollResultId]
+    );
+
+    // Invalidate cache for this poll result
+    invalidatePollResultCache(pollResultId);
+
+    return true;
+  } catch (error) {
+    console.error('[togglePollResultHidden] Error:', error);
+    return false;
   }
 }

@@ -9,6 +9,7 @@ import organizerMutations from "./resolver/mutation/organizer";
 import eventMutations from "./resolver/mutation/event";
 import eventUserMutations from "./resolver/mutation/event-user";
 import pollMutations from "./resolver/mutation/poll";
+import pollResultMutations from "./resolver/mutation/poll-result";
 import pollAnswerMutations from "./resolver/mutation/poll-answer";
 import pollUserVotedMutations from "./resolver/mutation/poll-user-voted";
 import zoomMeetingMutations from "./resolver/mutation/zoom-meeting";
@@ -52,6 +53,7 @@ export default {
     ...organizerMutations,
     ...eventMutations,
     ...pollMutations,
+    ...pollResultMutations,
     ...pollAnswerMutations,
     ...eventUserMutations,
     ...pollUserVotedMutations,
