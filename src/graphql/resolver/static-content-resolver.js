@@ -1,5 +1,3 @@
-'use strict';
-
 const staticContentRepository = require('../../repository/static-content-repository');
 const organizerRepository = require('../../repository/organizer-repository');
 const staticPageSlugRepository = require('../../repository/static-page-slug-repository');

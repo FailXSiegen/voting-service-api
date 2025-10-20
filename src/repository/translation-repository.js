@@ -15,8 +15,19 @@ class TranslationRepository {
     // Path to the client's messages.json (original source)
     this.defaultMessagesPath = path.join(this.clientBasePath, 'src', 'messages.json');
 
-    // Path for API's local override messages
-    this.localMessagesPath = path.join(this.basePath, 'src', 'messages.local.json');
+    // Path for API's local override messages - handle both dev and production
+    // In development: use src/, in production: use persistent uploads directory
+    const srcPath = path.join(this.basePath, 'src', 'messages.local.json');
+    const productionPath = path.join('/app/uploads', 'messages.local.json'); // Persistent volume
+    
+    // Check if we're in production (no src directory)
+    try {
+      const srcDir = path.join(this.basePath, 'src');
+      require('fs').accessSync(srcDir, require('fs').constants.F_OK);
+      this.localMessagesPath = srcPath; // Development
+    } catch (error) {
+      this.localMessagesPath = productionPath; // Production - use persistent volume
+    }
 
     // Wir speichern keine Datei mehr im Client-Verzeichnis
     // Nur die API kennt die benutzerdefinierten Übersetzungen

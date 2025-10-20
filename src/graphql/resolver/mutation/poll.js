@@ -183,7 +183,7 @@ export default {
 
 async function createPollDependencies(pollRecord, eventUsers) {
   let maxPollVotes = 0;
-  if (!eventUsers || !eventUsers?.length > 0) {
+  if (!eventUsers || eventUsers?.length === 0) {
     // Prüfe ob es ein asynchrones Event ist
     const event = await findOneEventById(pollRecord.eventId);
     if (!event?.async) {

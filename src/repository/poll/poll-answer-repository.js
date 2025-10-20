@@ -292,16 +292,13 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
           : 0;
 
         // Use insert() instead of raw query for SECRET polls
-        // WICHTIG: Nur Datum (ohne Uhrzeit) bei geheimen Wahlen für Anonymität
-        const now = new Date();
-        const dateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const dateTimestamp = Math.floor(dateOnly.getTime() / 1000);
-        
+        // WICHTIG: Kein Timestamp bei geheimen Wahlen für Anonymität
+        // Verwende Default-Wert (0) statt NULL für create_datetime
         await insert("poll_answer", {
           pollResultId: input.pollResultId,
           pollPossibleAnswerId: input.possibleAnswerId,
           answerContent: input.answerContent,
-          createDatetime: dateTimestamp
+          createDatetime: 0
         });
       }
 

@@ -9,12 +9,11 @@ const mediaRepository = require('../../repository/media/media-repository');
 // Konfiguration für Multer (Datei-Upload)
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // Verwende Umgebungsvariable für Upload-Pfad oder Standard-Entwicklungspfad
-    const uploadBasePath = process.env.UPLOAD_BASE_PATH ||
-      path.join(__dirname, '../../../../voting-service-client-v2/public');
+    // Verwende Umgebungsvariable für Upload-Pfad oder das persistente Upload-Volume
+    const uploadBasePath = process.env.UPLOAD_BASE_PATH || '/app/uploads';
 
-    // Erstelle vollständigen Pfad mit uploads/images
-    const uploadDir = path.join(uploadBasePath, 'uploads/images');
+    // Erstelle vollständigen Pfad mit images
+    const uploadDir = path.join(uploadBasePath, 'images');
 
     // Stelle sicher, dass das Verzeichnis existiert
     if (!fs.existsSync(uploadDir)) {
@@ -79,7 +78,7 @@ module.exports = async function (req, res) {
         });
       }
 
-      // Pfad relativ zum public-Verzeichnis für den Client
+      // Pfad für den Client - über den /uploads Endpunkt des Servers erreichbar
       const clientPath = `/uploads/images/${req.file.filename}`;
 
       // Speichere in der Datenbank die Metadaten

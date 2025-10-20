@@ -1,5 +1,3 @@
-'use strict';
-
 const TranslationRepository = require('../../repository/translation-repository');
 const organizerRepository = require('../../repository/organizer-repository');
 const AuthenticationError = require('../../errors/AuthenticationError');

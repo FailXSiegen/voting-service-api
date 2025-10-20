@@ -74,6 +74,11 @@ class SystemSettingsRepository {
           id INT AUTO_INCREMENT PRIMARY KEY,
           use_direct_static_paths BOOLEAN NOT NULL DEFAULT false,
           use_db_footer_navigation BOOLEAN NOT NULL DEFAULT false,
+          favicon_url VARCHAR(500) NULL,
+          title_suffix VARCHAR(255) NULL DEFAULT 'digitalwahl.org',
+          recaptcha_enabled BOOLEAN NOT NULL DEFAULT false,
+          recaptcha_site_key VARCHAR(255) NULL,
+          recaptcha_secret_key VARCHAR(255) NULL,
           updated_by INT,
           updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -82,6 +87,19 @@ class SystemSettingsRepository {
       `;
       
       await db.query(createTableQuery);
+      
+      // Try to add reCAPTCHA columns if they don't exist (for existing tables)
+      try {
+        await db.query(`
+          ALTER TABLE system_settings 
+          ADD COLUMN IF NOT EXISTS recaptcha_enabled BOOLEAN NOT NULL DEFAULT false,
+          ADD COLUMN IF NOT EXISTS recaptcha_site_key VARCHAR(255) NULL,
+          ADD COLUMN IF NOT EXISTS recaptcha_secret_key VARCHAR(255) NULL
+        `);
+        console.log('Added reCAPTCHA columns to existing system_settings table');
+      } catch (alterError) {
+        console.log('reCAPTCHA columns may already exist or ALTER failed:', alterError.message);
+      }
       
       // Don't try to add the foreign key constraint here, as it might fail
       // if the organizer table doesn't exist or has a different structure
@@ -223,6 +241,26 @@ class SystemSettingsRepository {
           updateData.useDbFooterNavigation = data.useDbFooterNavigation;
         }
         
+        if (data.faviconUrl !== undefined) {
+          updateData.faviconUrl = data.faviconUrl;
+        }
+        
+        if (data.titleSuffix !== undefined) {
+          updateData.titleSuffix = data.titleSuffix;
+        }
+        
+        if (data.recaptchaEnabled !== undefined) {
+          updateData.recaptchaEnabled = data.recaptchaEnabled;
+        }
+        
+        if (data.recaptchaSiteKey !== undefined) {
+          updateData.recaptchaSiteKey = data.recaptchaSiteKey;
+        }
+        
+        if (data.recaptchaSecretKey !== undefined) {
+          updateData.recaptchaSecretKey = data.recaptchaSecretKey;
+        }
+        
         try {
           // Update the settings
           await db.update('system_settings', updateData);
@@ -253,6 +291,11 @@ class SystemSettingsRepository {
                              (settings.useDirectStaticPaths || false),
         useDbFooterNavigation: data.useDbFooterNavigation !== undefined ? data.useDbFooterNavigation : 
                               (settings.useDbFooterNavigation || false),
+        faviconUrl: data.faviconUrl !== undefined ? data.faviconUrl : (settings.faviconUrl || null),
+        titleSuffix: data.titleSuffix !== undefined ? data.titleSuffix : (settings.titleSuffix || 'digitalwahl.org'),
+        recaptchaEnabled: data.recaptchaEnabled !== undefined ? data.recaptchaEnabled : (settings.recaptchaEnabled || false),
+        recaptchaSiteKey: data.recaptchaSiteKey !== undefined ? data.recaptchaSiteKey : (settings.recaptchaSiteKey || ''),
+        recaptchaSecretKey: data.recaptchaSecretKey !== undefined ? data.recaptchaSecretKey : (settings.recaptchaSecretKey || ''),
         updatedAt: new Date()
       };
     } catch (error) {
@@ -262,6 +305,11 @@ class SystemSettingsRepository {
         id: 0,
         useDirectStaticPaths: data.useDirectStaticPaths !== undefined ? data.useDirectStaticPaths : false,
         useDbFooterNavigation: data.useDbFooterNavigation !== undefined ? data.useDbFooterNavigation : false,
+        faviconUrl: data.faviconUrl !== undefined ? data.faviconUrl : null,
+        titleSuffix: data.titleSuffix !== undefined ? data.titleSuffix : 'digitalwahl.org',
+        recaptchaEnabled: data.recaptchaEnabled !== undefined ? data.recaptchaEnabled : false,
+        recaptchaSiteKey: data.recaptchaSiteKey !== undefined ? data.recaptchaSiteKey : '',
+        recaptchaSecretKey: data.recaptchaSecretKey !== undefined ? data.recaptchaSecretKey : '',
         updatedAt: new Date()
       };
     }

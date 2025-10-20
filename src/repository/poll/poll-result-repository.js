@@ -799,6 +799,35 @@ export async function update(input) {
 export async function remove(id) {
   // Invalidate cache for this poll result
   invalidatePollResultCache(id);
-  
+
   return await removeQuery("poll_result", id);
+}
+
+/**
+ * Findet alle aktiven PUBLIC polls mit publicVoteVisible = true
+ * Für den globalen Cache-Service
+ */
+export async function findActivePublicPollsWithVisibility() {
+  const sql = `
+    SELECT
+      pr.id as pollResultId,
+      p.event_id as eventId,
+      pr.poll_id as pollId,
+      p.title as pollTitle,
+      e.title as eventName
+    FROM poll_result pr
+    JOIN poll p ON pr.poll_id = p.id
+    JOIN event e ON p.event_id = e.id
+    WHERE pr.closed = 0
+      AND p.type = 1
+      AND e.public_vote_visible = 1
+  `;
+
+  try {
+    const result = await query(sql);
+    return Array.isArray(result) ? result : [];
+  } catch (error) {
+    console.error('[findActivePublicPollsWithVisibility] Fehler:', error);
+    return [];
+  }
 }

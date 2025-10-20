@@ -53,4 +53,7 @@ export default {
 
     return record;
   },
+  publicnameReadonly: async ({ publicnameReadonly }) => {
+    return publicnameReadonly === 1 || publicnameReadonly === true;
+  },
 };

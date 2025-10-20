@@ -1,5 +1,3 @@
-'use strict';
-
 const mediaRepository = require('../../repository/media/media-repository');
 const organizerRepository = require('../../repository/organizer-repository');
 const AuthenticationError = require('../../errors/AuthenticationError');

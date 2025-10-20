@@ -2,9 +2,9 @@ import eventQueries from "./resolver/queries/event";
 import eventUserQueries from "./resolver/queries/event-user";
 import pollQueries from "./resolver/queries/poll";
 import pollResultQueries from "./resolver/queries/poll-result";
+import cachedPollResultQueries from "./resolver/queries/cached-poll-result";
 import organizerQueries from "./resolver/queries/organizer";
 import zoomMeetingQueries from "./resolver/queries/zoom-meeting";
-import userVoteCycleQueries from "./resolver/queries/user-vote-cycle";
 import organizerMutations from "./resolver/mutation/organizer";
 import eventMutations from "./resolver/mutation/event";
 import eventUserMutations from "./resolver/mutation/event-user";
@@ -13,20 +13,22 @@ import pollAnswerMutations from "./resolver/mutation/poll-answer";
 import pollUserVotedMutations from "./resolver/mutation/poll-user-voted";
 import zoomMeetingMutations from "./resolver/mutation/zoom-meeting";
 import eventUserAuthTokenMutations from "./resolver/mutation/event-user-auth-token";
+import transferVotesMutations from "./resolver/mutation/transfer-votes";
 import activePollEventUser from "./resolver/active-poll-event-user/active-poll-event-user";
 import pollResolvers from "./resolver/poll/poll";
 import eventResolvers from "./resolver/event/event";
+import eventUserResolvers from "./resolver/event-user/event-user";
 import organizerResolvers from "./resolver/organizer/organizer";
 import pollResultResolvers from "./resolver/poll-result/poll-result";
 import pollSubscriptionResolvers from "./resolver/subscription/poll";
 import eventUserSubscriptionResolvers from "./resolver/subscription/event-user";
 import poolAnswerSubscriptionResolvers from "./resolver/subscription/poll-answer";
 import votingDetailsSubscriptionResolvers from "./resolver/subscription/voting-details";
-import staticContentResolvers from "./resolver/static-content-resolver";
-import pageSlugResolvers from "./resolver/page-slug-resolver";
-import mediaResolvers from "./resolver/media-resolver";
-import systemSettingsResolvers from "./resolver/system-settings-resolver";
-import translationsResolvers from "./resolver/translations-resolver";
+const staticContentResolvers = require("./resolver/static-content-resolver");
+const pageSlugResolvers = require("./resolver/page-slug-resolver");
+const mediaResolvers = require("./resolver/media-resolver");
+const systemSettingsResolvers = require("./resolver/system-settings-resolver");
+const translationsResolvers = require("./resolver/translations-resolver");
 
 export default {
   VideoConferenceType: {
@@ -37,9 +39,9 @@ export default {
     ...eventUserQueries,
     ...pollQueries,
     ...pollResultQueries,
+    ...cachedPollResultQueries,
     ...organizerQueries,
     ...zoomMeetingQueries,
-    ...userVoteCycleQueries,
     ...staticContentResolvers.Query,
     ...pageSlugResolvers.Query,
     ...mediaResolvers.Query,
@@ -55,6 +57,7 @@ export default {
     ...pollUserVotedMutations,
     ...zoomMeetingMutations,
     ...eventUserAuthTokenMutations,
+    ...transferVotesMutations,
     ...staticContentResolvers.Mutation,
     ...pageSlugResolvers.Mutation,
     ...mediaResolvers.Mutation,
@@ -69,6 +72,9 @@ export default {
   },
   Event: {
     ...eventResolvers,
+  },
+  EventUser: {
+    ...eventUserResolvers,
   },
   Organizer: {
     ...organizerResolvers,

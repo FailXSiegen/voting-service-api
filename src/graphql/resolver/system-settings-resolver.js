@@ -1,12 +1,10 @@
-'use strict';
-
 const SystemSettingsRepository = require('../../repository/system-settings-repository');
 const { findOneById } = require('../../repository/organizer-repository');
 
 /**
  * System Settings resolver
  */
-module.exports = {
+const resolvers = {
   Query: {
     /**
      * Get the global system settings - this is a public query that works without authentication
@@ -19,6 +17,11 @@ module.exports = {
         id: 0,
         useDirectStaticPaths: true,  // Enable direct paths by default
         useDbFooterNavigation: true, // Enable DB footer navigation by default
+        faviconUrl: null,
+        titleSuffix: 'digitalwahl.org',
+        recaptchaEnabled: false,
+        recaptchaSiteKey: '',
+        recaptchaSecretKey: '',
         updatedAt: new Date().toISOString()
       };
 
@@ -40,6 +43,11 @@ module.exports = {
               settings.useDirectStaticPaths : true,
             useDbFooterNavigation: settings.useDbFooterNavigation !== undefined ?
               settings.useDbFooterNavigation : true,
+            faviconUrl: settings.faviconUrl || null,
+            titleSuffix: settings.titleSuffix || 'digitalwahl.org',
+            recaptchaEnabled: settings.recaptchaEnabled || false,
+            recaptchaSiteKey: settings.recaptchaSiteKey || '',
+            recaptchaSecretKey: settings.recaptchaSecretKey || '',
             updatedAt: settings.updatedAt ? new Date(settings.updatedAt).toISOString() :
               new Date().toISOString()
           };
@@ -68,6 +76,11 @@ module.exports = {
         id: 0,
         useDirectStaticPaths: input.useDirectStaticPaths !== undefined ? input.useDirectStaticPaths : true,
         useDbFooterNavigation: input.useDbFooterNavigation !== undefined ? input.useDbFooterNavigation : true,
+        faviconUrl: input.faviconUrl !== undefined ? input.faviconUrl : null,
+        titleSuffix: input.titleSuffix !== undefined ? input.titleSuffix : 'digitalwahl.org',
+        recaptchaEnabled: input.recaptchaEnabled !== undefined ? input.recaptchaEnabled : false,
+        recaptchaSiteKey: input.recaptchaSiteKey !== undefined ? input.recaptchaSiteKey : '',
+        recaptchaSecretKey: input.recaptchaSecretKey !== undefined ? input.recaptchaSecretKey : '',
         updatedAt: new Date().toISOString()
       };
 
@@ -103,6 +116,26 @@ module.exports = {
           updateData.useDbFooterNavigation = input.useDbFooterNavigation;
         }
 
+        if (input.faviconUrl !== undefined) {
+          updateData.faviconUrl = input.faviconUrl;
+        }
+
+        if (input.titleSuffix !== undefined) {
+          updateData.titleSuffix = input.titleSuffix;
+        }
+
+        if (input.recaptchaEnabled !== undefined) {
+          updateData.recaptchaEnabled = input.recaptchaEnabled;
+        }
+
+        if (input.recaptchaSiteKey !== undefined) {
+          updateData.recaptchaSiteKey = input.recaptchaSiteKey;
+        }
+
+        if (input.recaptchaSecretKey !== undefined) {
+          updateData.recaptchaSecretKey = input.recaptchaSecretKey;
+        }
+
         // If we have current settings with a valid ID, try to update them
         let organizerId = null;
         if (context && context.user && context.user.id) {
@@ -123,6 +156,21 @@ module.exports = {
             useDbFooterNavigation: updatedSettings.useDbFooterNavigation !== undefined ?
               updatedSettings.useDbFooterNavigation :
               (input.useDbFooterNavigation !== undefined ? input.useDbFooterNavigation : true),
+            faviconUrl: updatedSettings.faviconUrl !== undefined ?
+              updatedSettings.faviconUrl :
+              (input.faviconUrl !== undefined ? input.faviconUrl : null),
+            titleSuffix: updatedSettings.titleSuffix !== undefined ?
+              updatedSettings.titleSuffix :
+              (input.titleSuffix !== undefined ? input.titleSuffix : 'digitalwahl.org'),
+            recaptchaEnabled: updatedSettings.recaptchaEnabled !== undefined ?
+              updatedSettings.recaptchaEnabled :
+              (input.recaptchaEnabled !== undefined ? input.recaptchaEnabled : false),
+            recaptchaSiteKey: updatedSettings.recaptchaSiteKey !== undefined ?
+              updatedSettings.recaptchaSiteKey :
+              (input.recaptchaSiteKey !== undefined ? input.recaptchaSiteKey : ''),
+            recaptchaSecretKey: updatedSettings.recaptchaSecretKey !== undefined ?
+              updatedSettings.recaptchaSecretKey :
+              (input.recaptchaSecretKey !== undefined ? input.recaptchaSecretKey : ''),
             updatedAt: updatedSettings.updatedAt ? new Date(updatedSettings.updatedAt).toISOString() :
               new Date().toISOString()
           };
@@ -156,3 +204,5 @@ module.exports = {
     }
   }
 };
+
+module.exports = resolvers;

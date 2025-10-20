@@ -1,5 +1,3 @@
-'use strict';
-
 const staticPageSlugRepository = require('../../repository/static-page-slug-repository');
 const AuthenticationError = require('../../errors/AuthenticationError');
 const RecordNotFoundError = require('../../errors/RecordNotFoundError');

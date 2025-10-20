@@ -10,8 +10,10 @@ import { createPollUserIfNeeded } from "../service/poll-service";
 import { findActivePoll } from "./poll/poll-result-repository";
 
 export async function findOneById(id) {
-  const result = await query("SELECT * FROM event_user WHERE id = ?", [id]);
-  return Array.isArray(result) ? result[0] || null : null;
+  const result = await query("SELECT id, event_id, create_datetime, username, email, password, public_name, allow_to_vote, vote_amount, online, coorganizer, verified, last_activity, poll_hints FROM event_user WHERE id = ?", [id]);
+  const user = Array.isArray(result) ? result[0] || null : null;
+
+  return user;
 }
 
 export async function findOneByUsernameAndEventId(username, eventId) {
@@ -41,6 +43,70 @@ export async function findOnlineEventUserByEventId(eventId) {
     "SELECT * FROM event_user WHERE event_id = ? AND verified = 1 AND online = 1 AND allow_to_vote = 1 ORDER BY public_name ASC",
     [eventId],
   );
+}
+
+/**
+ * Aktualisiert poll_hints für einen Event User
+ */
+export async function updatePollHints(eventUserId, pollHints) {
+  try {
+    await query(
+      "UPDATE event_user SET poll_hints = ? WHERE id = ?",
+      [pollHints, eventUserId]
+    );
+  } catch (error) {
+    console.error(`[ERROR] Fehler beim Aktualisieren der poll_hints für Benutzer ${eventUserId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Fügt einen poll_hint zu einem Event User hinzu
+ */
+export async function addPollHint(eventUserId, voteAmount, fromUserName, hintType = 'received') {
+  try {
+    const eventUser = await findOneById(eventUserId);
+    if (!eventUser) {
+      throw new Error(`Event User mit ID ${eventUserId} nicht gefunden`);
+    }
+
+    let existingHints = [];
+    if (eventUser.pollHints) {
+      try {
+        existingHints = JSON.parse(eventUser.pollHints);
+      } catch (e) {
+        console.warn(`[WARN] Konnte pollHints für User ${eventUserId} nicht parsen, setze auf leeres Array`);
+        existingHints = [];
+      }
+    }
+
+    // Füge immer einen neuen Hint hinzu (jede Übertragung ist ein separater Eintrag)
+    existingHints.push({
+      voteAmount,
+      fromUserName,
+      type: hintType,
+      timestamp: getCurrentUnixTimeStamp()
+    });
+
+    await updatePollHints(eventUserId, JSON.stringify(existingHints));
+    console.log(`[INFO] Poll hint hinzugefügt: ${voteAmount} Stimmen ${hintType === 'received' ? 'von' : 'an'} ${fromUserName} für User ${eventUserId}`);
+  } catch (error) {
+    console.error(`[ERROR] Fehler beim Hinzufügen des poll_hints:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Leert die poll_hints für einen Event User
+ */
+export async function clearPollHints(eventUserId) {
+  try {
+    await updatePollHints(eventUserId, null);
+    console.log(`[INFO] Poll hints für User ${eventUserId} geleert`);
+  } catch (error) {
+    console.error(`[ERROR] Fehler beim Leeren der poll_hints für User ${eventUserId}:`, error);
+    throw error;
+  }
 }
 
 /**
@@ -149,7 +215,7 @@ export async function toggleUserOnlineStateByRequestToken(token, online) {
   // Andernfalls (wenn wir offline markieren sollen), prüfen wir, ob ein aktiver Poll existiert
   const checkActivePollSql = `
     SELECT poll.id FROM poll
-    INNER JOIN poll_result 
+    INNER JOIN poll_result
     ON poll.id = poll_result.poll_id
     WHERE poll.event_id = ? AND poll_result.closed = '0'
   `;

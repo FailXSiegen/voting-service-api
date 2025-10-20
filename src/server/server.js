@@ -57,7 +57,7 @@ export default function () {
 
   const wsServer = new WebSocketServer({
     server: server,
-    path: process.env.WEBSOCKET_ENDPOINT,
+    path: process.env.WEBSOCKET_ENDPOINT || '/graphql', // Use WEBSOCKET_ENDPOINT from env
     // Erlaube Cross-Origin-Verbindungen
     handleProtocols: (protocols) => {
       // Accept any protocol
