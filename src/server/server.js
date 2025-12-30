@@ -81,7 +81,7 @@ export default function () {
   });
 
   // Verbesserte Header für WebSocket-Verbindungen
-  wsServer.on('connection', (socket, request) => {
+  wsServer.on('connection', (socket) => {
     // Erlaube explizit CORS für WebSockets
     socket.on('headers', (headers) => {
       headers.push('Access-Control-Allow-Origin: *');
@@ -97,9 +97,6 @@ export default function () {
       subscribe: (args) => args.rootValue.subscribe(args),
       onSubscribe: onSubscribeWebsocket,
       onConnect: (ctx) => {
-        // Erweitere den onConnect-Callback um zusätzliche Header-Prüfungen zu vermeiden
-        const connectionParams = ctx.connectionParams || {};
-        
         // Akzeptiere alle Verbindungen, unabhängig von Headers
         return onConnectWebsocket(ctx);
       },

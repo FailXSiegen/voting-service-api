@@ -18,7 +18,6 @@ import uploadMedia from "../request/media/upload-media";
 import redirectShortlink from "../request/shortlink/redirect";
 import resolveShortlink from "../request/shortlink/resolve";
 import express from "express";
-import path from "path";
 
 export default function (app) {
   app.post("/login", async (req, res) => {

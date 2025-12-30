@@ -1,6 +1,5 @@
 const staticPageSlugRepository = require('../../repository/static-page-slug-repository');
 const AuthenticationError = require('../../errors/AuthenticationError');
-const RecordNotFoundError = require('../../errors/RecordNotFoundError');
 
 /**
  * Resolver for page slug operations
@@ -39,7 +38,7 @@ const resolvers = {
      * @param {Object} context - Request context
      * @returns {Promise<Object>} The page slug entry
      */
-    pageSlugByPageKey: async (_, { pageKey }, context) => {
+    pageSlugByPageKey: async (_, { pageKey }) => {
       try {
         return staticPageSlugRepository.findByPageKey(pageKey);
       } catch (err) {
@@ -55,7 +54,7 @@ const resolvers = {
      * @param {Object} context - Request context
      * @returns {Promise<Object>} The page slug entry
      */
-    pageSlugBySlug: async (_, { slug }, context) => {
+    pageSlugBySlug: async (_, { slug }) => {
       try {
         return staticPageSlugRepository.findBySlug(slug);
       } catch (err) {

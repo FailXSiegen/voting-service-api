@@ -1,3 +1,4 @@
+/* global Map */
 /**
  * Cache for poll results to improve performance after polls are closed
  * This module provides caching for poll results data to reduce database load
@@ -160,16 +161,16 @@ setInterval(cleanupExpiredPollResultCache, CLEANUP_INTERVAL_MS);
 // Helper function to estimate cache size in bytes (rough approximation)
 function estimateCacheSize() {
   let totalSize = 0;
-  
-  for (const [id, data] of pollResultCache.entries()) {
+
+  for (const [, data] of pollResultCache.entries()) {
     // Estimate base size of key (number = 8 bytes)
     totalSize += 8;
-    
+
     // Estimate size of value using JSON serialization (rough approximation)
     const jsonStr = JSON.stringify(data);
     totalSize += jsonStr.length * 2; // Unicode characters can be 2 bytes each
   }
-  
+
   return totalSize;
 }
 

@@ -160,13 +160,12 @@ export async function loginEventUser({
   }
   await update({ id: eventUser.id, online: true });
 
-
   try {
     const activePollResult = await findActivePoll(eventId);
 
     if (activePollResult) {
       // Always attempt to add the user regardless of allowToVote status
-      const addResult = await createPollUserIfNeeded(activePollResult.id, eventUser.id);
+      await createPollUserIfNeeded(activePollResult.id, eventUser.id);
 
       // Publish updated poll information to all clients
       const leftAnswersDataSet = await findLeftAnswersCount(activePollResult.id);

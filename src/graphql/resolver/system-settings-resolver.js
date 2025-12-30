@@ -10,7 +10,7 @@ const resolvers = {
      * Get the global system settings - this is a public query that works without authentication
      * @returns {Promise<Object>} The system settings object
      */
-    systemSettings: async (_, args, context) => {
+    systemSettings: async () => {
 
       // Always return default values for now to ensure the application can start
       const defaults = {
@@ -89,9 +89,8 @@ const resolvers = {
         // In production, we'd enforce authentication here
 
         // Get current settings or create default
-        let currentSettings;
         try {
-          currentSettings = await SystemSettingsRepository.getSettings();
+          await SystemSettingsRepository.getSettings();
         } catch (getError) {
           console.error('Error getting current settings:', getError);
           // Try to create settings table and defaults
@@ -99,7 +98,7 @@ const resolvers = {
             if (SystemSettingsRepository.createSystemSettingsTable) {
               await SystemSettingsRepository.createSystemSettingsTable();
             }
-            currentSettings = await SystemSettingsRepository.createDefaultSettings();
+            await SystemSettingsRepository.createDefaultSettings();
           } catch (createError) {
             console.error('Error creating settings table/defaults:', createError);
             return defaults;

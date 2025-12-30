@@ -125,7 +125,7 @@ class TranslationRepository {
    * @param {number} organizerId ID of the organizer making the change
    * @returns {Promise<boolean>} Success status
    */
-  async saveTranslations(translations, organizerId) {
+  async saveTranslations(translations) {
     try {
       // First load the existing local messages
       let localMessages = {};
@@ -172,7 +172,7 @@ class TranslationRepository {
    * @param {string} key The key of the translation
    * @returns {Promise<boolean>} Success status
    */
-  async deleteTranslation(locale, key, organizerId) {
+  async deleteTranslation(locale, key) {
     try {
       // First load the existing local messages
       let localMessages = {};
@@ -237,7 +237,7 @@ class TranslationRepository {
    */
   _deleteNestedValue(obj, keys) {
     if (keys.length === 1) {
-      if (obj.hasOwnProperty(keys[0])) {
+      if (Object.prototype.hasOwnProperty.call(obj, keys[0])) {
         delete obj[keys[0]];
         return true;
       }

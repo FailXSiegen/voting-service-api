@@ -5,11 +5,10 @@ import {
   query,
 } from "./../../lib/database";
 import { getCurrentUnixTimeStamp } from "../../lib/time-stamp";
-import { 
+import {
   getPollResultCache,
   setPollResultCache,
-  invalidatePollResultCache,
-  invalidateEventPollResultsCache
+  invalidatePollResultCache
 } from "../../lib/poll-result-cache";
 
 export async function findOneById(id) {

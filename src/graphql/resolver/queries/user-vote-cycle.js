@@ -76,4 +76,4 @@ export default {
       return { voteCycle: 0, maxVotes: 0 };
     }
   }
-}
+};

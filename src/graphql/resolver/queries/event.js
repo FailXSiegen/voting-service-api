@@ -1,6 +1,4 @@
 import {
-  findById,
-  findByIdAndOrganizerId,
   findByIdAndOrganizerIdIncludingOriginal,
   findExpired,
   findUpcoming,

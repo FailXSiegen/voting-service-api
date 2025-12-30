@@ -4,7 +4,7 @@ import { POLL_LIFE_CYCLE } from "./subscription-types";
 
 export default {
   [POLL_LIFE_CYCLE]: {
-    subscribe: (_, args, context) => {
+    subscribe: (_, args) => {
 
       // Use pipe for filtering but with improved debugging
       return pipe(

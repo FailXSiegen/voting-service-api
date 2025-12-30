@@ -6,10 +6,10 @@
  * EINE SQL-Abfrage gemacht und das Ergebnis gecacht.
  */
 
+/* global Map, Promise */
 import { findByPollResultId } from "../repository/poll/poll-user-voted-repository.js";
 import { findByPollResultId as findAnswersByPollResultId } from "../repository/poll/poll-answer-repository.js";
 import { findByEventId } from "../repository/poll/poll-user-repository.js";
-import { findOneById as findOneByPollResultId } from "../repository/poll/poll-result-repository.js";
 
 class LivePollCache {
   constructor() {
@@ -312,7 +312,7 @@ class LivePollCache {
     let mostRecentCache = null;
     let mostRecentTimestamp = 0;
 
-    for (const [cacheKey, cacheData] of this.cache.entries()) {
+    for (const [, cacheData] of this.cache.entries()) {
       if (cacheData.eventId === eventIdStr && cacheData.timestamp > mostRecentTimestamp) {
         mostRecentCache = cacheData;
         mostRecentTimestamp = cacheData.timestamp;
@@ -357,7 +357,7 @@ class LivePollCache {
     // Suche nach aktuellem Cache-Eintrag für dieses Event
     let mostRecentTimestamp = 0;
 
-    for (const [cacheKey, cacheData] of this.cache.entries()) {
+    for (const [, cacheData] of this.cache.entries()) {
       if (cacheData.eventId === eventIdStr && cacheData.timestamp > mostRecentTimestamp) {
         mostRecentTimestamp = cacheData.timestamp;
       }

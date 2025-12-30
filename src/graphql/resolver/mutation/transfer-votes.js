@@ -1,3 +1,4 @@
+/* global Promise */
 import { findOneById, update, addPollHint } from "../../../repository/event-user-repository";
 import { pubsub } from "../../../server/graphql";
 import { UPDATE_EVENT_USER_ACCESS_RIGHTS } from "../subscription/subscription-types";
@@ -110,7 +111,6 @@ export default {
       voteAmount: finalTargetUser.voteAmount,
       pollHints: finalTargetUser.pollHints,
     });
-
 
     // Log the vote transfer
     try {

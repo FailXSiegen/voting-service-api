@@ -1,3 +1,4 @@
+/* global Promise */
 import {
   insert,
   update as updateQuery,
@@ -52,7 +53,7 @@ export async function remove(id) {
  * @param {boolean} [voteComplete=false] Flag indicating if this is the final answer in a ballot and vote_cycle should be incremented
  * @returns {Promise<Object|null>} The insertion result or null if failed
  */
-export async function insertPollSubmitAnswer(input, voteComplete = false) {
+export async function insertPollSubmitAnswer(input) {
   // Generiere eine eindeutige ID für diese Anfrageausführung zur Nachverfolgung
   const executionId = Math.random().toString(36).substring(2, 10);
 
@@ -106,12 +107,6 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
         return null;
       }
 
-      // WICHTIG: maxVoteCycles ist die maximal erlaubte Anzahl von Stimmzetteln (nicht Stimmen!)
-      const pollMaxVoteCycles = parseInt(pollQuery[0].maxVoteCycles, 10) || 0;
-
-      // currentAnswersCount ist die aktuelle Anzahl einzelner Stimmen (nicht Stimmzettel!)
-      // Diese beiden Werte dürfen NICHT direkt verglichen werden!
-      const pollCurrentAnswers = parseInt(pollQuery[0].currentAnswersCount, 10) || 0;
       const isClosed = pollQuery[0].closed === 1;
 
       // If poll is closed, block the insertion
@@ -120,17 +115,6 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
         await query("COMMIT", [], { throwError: true });
         return null;
       }
-
-      // Hier beziehen wir zu Informationszwecken die aktuellen Vote-Cycles
-      const voteCyclesQuery = await query(
-        `SELECT COALESCE(SUM(vote_cycle), 0) AS totalCycles FROM poll_user_voted WHERE poll_result_id = ?`,
-        [input.pollResultId]
-      );
-
-      const totalVoteCycles = Array.isArray(voteCyclesQuery) && voteCyclesQuery.length > 0
-        ? parseInt(voteCyclesQuery[0].totalCycles, 10) || 0
-        : 0;
-
 
       // OPTIMIERT: Überprüfe zuerst die Stimmberechtigung ohne Sperren
       // Dies reduziert Locks bei gleichzeitigen Abstimmungen erheblich
@@ -167,7 +151,6 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
         await query("COMMIT", [], { throwError: true });
         return null;
       }
-
 
       // OPTIMIERT: Check vote_cycle for SECRET polls ohne FOR UPDATE Lock
       // Erst ohne Lock prüfen, ob die Stimme zulässig wäre
@@ -212,7 +195,6 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
         }
       }
 
-
       // THIRD: Now perform the actual insertion based on poll type
       if (input.type === "PUBLIC") {
         // OPTIMIERT: Get poll user ID ohne Lock für schnellere Parallelverarbeitung
@@ -254,18 +236,6 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
         // Nur die Vote-Cycles sind entscheidend für die Schließung einer Abstimmung, nicht die Anzahl der tatsächlich abgegebenen Stimmen.
         // Stellen wir sicher, dass diese Bedingung nicht mehr zum automatischen Schließen der Abstimmung führt.
 
-        // OPTIMIERT: Verzicht auf count mit FOR UPDATE Lock, um Parallelverarbeitung zu ermöglichen
-        // Stattdessen zählen wir ohne Lock - nur für Logging-Zwecke, keine Entscheidung basiert darauf
-        const finalCountQuery = await query(
-          `SELECT COUNT(*) AS total FROM poll_answer WHERE poll_result_id = ?`,
-          [input.pollResultId]
-        );
-
-        const finalCount = Array.isArray(finalCountQuery) && finalCountQuery.length > 0
-          ? parseInt(finalCountQuery[0].total, 10) || 0
-          : 0;
-
-
         // Insert with poll_user_id for PUBLIC polls
         // Use insert() instead of raw query for better error handling and consistency
         await insert("poll_answer", {
@@ -276,21 +246,6 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
           createDatetime: getCurrentUnixTimeStamp()
         });
       } else {
-        // WICHTIG: Wir entfernen die letzte Prüfung auf die maximale Anzahl von Stimmen.
-        // Nur die Vote-Cycles sind entscheidend für die Schließung einer Abstimmung, nicht die Anzahl der tatsächlich abgegebenen Stimmen.
-        // Stellen wir sicher, dass diese Bedingung nicht mehr zum automatischen Schließen der Abstimmung führt.
-
-        // OPTIMIERT: Verzicht auf count mit FOR UPDATE Lock, um Parallelverarbeitung zu ermöglichen
-        // Stattdessen zählen wir ohne Lock - nur für Logging-Zwecke, keine Entscheidung basiert darauf
-        const finalCountQuery = await query(
-          `SELECT COUNT(*) AS total FROM poll_answer WHERE poll_result_id = ?`,
-          [input.pollResultId]
-        );
-
-        const finalCount = Array.isArray(finalCountQuery) && finalCountQuery.length > 0
-          ? parseInt(finalCountQuery[0].total, 10) || 0
-          : 0;
-
         // Use insert() instead of raw query for SECRET polls
         // WICHTIG: Kein Timestamp bei geheimen Wahlen für Anonymität
         // Verwende Default-Wert (0) statt NULL für create_datetime
@@ -301,34 +256,6 @@ export async function insertPollSubmitAnswer(input, voteComplete = false) {
           createDatetime: 0
         });
       }
-
-      // FOURTH: Log the number of votes after insertion, but DON'T auto-close based on this
-      const postInsertCountQuery = await query(
-        `SELECT COUNT(*) AS total FROM poll_answer WHERE poll_result_id = ?`,
-        [input.pollResultId]
-      );
-
-      const postInsertCount = Array.isArray(postInsertCountQuery) && postInsertCountQuery.length > 0
-        ? parseInt(postInsertCountQuery[0].total, 10) || 0
-        : 0;
-
-      // Das stimmt besser überein: Schauen wir uns den tatsächlichen vote_cycle-Stand an
-      const voteCycleStatusQuery = await query(
-        `SELECT COALESCE(SUM(vote_cycle), 0) AS totalCycles, 
-                COALESCE(MAX(vote_cycle), 0) AS maxUserCycle
-         FROM poll_user_voted 
-         WHERE poll_result_id = ?`,
-        [input.pollResultId]
-      );
-
-      const updatedTotalVoteCycles = Array.isArray(voteCycleStatusQuery) && voteCycleStatusQuery.length > 0
-        ? parseInt(voteCycleStatusQuery[0].totalCycles, 10) || 0
-        : 0;
-
-      const maxUserCycle = Array.isArray(voteCycleStatusQuery) && voteCycleStatusQuery.length > 0
-        ? parseInt(voteCycleStatusQuery[0].maxUserCycle, 10) || 0
-        : 0;
-
 
       // WICHTIG: Der vote_cycle repräsentiert VOLLSTÄNDIGE Stimmzettel, nicht einzelne Antworten
       // Wenn voteComplete=true, bedeutet das, dass ein kompletter Stimmzettel abgeben wurde

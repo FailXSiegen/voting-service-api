@@ -1,5 +1,4 @@
 const TranslationRepository = require('../../repository/translation-repository');
-const organizerRepository = require('../../repository/organizer-repository');
 const AuthenticationError = require('../../errors/AuthenticationError');
 
 /**
@@ -11,7 +10,7 @@ const resolvers = {
      * Get all translations
      * @returns {Promise<string>} All translations as JSON string
      */
-    translations: async (_, __, context) => {
+    translations: async () => {
       try {
         const translations = await TranslationRepository.getTranslations();
         return JSON.stringify(translations);
@@ -27,7 +26,7 @@ const resolvers = {
      * @param {Object} args Arguments
      * @returns {Promise<string>} Translations for the locale as JSON string
      */
-    translationsByLocale: async (_, { locale, includeDefaults }, context) => {
+    translationsByLocale: async (_, { locale, includeDefaults }) => {
       try {
         const translations = await TranslationRepository.getTranslationsByLocale(locale, includeDefaults);
         return JSON.stringify(translations);

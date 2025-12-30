@@ -1,3 +1,4 @@
+/* global Promise */
 import { filter, pipe } from "graphql-yoga";
 import { POLL_ANSWER_LIFE_CYCLE } from "./subscription-types";
 import { pubsub } from "../../../server/graphql";
@@ -23,7 +24,7 @@ export default {
           return parseInt(payload.eventId, 10) === parseInt(args.eventId, 10);
         }),
       ),
-    resolve: async (payload, { eventId }) => {
+    resolve: async (payload) => {
       try {
         // Early return if no valid payload data
         if (!payload || !payload.pollResultId) {

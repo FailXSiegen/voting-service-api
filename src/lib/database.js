@@ -1,3 +1,4 @@
+/* global Promise */
 import mysql from "promise-mysql";
 import humps from "humps";
 // Wir entfernen den child_process Import, da wir keine Server-Admin-Befehle ausführen werden
@@ -205,7 +206,7 @@ export async function baseQuery(sql, params, options = {}) {
         
         // Bei anderen Verbindungsfehlern auch erneut versuchen
         if (err.code && (
-            err.code === 'ECONNREFUSED' || 
+          err.code === 'ECONNREFUSED' || 
             err.code === 'ETIMEDOUT' || 
             err.code === 'PROTOCOL_CONNECTION_LOST' ||
             err.code === 'ENOTFOUND' ||

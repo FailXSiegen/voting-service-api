@@ -7,7 +7,6 @@ import {
 import {
   findEventUsersWithShortlinks,
   create as createShortlink,
-  findByEventUserId,
 } from "../../repository/event-user-shortlink-repository";
 import { findById as findEventById } from "../../repository/event-repository";
 import { generateUniqueShortCode } from "../../lib/shortlink-generator";

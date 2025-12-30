@@ -196,7 +196,6 @@ export async function onConnectWebsocket(ctx) {
           // JWT-Token dekodieren (ohne Überprüfung)
           const decodedToken = jwt.decode(jwtToken);
 
-
           if (decodedToken && (decodedToken.eventUserId || decodedToken.userId || decodedToken.organizerId ||
             (decodedToken.user && decodedToken.user.id))) {
 
@@ -390,7 +389,7 @@ export async function onDisconnectWebsocket(ctx) {
             }
             else if (decodedToken && decodedToken.user && decodedToken.user.type === "event-user") {
               eventUserId = parseInt(decodedToken.user.id);
-                    }
+            }
           }
         } catch (error) {
           console.warn("[WARN] Fehler beim Extrahieren der User-ID aus JWT-Token beim Disconnect:", error);
@@ -488,7 +487,7 @@ export async function onDisconnectWebsocket(ctx) {
 
               // Event User Lifecycle Event nur auslösen, wenn sich der Status geändert hat
               if (result && result.shouldPublish === true) {
-                  pubsub.publish(EVENT_USER_LIFE_CYCLE, {
+                pubsub.publish(EVENT_USER_LIFE_CYCLE, {
                   online: false,
                   eventUserId: parseInt(eventUserId),
                   eventId: eventUserLookup.eventId
@@ -540,7 +539,7 @@ export async function onDisconnectWebsocket(ctx) {
 
   // JWT Auth wurde bereits verarbeitet (für User und Organizer) - wir müssen nichts weiter tun
   if (!token) {
-        return;
+    return;
   }
 
   // RefreshToken wurde gefunden, User als offline markieren

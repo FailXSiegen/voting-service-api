@@ -77,7 +77,6 @@ export async function allowToCreateNewVote(pollResultId, eventUserId) {
 
       const user = userQuery[0];
 
-
       if (!user.verified || !user.allowToVote || !user.online) {
         await query("ROLLBACK");
         return false;
@@ -216,9 +215,6 @@ export async function createPollUserVoted(
       const createDatetime = getCurrentUnixTimeStamp();
       const username = userCheck[0].username;
 
-      // Stelle sicher, dass voteAmount ein numerischer Wert ist
-      const maxVotes = parseInt(userCheck[0].voteAmount, 10) || 0;
-
       // Parsen und validieren von voteCycle
       // WICHTIG: Wir setzen den initialen vote_cycle auf 0 statt 1,
       // damit der Zyklus erst nach Abgabe der ersten Stimme erhöht wird
@@ -231,7 +227,6 @@ export async function createPollUserVoted(
       if (finalVoteCycle !== parsedVoteCycle) {
         console.warn(`[WARN] createPollUserVoted: voteCycle auf ${finalVoteCycle} (max) statt ${parsedVoteCycle} begrenzt`);
       }
-
 
       const insertQuery = `INSERT INTO poll_user_voted 
          (event_user_id, username, poll_result_id, vote_cycle, create_datetime, version)
@@ -304,7 +299,6 @@ export async function getUserVoteCycle(pollResultId, eventUserId) {
   }
 }
 
-
 /**
  * Zählt die TATSÄCHLICHE Gesamtzahl der abgegebenen Antworten für einen Benutzer in einer Poll
  * Diese Funktion zählt die tatsächlichen poll_answer Einträge, nicht nur den vote_cycle
@@ -323,7 +317,6 @@ export async function countActualAnswersForUser(pollResultId, eventUserId) {
       `,
       [pollResultId, eventUserId]
     );
-
 
     if (Array.isArray(result) && result.length > 0) {
       const count = parseInt(result[0].answerCount, 10) || 0;
@@ -392,13 +385,12 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
         try {
           // WICHTIGER FIX: Entferne die Bedingung für vote_cycle + ? <= ?, da diese zu restriktiv sein könnte
           // Wir haben bereits geprüft, ob wir das Maximum überschreiten würden
-          const updateResult = await query(
+          await query(
             `UPDATE poll_user_voted
              SET vote_cycle = vote_cycle + ?, version = version + ?
              WHERE poll_result_id = ? AND event_user_id = ?`,
             [incrementBy, incrementBy, pollResultId, eventUserId]
           );
-
 
           // Direkt die erwarteten Werte berechnen
           const newVoteCycle = currentVoteCycle + incrementBy;
@@ -420,7 +412,7 @@ export async function incrementVoteCycleAfterVote(pollResultId, eventUserId, inc
         console.warn(`[WARN:INC_VOTE_CYCLE] Nur ${remainingVotes} von ${incrementBy} angeforderten Stimmen können erhöht werden (Maximum erreicht)`);
 
         try {
-          const updateResult = await query(
+          await query(
             `UPDATE poll_user_voted
              SET vote_cycle = ?, version = ?
              WHERE poll_result_id = ? AND event_user_id = ?`,
@@ -484,7 +476,6 @@ export async function calculateRealVoteCycle(pollResultId, eventUserId, answersP
     // Berechne den Vote-Cycle basierend auf der Anzahl der Antworten
     // Bei mehreren Antworten pro Abstimmung (z.B. Multiple-Choice) teilen wir durch die Anzahl der Antworten pro Stimme
     const effectiveVoteCycle = Math.ceil(answerCount / Math.max(1, answersPerVote));
-
 
     return effectiveVoteCycle;
   } catch (error) {

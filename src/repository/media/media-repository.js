@@ -15,24 +15,6 @@ class MediaRepository {
    */
   async create(data) {
     // MariaDB unterstützt nicht RETURNING *, daher müssen wir erst einfügen und dann abfragen
-    const insertQuery = `
-      INSERT INTO media (
-        filename,
-        path,
-        mime_type,
-        file_size,
-        created_by
-      ) VALUES (?, ?, ?, ?, ?)
-    `;
-    
-    const params = [
-      data.filename,
-      data.path,
-      data.mimeType,
-      data.fileSize,
-      data.createdBy
-    ];
-    
     // Erst einfügen
     const insertResult = await db.insert('media', {
       filename: data.filename,

@@ -127,7 +127,6 @@ export async function updateEventUserOnlineState(eventUserId, online) {
       return false;
     }
 
-
     // Prüfe, ob sich der Status tatsächlich ändert (0/1 in MySQL zu boolean)
     const currentOnline = eventUser.online == 1;
 

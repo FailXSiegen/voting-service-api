@@ -6,8 +6,7 @@ import {
 import {
   allowToCreateNewVote,
   createPollUserVoted,
-  existInCurrentVote,
-  calculateRealVoteCycle
+  existInCurrentVote
 } from "../repository/poll/poll-user-voted-repository";
 import { findOneById } from "../repository/event-user-repository";
 import { pubsub } from "../server/graphql";
@@ -26,7 +25,6 @@ export async function createPollUserIfNeeded(pollResultId, eventUserId) {
       pollResultId,
       eventUserId,
     );
-
 
     // userExists === null bedeutet, dass der Nutzer nicht existiert
     // userExists ist ein Array, wenn der Nutzer gefunden wurde
@@ -49,7 +47,6 @@ export async function createPollUserIfNeeded(pollResultId, eventUserId) {
           );
 
           const eventId = eventIdResult?.[0]?.event_id;
-
 
           if (eventId) {
             // Aktuelle Abstimmungszahlen abrufen
@@ -92,8 +89,7 @@ export async function createPollUserIfNeeded(pollResultId, eventUserId) {
 export async function existsPollUserVoted(
   pollResultId,
   eventUserId,
-  multiVote,
-  input = {}
+  multiVote
 ) {
   try {
     console.log(`[DEBUG:EXISTS_POLL_USER_VOTED] Starting check for user ${eventUserId}, pollResult ${pollResultId}, multiVote ${multiVote}`);

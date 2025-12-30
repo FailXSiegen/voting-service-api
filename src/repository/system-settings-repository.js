@@ -288,9 +288,9 @@ class SystemSettingsRepository {
       return {
         id: settings.id || 0,
         useDirectStaticPaths: data.useDirectStaticPaths !== undefined ? data.useDirectStaticPaths : 
-                             (settings.useDirectStaticPaths || false),
+          (settings.useDirectStaticPaths || false),
         useDbFooterNavigation: data.useDbFooterNavigation !== undefined ? data.useDbFooterNavigation : 
-                              (settings.useDbFooterNavigation || false),
+          (settings.useDbFooterNavigation || false),
         faviconUrl: data.faviconUrl !== undefined ? data.faviconUrl : (settings.faviconUrl || null),
         titleSuffix: data.titleSuffix !== undefined ? data.titleSuffix : (settings.titleSuffix || 'digitalwahl.org'),
         recaptchaEnabled: data.recaptchaEnabled !== undefined ? data.recaptchaEnabled : (settings.recaptchaEnabled || false),

@@ -60,7 +60,6 @@ export default {
     }
   },
 
-
   /**
    * Debug: Cache-Statistiken
    */

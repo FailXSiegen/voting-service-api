@@ -1,3 +1,4 @@
+/* global Map */
 /**
  * PubSub throttling utility to prevent flooding subscribers with too many events
  * Implements throttling, debouncing, and batching for GraphQL PubSub events
