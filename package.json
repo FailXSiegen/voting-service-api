@@ -62,7 +62,8 @@
     "prettier": "^3.0.3"
   },
   "overrides": {
-    "cross-undici-fetch": "0.4.8"
+    "cross-undici-fetch": "0.4.8",
+    "path-to-regexp": "0.1.13"
   },
   "engines": {
     "npm": ">=9.0.0",
