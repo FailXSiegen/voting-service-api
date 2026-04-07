@@ -3,6 +3,7 @@ import {
   findOneById,
   create,
   update,
+  setEventUserOnline,
 } from "../../repository/event-user-repository";
 import { generateJwt } from "../../lib/jwt-auth";
 import * as jwt from "jsonwebtoken";
@@ -158,7 +159,7 @@ export async function loginEventUser({
       online: true
     });
   }
-  await update({ id: eventUser.id, online: true });
+  await setEventUserOnline(eventUser.id);
 
   try {
     const activePollResult = await findActivePoll(eventId);

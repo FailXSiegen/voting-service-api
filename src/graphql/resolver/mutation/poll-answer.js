@@ -747,16 +747,6 @@ export default {
       return 0;
     }
 
-    // OPTIMIERUNG: Implementieren einer Lastverteilung mit Jitter-Verzögerung
-    // Bei vielen gleichzeitigen Anfragen fügen wir eine kleine zufällige Verzögerung ein
-    // Dies verteilt die Last auf dem SQL-Server und reduziert Locks und Ressourcenkonflikte
-
-    // Berechne eine Verzögerung basierend auf der Benutzer-ID für konsistente Verteilung
-    const jitterMs = (input.eventUserId % 10) * 50; // Erzeugt Verzögerungen zwischen 0-450ms
-    if (jitterMs > 0) {
-      await new Promise(resolve => setTimeout(resolve, jitterMs));
-    }
-
     // Get user data to validate vote limit
     const eventUser = await findOneById(input.eventUserId);
     if (!eventUser) {
@@ -770,42 +760,26 @@ export default {
       return 0;
     }
 
-    // Check existing vote state for user
-    const userVotedQuery = await query(
-      `SELECT vote_cycle AS voteCycle FROM poll_user_voted 
-       WHERE poll_result_id = ? AND event_user_id = ?`,
-      [pollResult.id, input.eventUserId]
-    );
-
-    const currentVoteCycle = Array.isArray(userVotedQuery) && userVotedQuery.length > 0
-      ? parseInt(userVotedQuery[0].voteCycle, 10) || 0
-      : 0;
-
-    // Calculate vote limits
     const maxAllowedVotes = parseInt(eventUser.voteAmount, 10) || 0;
-    const remainingVotes = Math.max(0, maxAllowedVotes - currentVoteCycle);
-
-    // Cap requested votes to remaining votes
-    const votesToSubmit = Math.min(input.voteCount, remainingVotes);
-
-    if (votesToSubmit <= 0) {
-      console.warn(`[WARN:BULK_VOTE][${executionId}] User ${input.eventUserId} has no remaining votes (max: ${maxAllowedVotes}, used: ${currentVoteCycle})`);
-      return 0;
-    }
 
     let successfulVotes = 0;
 
-    // Start transaction for the entire bulk operation
+    // Start transaction BEFORE reading vote_cycle to prevent race conditions
     await query("START TRANSACTION", [], { throwError: true });
 
     try {
       // Create poll user if needed
       await createPollUserIfNeeded(pollResult.id, input.eventUserId);
 
-      // Wichtig: Stelle sicher, dass der poll_user_voted Eintrag existiert
-      // (Wenn er nicht existiert, erstelle ihn mit vote_cycle = 0, sodass er später aktualisiert werden kann)
+      // Stelle sicher, dass der poll_user_voted Eintrag existiert
+      const userVotedQuery = await query(
+        `SELECT vote_cycle AS voteCycle FROM poll_user_voted
+         WHERE poll_result_id = ? AND event_user_id = ? FOR UPDATE`,
+        [pollResult.id, input.eventUserId]
+      );
+
       if (!Array.isArray(userVotedQuery) || userVotedQuery.length === 0) {
-        // Hole den Username
+        // Eintrag existiert noch nicht — erstellen
         const usernameQuery = await query(
           `SELECT username FROM event_user WHERE id = ?`,
           [input.eventUserId]
@@ -816,15 +790,28 @@ export default {
           const createDatetime = getCurrentUnixTimeStamp();
 
           await query(
-            `INSERT INTO poll_user_voted 
+            `INSERT INTO poll_user_voted
              (event_user_id, username, poll_result_id, vote_cycle, create_datetime, version)
              VALUES (?, ?, ?, 0, ?, 0)`,
             [input.eventUserId, username, pollResult.id, createDatetime]
           );
-
         } else {
           console.warn(`[WARN:BULK_VOTE][${executionId}] Could not find username for user ${input.eventUserId}`);
         }
+      }
+
+      // vote_cycle jetzt MIT Lock lesen — kein anderer Request kann hier gleichzeitig durch
+      const currentVoteCycle = Array.isArray(userVotedQuery) && userVotedQuery.length > 0
+        ? parseInt(userVotedQuery[0].voteCycle, 10) || 0
+        : 0;
+
+      const remainingVotes = Math.max(0, maxAllowedVotes - currentVoteCycle);
+      const votesToSubmit = Math.min(input.voteCount, remainingVotes);
+
+      if (votesToSubmit <= 0) {
+        console.warn(`[WARN:BULK_VOTE][${executionId}] User ${input.eventUserId} has no remaining votes (max: ${maxAllowedVotes}, used: ${currentVoteCycle})`);
+        await query("ROLLBACK", [], { throwError: true });
+        return 0;
       }
 
       // Get timestamp for all inserts
@@ -943,59 +930,17 @@ export default {
         console.warn(`[WARN:BULK_VOTE][${executionId}] Expected to insert ${votesToSubmit} votes, but only found ${insertCount}`);
       }
 
-      // OPTIMIERUNG: VoteCycle direkt in derselben Transaktion aktualisieren
-      // anstatt eine neue Transaktion über incrementVoteCycleAfterVote zu starten
-      const incrementBy = insertCount > 0 ? insertCount : 1; // Mindestens 1, um konsistent zu bleiben
+      // vote_cycle erhöhen — Lock haben wir bereits seit dem SELECT FOR UPDATE oben
+      // Begrenze auf maxAllowedVotes als absolute Sicherheit
+      const incrementBy = insertCount > 0 ? insertCount : votesToSubmit;
+      const newVoteCycle = Math.min(currentVoteCycle + incrementBy, maxAllowedVotes);
 
-      try {
-        // Hole maximale Stimmanzahl des Benutzers ohne FOR UPDATE
-        const userQuery = await query(
-          `SELECT vote_amount AS voteAmount FROM event_user WHERE id = ?`,
-          [input.eventUserId]
-        );
-
-        const maxVotes = Array.isArray(userQuery) && userQuery.length > 0
-          ? parseInt(userQuery[0].voteAmount, 10) || 0
-          : 0;
-
-        // Aktuelle Stimmen des Benutzers ohne FOR UPDATE
-        const voteQuery = await query(
-          `SELECT vote_cycle AS voteCycle, version 
-           FROM poll_user_voted
-           WHERE poll_result_id = ? AND event_user_id = ?`,
-          [pollResult.id, input.eventUserId]
-        );
-
-        if (Array.isArray(voteQuery) && voteQuery.length > 0) {
-          const currentVoteCycle = parseInt(voteQuery[0].voteCycle, 10) || 0;
-
-          // Entweder erhöhen oder auf Maximum setzen
-          if (currentVoteCycle + incrementBy <= maxVotes) {
-            // Direkte Aktualisierung ohne erneute Prüfung mit FOR UPDATE
-            await query(
-              `UPDATE poll_user_voted
-               SET vote_cycle = vote_cycle + ?, version = version + ?
-               WHERE poll_result_id = ? AND event_user_id = ?`,
-              [incrementBy, incrementBy, pollResult.id, input.eventUserId]
-            );
-          } else if (currentVoteCycle < maxVotes) {
-            // Auf Maximum setzen
-            await query(
-              `UPDATE poll_user_voted
-               SET vote_cycle = ?, version = ?
-               WHERE poll_result_id = ? AND event_user_id = ?`,
-              [maxVotes, maxVotes, pollResult.id, input.eventUserId]
-            );
-          } else {
-            console.warn(`[WARN:BULK_VOTE][${executionId}] User ${input.eventUserId} already at maximum votes ${maxVotes}`);
-          }
-        } else {
-          console.warn(`[WARN:BULK_VOTE][${executionId}] Could not find vote_cycle record to update`);
-        }
-      } catch (updateError) {
-        console.error(`[ERROR:BULK_VOTE][${executionId}] Error updating vote cycle: ${updateError.message}`);
-        throw updateError; // Re-throw to be caught by the outer try-catch
-      }
+      await query(
+        `UPDATE poll_user_voted
+         SET vote_cycle = ?, version = version + ?
+         WHERE poll_result_id = ? AND event_user_id = ?`,
+        [newVoteCycle, incrementBy, pollResult.id, input.eventUserId]
+      );
 
       // Commit transaction
       await query("COMMIT", [], { throwError: true });
