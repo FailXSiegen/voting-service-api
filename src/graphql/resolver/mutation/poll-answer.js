@@ -1024,4 +1024,156 @@ export default {
       return 0;
     }
   },
+
+  // Multi-answer bulk vote: multiple different answers in one request
+  createMultiPollSubmitAnswer: async (_, { input }) => {
+    const executionId = Math.random().toString(36).substring(2, 10);
+
+    const pollResult = await findOneByPollId(input.pollId);
+    if (!pollResult) throw Error("Missing poll result record!");
+
+    const eventId = await findEventIdByPollResultId(pollResult.id);
+    if (!eventId) throw Error("Missing related event record!");
+
+    // Check poll not closed
+    const pollStatusCheck = await query("SELECT closed FROM poll_result WHERE id = ?", [pollResult.id]);
+    if (Array.isArray(pollStatusCheck) && pollStatusCheck.length > 0 && pollStatusCheck[0].closed === 1) {
+      return 0;
+    }
+
+    // Get user
+    const eventUser = await findOneById(input.eventUserId);
+    if (!eventUser || !eventUser.verified || !eventUser.allowToVote) return 0;
+
+    const maxAllowedVotes = parseInt(eventUser.voteAmount, 10) || 0;
+
+    // Alle Antworten haben den gleichen voteCount (= Anzahl Stimmzettel)
+    const ballotCount = parseInt(input.answers[0]?.voteCount, 10) || 0;
+
+    // Start transaction with FOR UPDATE lock
+    await query("START TRANSACTION", [], { throwError: true });
+
+    try {
+      await createPollUserIfNeeded(pollResult.id, input.eventUserId);
+
+      // Read vote_cycle with lock
+      const userVotedQuery = await query(
+        `SELECT vote_cycle AS voteCycle FROM poll_user_voted
+         WHERE poll_result_id = ? AND event_user_id = ? FOR UPDATE`,
+        [pollResult.id, input.eventUserId]
+      );
+
+      if (!Array.isArray(userVotedQuery) || userVotedQuery.length === 0) {
+        // Create entry
+        const usernameQuery = await query("SELECT username FROM event_user WHERE id = ?", [input.eventUserId]);
+        if (Array.isArray(usernameQuery) && usernameQuery.length > 0) {
+          await query(
+            `INSERT INTO poll_user_voted (event_user_id, username, poll_result_id, vote_cycle, create_datetime, version)
+             VALUES (?, ?, ?, 0, ?, 0)`,
+            [input.eventUserId, usernameQuery[0].username, pollResult.id, getCurrentUnixTimeStamp()]
+          );
+        }
+      }
+
+      const currentVoteCycle = Array.isArray(userVotedQuery) && userVotedQuery.length > 0
+        ? parseInt(userVotedQuery[0].voteCycle, 10) || 0 : 0;
+
+      const remainingBallots = Math.max(0, maxAllowedVotes - currentVoteCycle);
+      if (remainingBallots <= 0) {
+        await query("ROLLBACK", [], { throwError: true });
+        return 0;
+      }
+
+      // Begrenze Stimmzettel auf verbleibende
+      const actualBallots = Math.min(ballotCount, remainingBallots);
+      const timestamp = getCurrentUnixTimeStamp();
+      let totalInserted = 0;
+
+      // Get poll_user for PUBLIC polls
+      let pollUserId = null;
+      if (input.type === "PUBLIC") {
+        const pollUserQuery = await query(
+          `SELECT poll_user.id FROM poll_user
+           INNER JOIN poll_result ON poll_user.poll_id = poll_result.poll_id
+           WHERE poll_user.event_user_id = ? AND poll_result.id = ? FOR UPDATE`,
+          [input.eventUserId, pollResult.id]
+        );
+        if (Array.isArray(pollUserQuery) && pollUserQuery.length > 0) {
+          pollUserId = pollUserQuery[0].id;
+        }
+      }
+
+      // Insert each answer type — jede Antwort bekommt actualBallots Zeilen
+      for (const answer of input.answers) {
+        const count = actualBallots;
+        if (count <= 0) continue;
+
+        const answerContent = answer.answerContent ? `'${answer.answerContent.replace(/'/g, "''")}'` : 'NULL';
+        const possibleAnswerId = answer.possibleAnswerId || 'NULL';
+
+        // Chunked insert
+        const chunkSize = 500;
+        for (let i = 0; i < count; i += chunkSize) {
+          const batchSize = Math.min(chunkSize, count - i);
+          const values = [];
+          for (let j = 0; j < batchSize; j++) {
+            if (input.type === "PUBLIC" && pollUserId) {
+              values.push(`(${pollResult.id}, ${possibleAnswerId}, ${answerContent}, ${pollUserId}, ${timestamp})`);
+            } else {
+              values.push(`(${pollResult.id}, ${possibleAnswerId}, ${answerContent}, ${timestamp})`);
+            }
+          }
+
+          if (input.type === "PUBLIC" && pollUserId) {
+            await query(`INSERT INTO poll_answer (poll_result_id, poll_possible_answer_id, answer_content, poll_user_id, create_datetime) VALUES ${values.join(',')}`);
+          } else {
+            await query(`INSERT INTO poll_answer (poll_result_id, poll_possible_answer_id, answer_content, create_datetime) VALUES ${values.join(',')}`);
+          }
+        }
+        totalInserted += count;
+      }
+
+      // Update vote_cycle um Anzahl Stimmzettel (nicht Gesamtzeilen)
+      const newVoteCycle = Math.min(currentVoteCycle + actualBallots, maxAllowedVotes);
+      await query(
+        `UPDATE poll_user_voted SET vote_cycle = ?, version = version + ?
+         WHERE poll_result_id = ? AND event_user_id = ?`,
+        [newVoteCycle, actualBallots, pollResult.id, input.eventUserId]
+      );
+
+      await query("COMMIT", [], { throwError: true });
+
+      // Publish events
+      const leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);
+      if (leftAnswersDataSet) {
+        pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
+          pollResultId: leftAnswersDataSet.pollResultId || 0,
+          maxVotes: leftAnswersDataSet.maxVotes || 0,
+          maxVoteCycles: leftAnswersDataSet.maxVoteCycles || 0,
+          pollUserVoteCycles: leftAnswersDataSet.pollUserVoteCycles || 0,
+          pollUserVotedCount: leftAnswersDataSet.pollUserVotedCount || 0,
+          pollAnswersCount: leftAnswersDataSet.pollAnswersCount || 0,
+        }, { priority: true });
+
+        if (leftAnswersDataSet === null) {
+          await publishPollLifeCycle(pollResult.id);
+          const isAsync = await query("SELECT async FROM event WHERE id = ?", [eventId]);
+          if (Array.isArray(isAsync) && isAsync.length > 0 && isAsync[0].async === 1) {
+            console.info(`[INFO:MULTI_VOTE] Async event ${eventId}, not closing poll`);
+          } else {
+            await publishPollClosedEvent(pollResult.id, eventId, input.pollId);
+          }
+        }
+      } else {
+        await publishPollLifeCycle(pollResult.id);
+      }
+
+      console.info(`[INFO:MULTI_VOTE][${executionId}] User ${input.eventUserId}: ${actualBallots} ballots × ${input.answers.length} answers = ${totalInserted} rows`);
+      return actualBallots;
+    } catch (error) {
+      await query("ROLLBACK", [], { throwError: true });
+      console.error(`[ERROR:MULTI_VOTE][${executionId}] Transaction error:`, error);
+      return 0;
+    }
+  },
 };

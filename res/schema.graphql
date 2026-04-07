@@ -124,6 +124,8 @@ type Mutation {
   createPollSubmitAnswer(input: PollSubmitAnswerInput!): Boolean
   # Creates multiple identical poll answers in a single batch (optimized for bulk voting)
   createBulkPollSubmitAnswer(input: BulkPollSubmitAnswerInput!): Int
+  # Creates multiple different poll answers in a single request (optimized for multi-answer voting)
+  createMultiPollSubmitAnswer(input: MultiPollSubmitAnswerInput!): Int
   # Creates a new poll answer.
   createPollAnswer(input: PollPossibleAnswerInput!): PollPossibleAnswer!
   # Creates a new event user for an event.
@@ -512,6 +514,17 @@ input BulkPollSubmitAnswerInput {
   type: PollType!
   possibleAnswerId: ID
   answerContent: String
+  voteCount: Int!
+}
+input MultiPollSubmitAnswerInput {
+  pollId: ID!
+  eventUserId: ID!
+  type: PollType!
+  answers: [MultiPollAnswerItem!]!
+}
+input MultiPollAnswerItem {
+  possibleAnswerId: ID
+  answerContent: String!
   voteCount: Int!
 }
 input CreateZoomMeetingInput {
