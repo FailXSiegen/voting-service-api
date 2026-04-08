@@ -1,26 +1,20 @@
-import { update, findOneByHash } from "../../repository/organizer-repository";
-import mailer from "../../lib/email-util";
+import { update, findOneByHash } from '../../repository/organizer-repository';
+import mailer from '../../lib/email-util';
 
 export default async function updateOrganizerPassword(req, res) {
-  res.setHeader("content-type", "application/json");
+  res.setHeader('content-type', 'application/json');
   try {
     const { password, passwordRepeat, hash } = req.body;
 
     // Validate passwords.
     if (password !== passwordRepeat) {
-      throw new Error(
-        'The fields "password" and "passwordRepeat" must be the same.',
-      );
+      throw new Error('The fields "password" and "passwordRepeat" must be the same.');
     }
 
     // Validate the given hash by fetching the organizer record based on it.
     const organizer = await findOneByHash(hash);
     if (organizer === null) {
-      throw new Error(
-        'The given hash is not valid. Organizer with hash "' +
-          hash +
-          '" not found.',
-      );
+      throw new Error('The given hash is not valid. Organizer with hash "' + hash + '" not found.');
     }
 
     // Update organizer record.
@@ -33,8 +27,8 @@ export default async function updateOrganizerPassword(req, res) {
       await mailer.sendMail({
         from: process.env.MAIL_DEFAULT_FROM,
         to: process.env.MAIL_ADMIN_EMAIL,
-        subject: "Validierung einer E-Mail Adresse",
-        template: "validate-complete",
+        subject: 'Validierung einer E-Mail Adresse',
+        template: 'validate-complete',
         ctx: {
           name: organizer.publicName,
           organisation: organizer.publicOrganisation,
@@ -49,20 +43,20 @@ export default async function updateOrganizerPassword(req, res) {
       id: organizer.id,
       confirmedEmail: organizer.confirmedEmail,
       password: organizer.password,
-      hash: "",
+      hash: '',
     });
 
     res.send(
       JSON.stringify({
         success: true,
-      }),
+      })
     );
   } catch (error) {
     res.send(
       JSON.stringify({
         error: error.message,
         success: false,
-      }),
+      })
     );
   }
 }

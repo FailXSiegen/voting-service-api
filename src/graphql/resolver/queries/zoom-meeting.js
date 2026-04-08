@@ -1,4 +1,4 @@
-import { findOneById } from "../../../repository/meeting/zoom-meeting-repository";
+import { findOneById } from '../../../repository/meeting/zoom-meeting-repository';
 
 export default {
   zoomMeeting: async (_, { id }) => {

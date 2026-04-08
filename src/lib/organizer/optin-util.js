@@ -1,6 +1,6 @@
-import md5 from "md5";
-import { getCurrentUnixTimeStamp } from "../time-stamp";
-import { findOneByHash, update } from "../../repository/organizer-repository";
+import md5 from 'md5';
+import { getCurrentUnixTimeStamp } from '../time-stamp';
+import { findOneByHash, update } from '../../repository/organizer-repository';
 
 async function insertOrganizerHash(hash, organizer) {
   const input = {

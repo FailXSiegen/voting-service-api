@@ -1,8 +1,8 @@
 /* global Promise */
-import { findOneById, update, addPollHint } from "../../../repository/event-user-repository";
-import { pubsub } from "../../../server/graphql";
-import { UPDATE_EVENT_USER_ACCESS_RIGHTS } from "../subscription/subscription-types";
-import { logVoteTransfer } from "../../../lib/vote-adjustment-logger.js";
+import { findOneById, update, addPollHint } from '../../../repository/event-user-repository';
+import { pubsub } from '../../../server/graphql';
+import { UPDATE_EVENT_USER_ACCESS_RIGHTS } from '../subscription/subscription-types';
+import { logVoteTransfer } from '../../../lib/vote-adjustment-logger.js';
 // import { getAuditLogger, ACTION_TYPES, PRIVACY_LEVELS } from "../../../lib/audit-logger.js"; // TEMPORARILY DISABLED
 
 export default {
@@ -12,15 +12,15 @@ export default {
 
     // Validate input
     if (!sourceUserId || !targetUserId || !voteAmount) {
-      throw new Error("Missing required parameters");
+      throw new Error('Missing required parameters');
     }
 
     if (sourceUserId === targetUserId) {
-      throw new Error("Cannot transfer votes to the same user");
+      throw new Error('Cannot transfer votes to the same user');
     }
 
     if (voteAmount <= 0) {
-      throw new Error("Vote amount must be positive");
+      throw new Error('Vote amount must be positive');
     }
 
     // Fetch both users
@@ -28,22 +28,22 @@ export default {
     const targetUser = await findOneById(targetUserId);
 
     if (!sourceUser || !targetUser) {
-      throw new Error("One or both users not found");
+      throw new Error('One or both users not found');
     }
 
     // Validate that both users belong to the same event
     if (sourceUser.eventId !== targetUser.eventId) {
-      throw new Error("Users must belong to the same event");
+      throw new Error('Users must belong to the same event');
     }
 
     // Validate that source user has enough votes
     if (sourceUser.voteAmount < voteAmount) {
-      throw new Error("Source user does not have enough votes");
+      throw new Error('Source user does not have enough votes');
     }
 
     // Validate that both users are verified
     if (!sourceUser.verified || !targetUser.verified) {
-      throw new Error("Both users must be verified");
+      throw new Error('Both users must be verified');
     }
 
     // Calculate new vote amounts
@@ -85,7 +85,7 @@ export default {
         voteAmount,
         targetUser.publicName || targetUser.username,
         'transferred'
-      )
+      ),
     ]);
 
     // Fetch updated users with poll_hints after adding hints
@@ -122,7 +122,7 @@ export default {
         voteAmount,
         sourceUserName: sourceUser.publicName || sourceUser.username,
         targetUserName: targetUser.publicName || targetUser.username,
-        sourceUserRemainingVotes: newSourceVoteAmount
+        sourceUserRemainingVotes: newSourceVoteAmount,
       });
     } catch (logError) {
       console.error('[ERROR] Failed to log vote transfer:', logError);

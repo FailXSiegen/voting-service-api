@@ -6,23 +6,23 @@
  */
 
 // Load environment variables first
-require("dotenv").config();
+require('dotenv').config();
 
-const { deleteAllByEventId } = require("../repository/event-user-shortlink-repository");
-const { findById: findEventById } = require("../repository/event-repository");
+const { deleteAllByEventId } = require('../repository/event-user-shortlink-repository');
+const { findById: findEventById } = require('../repository/event-repository');
 
 async function clearShortlinks() {
   const eventId = process.argv[2];
 
   if (!eventId) {
-    console.error("❌ Error: Event ID is required");
-    console.log("Usage: npm run clear-shortlinks -- <eventId>");
+    console.error('❌ Error: Event ID is required');
+    console.log('Usage: npm run clear-shortlinks -- <eventId>');
     process.exit(1);
   }
 
   const parsedEventId = parseInt(eventId);
   if (isNaN(parsedEventId)) {
-    console.error("❌ Error: Event ID must be a number");
+    console.error('❌ Error: Event ID must be a number');
     process.exit(1);
   }
 
@@ -40,15 +40,15 @@ async function clearShortlinks() {
     const result = await deleteAllByEventId(parsedEventId);
 
     if (result) {
-      console.log("✅ All shortlinks deleted successfully");
+      console.log('✅ All shortlinks deleted successfully');
     } else {
-      console.error("❌ Failed to delete shortlinks");
+      console.error('❌ Failed to delete shortlinks');
       process.exit(1);
     }
 
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error:", error.message);
+    console.error('❌ Error:', error.message);
     console.error(error);
     process.exit(1);
   }

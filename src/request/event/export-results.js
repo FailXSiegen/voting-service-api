@@ -3,38 +3,38 @@ import {
   getPollResults,
   getPollResultsDetails,
   getEventUsersWithVoteCount,
-} from "../../repository/poll/poll-result-repository";
+} from '../../repository/poll/poll-result-repository';
 import {
   findEventUsersWithShortlinks,
   create as createShortlink,
-} from "../../repository/event-user-shortlink-repository";
-import { findById as findEventById } from "../../repository/event-repository";
-import { generateUniqueShortCode } from "../../lib/shortlink-generator";
-import * as fs from "fs";
-import * as fastcsv from "fast-csv";
-import path from "path";
+} from '../../repository/event-user-shortlink-repository';
+import { findById as findEventById } from '../../repository/event-repository';
+import { generateUniqueShortCode } from '../../lib/shortlink-generator';
+import * as fs from 'fs';
+import * as fastcsv from 'fast-csv';
+import path from 'path';
 
 export default async function downloadPollResultCsv(req, res) {
   try {
     const data = req.body;
-    const generatedfilename = data.eventId + data.exportType + ".csv";
+    const generatedfilename = data.eventId + data.exportType + '.csv';
     const relPath = generatedfilename;
-    const absPath = path.join(__dirname, "../../../", generatedfilename);
-    let responseData = "";
+    const absPath = path.join(__dirname, '../../../', generatedfilename);
+    let responseData = '';
     switch (data.exportType) {
-      case "pollOverview":
+      case 'pollOverview':
         responseData = await getPollOverview(data.eventId);
         break;
-      case "pollResults":
+      case 'pollResults':
         responseData = await getPollResults(data.eventId);
         break;
-      case "pollResultsDetail":
+      case 'pollResultsDetail':
         responseData = await getPollResultsDetails(data.eventId);
         break;
-      case "pollEventUsersVoted":
+      case 'pollEventUsersVoted':
         responseData = await getEventUsersWithVoteCount(data.eventId);
         break;
-      case "eventUsersWithShortlinks":
+      case 'eventUsersWithShortlinks':
         responseData = await getEventUsersWithShortlinks(data.eventId);
         break;
     }
@@ -44,7 +44,7 @@ export default async function downloadPollResultCsv(req, res) {
       JSON.stringify({
         error: error.message,
         success: false,
-      }),
+      })
     );
   }
 }
@@ -52,11 +52,11 @@ export default async function downloadPollResultCsv(req, res) {
 async function getEventUsersWithShortlinks(eventId) {
   const event = await findEventById(eventId);
   if (!event) {
-    throw new Error("Event not found");
+    throw new Error('Event not found');
   }
 
   const eventUsers = await findEventUsersWithShortlinks(eventId);
-  const baseUrl = process.env.CLIENT_BASE_URL || "http://localhost:5173";
+  const baseUrl = process.env.CLIENT_BASE_URL || 'http://localhost:5173';
 
   // Generate shortlinks for users who don't have one
   const results = [];
@@ -72,10 +72,10 @@ async function getEventUsersWithShortlinks(eventId) {
     const shortlink = `${baseUrl}/s/${shortCode}`;
 
     results.push({
-      "Public Name": user.publicName || "",
+      'Public Name': user.publicName || '',
       Username: user.username,
-      "Stimmberechtigt": user.allowToVote ? "Ja" : "Nein",
-      "Stimmenanzahl": user.voteAmount,
+      Stimmberechtigt: user.allowToVote ? 'Ja' : 'Nein',
+      Stimmenanzahl: user.voteAmount,
       Shortlink: shortlink,
     });
   }
@@ -85,10 +85,8 @@ async function getEventUsersWithShortlinks(eventId) {
 
 function exportFile(relPath, absPath, responseData, res) {
   const ws = fs.createWriteStream(relPath);
-  fastcsv
-    .write(responseData, { headers: true, delimiter: ";", quote: true })
-    .pipe(ws);
-  ws.on("finish", () => {
+  fastcsv.write(responseData, { headers: true, delimiter: ';', quote: true }).pipe(ws);
+  ws.on('finish', () => {
     res.download(absPath, function () {
       fs.unlink(absPath, (error) => {
         console.error(error);

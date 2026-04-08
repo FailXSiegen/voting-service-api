@@ -20,7 +20,11 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has permission for admin view
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           // For non-admin users, only return published content
           const result = await staticContentRepository.findAll(true);
           // If no results, return empty array (not null items)
@@ -32,7 +36,7 @@ const resolvers = {
         return result || [];
       } catch (err) {
         console.error('Error in staticContents resolver:', err);
-        // Return empty array in case of error, not null 
+        // Return empty array in case of error, not null
         return [];
       }
     },
@@ -47,7 +51,8 @@ const resolvers = {
     staticContentsByPage: async (_, { pageKey }, context) => {
       try {
         const { user } = context;
-        const publishedOnly = !user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin);
+        const publishedOnly =
+          !user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin);
 
         const result = await staticContentRepository.findByPageKey(pageKey, publishedOnly);
         return result || [];
@@ -69,7 +74,11 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has permission for admin view
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('User not authorized to access static content management');
           return null;
         }
@@ -98,9 +107,14 @@ const resolvers = {
     staticContentBySection: async (_, { pageKey, sectionKey }, context) => {
       try {
         const { user } = context;
-        const publishedOnly = !user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin);
+        const publishedOnly =
+          !user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin);
 
-        const content = await staticContentRepository.findBySection(pageKey, sectionKey, publishedOnly);
+        const content = await staticContentRepository.findBySection(
+          pageKey,
+          sectionKey,
+          publishedOnly
+        );
         return content;
       } catch (err) {
         console.error('Error in staticContentBySection resolver:', err);
@@ -118,7 +132,8 @@ const resolvers = {
     staticContentByPageSlug: async (_, { pageSlug }, context) => {
       try {
         const { user } = context;
-        const publishedOnly = !user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin);
+        const publishedOnly =
+          !user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin);
 
         // First, find the page key by slug from the mapping table
         const pageSlugEntry = await staticPageSlugRepository.findBySlug(pageSlug);
@@ -129,7 +144,10 @@ const resolvers = {
         }
 
         // Use the page key to get the content
-        const content = await staticContentRepository.findByPageKey(pageSlugEntry.pageKey, publishedOnly);
+        const content = await staticContentRepository.findByPageKey(
+          pageSlugEntry.pageKey,
+          publishedOnly
+        );
         return content;
       } catch (err) {
         console.error('Error in staticContentByPageSlug resolver:', err);
@@ -149,7 +167,11 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has permission for admin view
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('User not authorized to access static content history');
           return [];
         }
@@ -160,7 +182,7 @@ const resolvers = {
         console.error('Error in staticContentVersions resolver:', err);
         return [];
       }
-    }
+    },
   },
 
   Mutation: {
@@ -176,7 +198,11 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has permission for admin view
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('User not authorized to create static content');
           return null;
         }
@@ -190,7 +216,7 @@ const resolvers = {
           title: input.title,
           headerClass: input.headerClass || 'h2',
           ordering: input.ordering,
-          isPublished: input.isPublished
+          isPublished: input.isPublished,
         };
 
         // Add multi-column data if provided
@@ -203,7 +229,11 @@ const resolvers = {
         }
 
         // Add accordion data if provided
-        if (input.contentType === 'accordion' && input.accordionItems && Array.isArray(input.accordionItems)) {
+        if (
+          input.contentType === 'accordion' &&
+          input.accordionItems &&
+          Array.isArray(input.accordionItems)
+        ) {
           repositoryInput.accordionItems = input.accordionItems;
         }
 
@@ -229,7 +259,11 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has permission for admin view
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('User not authorized to update static content');
           return null;
         }
@@ -247,7 +281,7 @@ const resolvers = {
           headerClass: input.headerClass,
           ordering: input.ordering !== undefined ? parseInt(input.ordering, 10) : undefined,
           isPublished: input.isPublished,
-          contentType: input.contentType
+          contentType: input.contentType,
         };
 
         // Add multi-column data if provided
@@ -265,7 +299,11 @@ const resolvers = {
         }
 
         // Update the content
-        const updatedContent = await staticContentRepository.update(input.id, repositoryInput, user.organizer.id);
+        const updatedContent = await staticContentRepository.update(
+          input.id,
+          repositoryInput,
+          user.organizer.id
+        );
 
         return updatedContent;
       } catch (err) {
@@ -286,7 +324,11 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has permission for admin view
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('User not authorized to delete static content');
           return false;
         }
@@ -310,7 +352,11 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has permission for admin view
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('User not authorized to publish/unpublish static content');
           return null;
         }
@@ -334,7 +380,11 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has permission for admin view
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('User not authorized to revert static content versions');
           return null;
         }
@@ -344,7 +394,7 @@ const resolvers = {
         console.error('Error in revertStaticContentToVersion resolver:', err);
         return null;
       }
-    }
+    },
   },
 
   StaticContent: {
@@ -395,7 +445,7 @@ const resolvers = {
     headerClass: (parent) => parent.headerClass || 'h2',
     columnCount: (parent) => parent.columnCount,
     columnsContent: (parent) => parent.columnsContent || [],
-    accordionItems: (parent) => parent.accordionItems || []
+    accordionItems: (parent) => parent.accordionItems || [],
   },
 
   StaticContentVersion: {
@@ -428,7 +478,10 @@ const resolvers = {
         const pageSlugEntry = await staticPageSlugRepository.findByPageKey(content.pageKey);
         return pageSlugEntry ? pageSlugEntry.slug : null;
       } catch (err) {
-        console.warn(`Error resolving pageSlug for version of content ID ${parent.contentId}:`, err.message);
+        console.warn(
+          `Error resolving pageSlug for version of content ID ${parent.contentId}:`,
+          err.message
+        );
         return null;
       }
     },
@@ -439,8 +492,8 @@ const resolvers = {
     headerClass: (parent) => parent.headerClass || 'h2',
     columnCount: (parent) => parent.columnCount,
     columnsContent: (parent) => parent.columnsContent || [],
-    accordionItems: (parent) => parent.accordionItems || []
-  }
+    accordionItems: (parent) => parent.accordionItems || [],
+  },
 };
 
 module.exports = resolvers;

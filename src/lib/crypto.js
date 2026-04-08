@@ -1,4 +1,4 @@
-import argon2 from "argon2";
+import argon2 from 'argon2';
 
 export async function hash(plainTextValue) {
   return await argon2.hash(plainTextValue);

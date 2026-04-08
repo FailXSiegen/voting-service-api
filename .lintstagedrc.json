@@ -1,0 +1,9 @@
+{
+  "src/**/*.js": [
+    "eslint --fix",
+    "prettier --write"
+  ],
+  "src/**/*.{json,md}": [
+    "prettier --write"
+  ]
+}

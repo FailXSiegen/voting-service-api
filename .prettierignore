@@ -1,0 +1,8 @@
+_obsolete
+node_modules
+dist
+.git
+.idea
+*.min.js
+*.min.css
+package-lock.json

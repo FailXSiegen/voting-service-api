@@ -18,7 +18,11 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has permission for admin view
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('User not authorized to access page slugs');
           return [];
         }
@@ -61,7 +65,7 @@ const resolvers = {
         console.error('Error in pageSlugBySlug resolver:', err);
         return null;
       }
-    }
+    },
   },
 
   Mutation: {
@@ -77,7 +81,11 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has permission for admin view
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('User not authorized to modify page slugs');
           throw new AuthenticationError('Unauthorized');
         }
@@ -110,7 +118,11 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has permission for admin view
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('User not authorized to delete page slugs');
           throw new AuthenticationError('Unauthorized');
         }
@@ -120,8 +132,8 @@ const resolvers = {
         console.error('Error in deletePageSlug resolver:', err);
         throw err;
       }
-    }
-  }
+    },
+  },
 };
 
 module.exports = resolvers;

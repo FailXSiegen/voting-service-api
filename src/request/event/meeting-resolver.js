@@ -1,5 +1,5 @@
-import { VideoConferenceType } from "../../enum";
-import { findOneById as findOneZoomMeetingById } from "../../repository/meeting/zoom-meeting-repository";
+import { VideoConferenceType } from '../../enum';
+import { findOneById as findOneZoomMeetingById } from '../../repository/meeting/zoom-meeting-repository';
 
 export default async function (event) {
   if (!event.videoConferenceConfig) {

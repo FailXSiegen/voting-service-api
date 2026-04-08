@@ -21,7 +21,11 @@ const resolvers = {
         // Prüfe Berechtigung (nur Admins können Medien verwalten)
         console.log('User in context:', user ? 'Authenticated' : 'Unauthenticated');
         // Eigenschaften sind im camelCase
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('Unauthorized access to mediaItems');
           return [];
         }
@@ -48,7 +52,11 @@ const resolvers = {
         const { user } = context;
 
         // Prüfe Berechtigung
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           console.warn('Unauthorized access to media');
           return null;
         }
@@ -58,7 +66,7 @@ const resolvers = {
         console.error('Error in media resolver:', err);
         return null;
       }
-    }
+    },
   },
 
   Mutation: {
@@ -74,7 +82,11 @@ const resolvers = {
         const { user } = context;
 
         // Prüfe Berechtigung
-        if (!user || !user.organizer || !(user.organizer.canEditContent || user.organizer.superAdmin)) {
+        if (
+          !user ||
+          !user.organizer ||
+          !(user.organizer.canEditContent || user.organizer.superAdmin)
+        ) {
           throw new AuthenticationError('Not authorized to delete media');
         }
 
@@ -83,7 +95,7 @@ const resolvers = {
         console.error('Error in deleteMedia resolver:', err);
         return false;
       }
-    }
+    },
   },
 
   Media: {
@@ -135,8 +147,8 @@ const resolvers = {
      */
     fileSize: (parent) => {
       return parent.fileSize;
-    }
-  }
+    },
+  },
 };
 
 module.exports = resolvers;

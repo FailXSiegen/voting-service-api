@@ -2,7 +2,7 @@ import {
   findClosedPollResults,
   findActivePoll,
   findActivePollEventUser,
-} from "../../../repository/poll/poll-result-repository";
+} from '../../../repository/poll/poll-result-repository';
 
 export default {
   pollResult: async (_, { eventId, page, pageSize, includeHidden }) => {

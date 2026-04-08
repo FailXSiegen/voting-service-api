@@ -1,21 +1,21 @@
 import {
   findAllUnfinishedPassedAsyncEvents,
   update as updateEvent,
-} from "../repository/event-repository";
-import { findOneById as findOneOrganizerById } from "../repository/organizer-repository";
-import { closeAllPollResultsByEventId } from "../repository/poll/poll-result-repository";
-import mailer from "../lib/email-util";
+} from '../repository/event-repository';
+import { findOneById as findOneOrganizerById } from '../repository/organizer-repository';
+import { closeAllPollResultsByEventId } from '../repository/poll/poll-result-repository';
+import mailer from '../lib/email-util';
 
 export default {
-  name: "Close async events (every 15 min)",
-  interval: "*/15 * * * *",
+  name: 'Close async events (every 15 min)',
+  interval: '*/15 * * * *',
   active: true,
   execute: async () => {
-    console.info("[cron] Check for async events to close");
+    console.info('[cron] Check for async events to close');
     try {
       await processEvents((await findAllUnfinishedPassedAsyncEvents()) ?? []);
     } catch (error) {
-      console.error("[cron] " + error);
+      console.error('[cron] ' + error);
     }
   },
   options: {},
@@ -46,7 +46,7 @@ async function notifyOrganizer(event) {
     to: organizer.email,
     replyTo: process.env.MAIL_DEFAULT_FROM,
     subject: `Veranstaltung "${event.title}" beendet`,
-    template: "async-event-closed",
+    template: 'async-event-closed',
     ctx: {
       event,
       organizer,

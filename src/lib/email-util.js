@@ -1,20 +1,20 @@
-import nodemailer from "nodemailer";
-import { pugEngine } from "nodemailer-pug-engine";
+import nodemailer from 'nodemailer';
+import { pugEngine } from 'nodemailer-pug-engine';
 
 export default {
   transport: null,
   async init() {
-    if (process.env.NODE_ENV !== "development") {
+    if (process.env.NODE_ENV !== 'development') {
       let config = {
         host: process.env.MAIL_HOST,
         port: process.env.MAIL_PORT,
-        pool: process.env.MAIL_USE_POOL === "1",
-        secure: process.env.MAIL_PORT === "465", // SSL for port 465, STARTTLS for 587
-        requireTLS: process.env.MAIL_USE_TLS === "1",
+        pool: process.env.MAIL_USE_POOL === '1',
+        secure: process.env.MAIL_PORT === '465', // SSL for port 465, STARTTLS for 587
+        requireTLS: process.env.MAIL_USE_TLS === '1',
       };
 
       // Add auth if needed.
-      if (process.env.MAIL_USE_AUTH === "1") {
+      if (process.env.MAIL_USE_AUTH === '1') {
         config = Object.assign(config, {
           auth: {
             user: process.env.MAIL_AUTH_USER,
@@ -25,7 +25,7 @@ export default {
       this.transport = nodemailer.createTransport(config);
     }
     // Create mailer for development
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV === 'development') {
       this.transport = nodemailer.createTransport({
         port: 1025,
       });
@@ -33,20 +33,17 @@ export default {
 
     await this.transport.verify((error) => {
       if (error) {
-        console.error(
-          "[ERROR] Server is unable to send mails. Error message: " +
-            error.message,
-        );
+        console.error('[ERROR] Server is unable to send mails. Error message: ' + error.message);
         return;
       }
-      console.info("[INFO] Server is ready to send mails.");
+      console.info('[INFO] Server is ready to send mails.');
     });
     this.transport.use(
-      "compile",
+      'compile',
       pugEngine({
-        templateDir: __dirname + "/emails",
+        templateDir: __dirname + '/emails',
         pretty: true,
-      }),
+      })
     );
   },
   async sendMail(config) {
@@ -55,12 +52,9 @@ export default {
     }
     await this.transport.sendMail(config, function (error, info) {
       if (error) {
-        console.error(
-          "[ERROR] Server is unable to send mails. Error message: " +
-            error.message,
-        );
+        console.error('[ERROR] Server is unable to send mails. Error message: ' + error.message);
       }
-      if (info && process.env.ENABLE_DEBUG === "1") {
+      if (info && process.env.ENABLE_DEBUG === '1') {
         console.debug(info);
       }
     });

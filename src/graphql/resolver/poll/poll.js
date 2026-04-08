@@ -1,24 +1,24 @@
-import { findByPollId } from "../../../repository/poll/poll-possible-answer-repository";
-import { getUserVoteCycle } from "../../../repository/poll/poll-user-voted-repository";
-import { findOneByPollId } from "../../../repository/poll/poll-result-repository";
-import { findOneById } from "../../../repository/event-user-repository";
-import { query } from "../../../lib/database";
+import { findByPollId } from '../../../repository/poll/poll-possible-answer-repository';
+import { getUserVoteCycle } from '../../../repository/poll/poll-user-voted-repository';
+import { findOneByPollId } from '../../../repository/poll/poll-result-repository';
+import { findOneById } from '../../../repository/event-user-repository';
+import { query } from '../../../lib/database';
 
-export function pollTypeConverter(typeId) {
+function pollTypeConverter(typeId) {
   switch (typeId) {
     case 0:
-      return "SECRET";
+      return 'SECRET';
     case 1:
-      return "PUBLIC";
+      return 'PUBLIC';
     default:
       throw new Error(`the given type id "${typeId}" is not supported!`);
   }
 }
 export function pollTypeConverterToString(typeString) {
   switch (typeString) {
-    case "SECRET":
+    case 'SECRET':
       return 0;
-    case "PUBLIC":
+    case 'PUBLIC':
       return 1;
     default:
       throw new Error(`the given type id "${typeString}" is not supported!`);
@@ -35,7 +35,7 @@ export default {
     try {
       // Parameter validieren
       if (!eventUserId || !pollId) {
-        console.error("Poll.userVoteCycle: Fehlende Parameter:", { eventUserId, pollId });
+        console.error('Poll.userVoteCycle: Fehlende Parameter:', { eventUserId, pollId });
         return { voteCycle: 0, maxVotes: 0 };
       }
 
@@ -67,7 +67,9 @@ export default {
           const dbVersion = parseInt(versionQuery[0].version, 10) || 0;
 
           if (dbVoteCycle !== dbVersion) {
-            console.warn(`[WARN] Poll.userVoteCycle: Diskrepanz zwischen voteCycle (${dbVoteCycle}) und version (${dbVersion}) gefunden!`);
+            console.warn(
+              `[WARN] Poll.userVoteCycle: Diskrepanz zwischen voteCycle (${dbVoteCycle}) und version (${dbVersion}) gefunden!`
+            );
             const maxValue = Math.max(dbVoteCycle, dbVersion);
 
             if (userVote) {
@@ -81,10 +83,13 @@ export default {
 
       return {
         voteCycle: voteCycle,
-        maxVotes: eventUser.voteAmount || 0
+        maxVotes: eventUser.voteAmount || 0,
       };
     } catch (error) {
-      console.error("Fehler beim Abrufen des Vote-Cycle für Poll:", error, "für Parameter:", { pollId, eventUserId });
+      console.error('Fehler beim Abrufen des Vote-Cycle für Poll:', error, 'für Parameter:', {
+        pollId,
+        eventUserId,
+      });
       return { voteCycle: 0, maxVotes: 0 };
     }
   },

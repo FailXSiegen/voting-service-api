@@ -6,20 +6,20 @@ import {
   findAllPastEvents,
   findUpcomingByOriginalOrganizer,
   findExpiredByOriginalOrganizer,
-} from "../../../repository/event-repository";
-import EventNotFoundError from "../../../errors/event/EventNotFoundError";
+} from '../../../repository/event-repository';
+import EventNotFoundError from '../../../errors/event/EventNotFoundError';
 
 export default {
   allUpcomingEvents: async () => {
     try {
-      return await findAllUpcomingEvents() || [];
+      return (await findAllUpcomingEvents()) || [];
     } catch (err) {
       return [];
     }
   },
   allPastEvents: async (_, { page = 0, pageSize = 10 }) => {
     try {
-      return await findAllPastEvents(page, pageSize) || [];
+      return (await findAllPastEvents(page, pageSize)) || [];
     } catch (err) {
       return [];
     }
@@ -32,15 +32,15 @@ export default {
       }
 
       // Get events directly owned by the organizer
-      const directEvents = await findUpcoming(args.organizerId) || [];
+      const directEvents = (await findUpcoming(args.organizerId)) || [];
 
       // Get events where this organizer is the original_organizer
-      const originalEvents = await findUpcomingByOriginalOrganizer(args.organizerId) || [];
+      const originalEvents = (await findUpcomingByOriginalOrganizer(args.organizerId)) || [];
 
       // Combine both types of events
       return [...directEvents, ...originalEvents];
     } catch (err) {
-      console.error("Error in upcomingEvents query:", err);
+      console.error('Error in upcomingEvents query:', err);
       return [];
     }
   },
@@ -52,15 +52,15 @@ export default {
       }
 
       // Get events directly owned by the organizer
-      const directEvents = await findExpired(args.organizerId) || [];
+      const directEvents = (await findExpired(args.organizerId)) || [];
 
       // Get events where this organizer is the original_organizer
-      const originalEvents = await findExpiredByOriginalOrganizer(args.organizerId) || [];
+      const originalEvents = (await findExpiredByOriginalOrganizer(args.organizerId)) || [];
 
       // Combine both types of events
       return [...directEvents, ...originalEvents];
     } catch (err) {
-      console.error("Error in expiredEvents query:", err);
+      console.error('Error in expiredEvents query:', err);
       return [];
     }
   },
@@ -76,7 +76,7 @@ export default {
       if (err instanceof EventNotFoundError) {
         throw err;
       }
-      console.error("Error in event query:", err);
+      console.error('Error in event query:', err);
       return null;
     }
   },

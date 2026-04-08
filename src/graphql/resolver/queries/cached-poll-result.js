@@ -6,8 +6,8 @@
  * alle Clients lesen nur den Cache.
  */
 
-import { livePollCache } from "../../../cache/live-poll-cache.js";
-import { findActivePollEventUser } from "../../../repository/poll/poll-result-repository.js";
+import { livePollCache } from '../../../cache/live-poll-cache.js';
+import { findActivePollEventUser } from '../../../repository/poll/poll-result-repository.js';
 
 export default {
   /**
@@ -46,7 +46,6 @@ export default {
       // Fallback: Original Resolver
       console.log(`[CachedPollResolver] Fallback auf Original Resolver für Event ${eventId}`);
       return await findActivePollEventUser(eventId);
-
     } catch (error) {
       console.error(`[CachedPollResolver] Fehler für Event ${eventId}:`, error);
 
@@ -65,5 +64,5 @@ export default {
    */
   pollCacheStats: async () => {
     return livePollCache.getStats();
-  }
+  },
 };

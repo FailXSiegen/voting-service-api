@@ -1,4 +1,4 @@
-import * as jwt from "jsonwebtoken";
+import * as jwt from 'jsonwebtoken';
 
 export async function generateJwt(claims) {
   return await jwt.sign(claims, process.env.JWT_SECRET, {
@@ -30,13 +30,13 @@ export async function refreshUserJwtAfterVerification(eventUserId, eventId, veri
     user: {
       id: eventUserId,
       eventId,
-      type: "event-user",
+      type: 'event-user',
       verified: verificationStatus,
     },
-    role: "event-user",
+    role: 'event-user',
     // For WebSocket authentication
-    eventUserId
+    eventUserId,
   };
-  
+
   return await generateJwt(claims);
 }

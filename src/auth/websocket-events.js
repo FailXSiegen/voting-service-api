@@ -1,24 +1,26 @@
-import { findOneById as findEventUserById } from "./../repository/event-user-repository";
+import { findOneById as findEventUserById } from './../repository/event-user-repository';
+import { findActivePoll, findLeftAnswersCount } from './../repository/poll/poll-result-repository';
 import {
-  findActivePoll,
-  findLeftAnswersCount,
-} from "./../repository/poll/poll-result-repository";
-import { POLL_ANSWER_LIFE_CYCLE, EVENT_USER_LIFE_CYCLE } from "../graphql/resolver/subscription/subscription-types";
-import { extractCookieValueByHeader } from "../lib/cookie-from-string-util";
-import { toggleUserOnlineStateByRequestToken, updateEventUserOnlineState } from "../repository/event-user-repository";
-import { yoga, pubsub } from "./../server/graphql";
-import { findOneByRefreshToken } from "../repository/jwt-refresh-token-repository";
-import { createPollUserIfNeeded } from "../service/poll-service";
-import * as jwt from "jsonwebtoken";
+  POLL_ANSWER_LIFE_CYCLE,
+  EVENT_USER_LIFE_CYCLE,
+} from '../graphql/resolver/subscription/subscription-types';
+import { extractCookieValueByHeader } from '../lib/cookie-from-string-util';
+import {
+  toggleUserOnlineStateByRequestToken,
+  updateEventUserOnlineState,
+} from '../repository/event-user-repository';
+import { yoga, pubsub } from './../server/graphql';
+import { findOneByRefreshToken } from '../repository/jwt-refresh-token-repository';
+import { createPollUserIfNeeded } from '../service/poll-service';
+import * as jwt from 'jsonwebtoken';
 
 export async function onSubscribeWebsocket(ctx, msg) {
-  const { schema, execute, subscribe, contextFactory, parse, validate } =
-    yoga.getEnveloped({
-      ...ctx,
-      req: ctx.extra.request,
-      socket: ctx.extra.socket,
-      params: msg.payload,
-    });
+  const { schema, execute, subscribe, contextFactory, parse, validate } = yoga.getEnveloped({
+    ...ctx,
+    req: ctx.extra.request,
+    socket: ctx.extra.socket,
+    params: msg.payload,
+  });
 
   // Create base context
   let contextValue = await contextFactory();
@@ -47,17 +49,16 @@ export async function onSubscribeWebsocket(ctx, msg) {
                 contextValue.user.eventUser = eventUser;
               }
             }
-          }
-          else if (verifiedToken && verifiedToken.eventUserId) {
+          } else if (verifiedToken && verifiedToken.eventUserId) {
             // Legacy format support with proper parsing of ID
             contextValue.user = {
               id: parseInt(verifiedToken.eventUserId, 10),
-              type: 'event-user'
+              type: 'event-user',
             };
           }
         } catch (verifyError) {
           // Fallback to decode if verification fails (for backward compatibility)
-          console.warn("[WARN] JWT verification failed, falling back to decode:", verifyError);
+          console.warn('[WARN] JWT verification failed, falling back to decode:', verifyError);
           const decodedToken = jwt.decode(jwtToken);
 
           // Set user information in the context from decoded token
@@ -66,18 +67,17 @@ export async function onSubscribeWebsocket(ctx, msg) {
             if (typeof contextValue.user.id === 'string' && !isNaN(contextValue.user.id)) {
               contextValue.user.id = parseInt(contextValue.user.id, 10);
             }
-          }
-          else if (decodedToken && decodedToken.eventUserId) {
+          } else if (decodedToken && decodedToken.eventUserId) {
             // Legacy format support with proper parsing of ID
             contextValue.user = {
               id: parseInt(decodedToken.eventUserId, 10),
-              type: 'event-user'
+              type: 'event-user',
             };
           }
         }
       }
     } catch (error) {
-      console.warn("[WARN] Error extracting user context for subscription:", error);
+      console.warn('[WARN] Error extracting user context for subscription:', error);
     }
   }
 
@@ -102,10 +102,8 @@ export async function onSubscribeWebsocket(ctx, msg) {
 }
 
 export async function onConnectWebsocket(ctx) {
-
   // OPTIMIERUNG: Prüfen, ob JWT-Authentifizierung deaktiviert ist
-  if (process.env.ENABLE_JWT !== "1") {
-
+  if (process.env.ENABLE_JWT !== '1') {
     // Erweiterung: Versuche Benutzer-Metadaten aus den Verbindungsparametern oder Cookies zu extrahieren
     try {
       let eventUserId = null;
@@ -125,13 +123,16 @@ export async function onConnectWebsocket(ctx) {
 
             if (decodedToken && decodedToken.eventUserId) {
               eventUserId = parseInt(decodedToken.eventUserId);
-            }
-            else if (decodedToken && decodedToken.user && decodedToken.user.type === "event-user") {
+            } else if (
+              decodedToken &&
+              decodedToken.user &&
+              decodedToken.user.type === 'event-user'
+            ) {
               eventUserId = parseInt(decodedToken.user.id);
             }
           }
         } catch (error) {
-          console.warn("[WARN] Fehler beim Extrahieren der User-ID aus JWT-Token:", error);
+          console.warn('[WARN] Fehler beim Extrahieren der User-ID aus JWT-Token:', error);
         }
       }
 
@@ -148,7 +149,7 @@ export async function onConnectWebsocket(ctx) {
               pubsub.publish(EVENT_USER_LIFE_CYCLE, {
                 online: true,
                 eventUserId: eventUserId,
-                eventId: eventUser.eventId
+                eventId: eventUser.eventId,
               });
             }
 
@@ -157,9 +158,7 @@ export async function onConnectWebsocket(ctx) {
             if (activePollResult && eventUser.allowToVote) {
               await createPollUserIfNeeded(activePollResult.id, eventUser.id);
 
-              const leftAnswersDataSet = await findLeftAnswersCount(
-                activePollResult.id,
-              );
+              const leftAnswersDataSet = await findLeftAnswersCount(activePollResult.id);
               if (leftAnswersDataSet) {
                 pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
                   ...leftAnswersDataSet,
@@ -169,11 +168,17 @@ export async function onConnectWebsocket(ctx) {
             }
           }
         } catch (error) {
-          console.warn(`[WARN] Fehler beim Aktualisieren des Online-Status für User ${eventUserId} mit deaktiviertem JWT:`, error);
+          console.warn(
+            `[WARN] Fehler beim Aktualisieren des Online-Status für User ${eventUserId} mit deaktiviertem JWT:`,
+            error
+          );
         }
       }
     } catch (error) {
-      console.error("[ERROR] Fehler beim Verarbeiten der WebSocket-Verbindung mit deaktiviertem JWT:", error);
+      console.error(
+        '[ERROR] Fehler beim Verarbeiten der WebSocket-Verbindung mit deaktiviertem JWT:',
+        error
+      );
     }
 
     // Bei deaktivierter JWT-Authentifizierung trotzdem weitermachen
@@ -196,9 +201,13 @@ export async function onConnectWebsocket(ctx) {
           // JWT-Token dekodieren (ohne Überprüfung)
           const decodedToken = jwt.decode(jwtToken);
 
-          if (decodedToken && (decodedToken.eventUserId || decodedToken.userId || decodedToken.organizerId ||
-            (decodedToken.user && decodedToken.user.id))) {
-
+          if (
+            decodedToken &&
+            (decodedToken.eventUserId ||
+              decodedToken.userId ||
+              decodedToken.organizerId ||
+              (decodedToken.user && decodedToken.user.id))
+          ) {
             // Falls der JWT das eventUserId-Feld enthält (für Teilnehmer)
             if (decodedToken.eventUserId) {
               token = null; // Kein refreshToken erforderlich
@@ -218,19 +227,19 @@ export async function onConnectWebsocket(ctx) {
                     pubsub.publish(EVENT_USER_LIFE_CYCLE, {
                       online: true,
                       eventUserId: parseInt(eventUserId),
-                      eventId: eventUser.eventId
+                      eventId: eventUser.eventId,
                     });
                   }
                 }
               } catch (userLookupError) {
-                console.warn("[WARN] JWT-Auth: Event-User nicht gefunden:", userLookupError);
+                console.warn('[WARN] JWT-Auth: Event-User nicht gefunden:', userLookupError);
               }
             } else if (decodedToken.organizerId) {
               isAuthorized = true;
             } else if (decodedToken.user && decodedToken.user.id) {
               // Wir haben eine Benutzer-ID im Token, aber nicht als dediziertes Feld
               // Prüfen, ob es sich um einen Event-User handelt
-              if (decodedToken.user.type === "event-user" && decodedToken.role === "event-user") {
+              if (decodedToken.user.type === 'event-user' && decodedToken.role === 'event-user') {
                 token = null; // Kein refreshToken erforderlich
                 eventUserId = decodedToken.user.id;
                 isAuthorized = true;
@@ -245,37 +254,43 @@ export async function onConnectWebsocket(ctx) {
                       pubsub.publish(EVENT_USER_LIFE_CYCLE, {
                         online: true,
                         eventUserId: parseInt(eventUserId),
-                        eventId: eventUser.eventId
+                        eventId: eventUser.eventId,
                       });
                     }
                   }
                 } catch (userLookupError) {
-                  console.warn("[WARN] JWT-Auth: Event-User nicht gefunden:", userLookupError);
+                  console.warn('[WARN] JWT-Auth: Event-User nicht gefunden:', userLookupError);
                 }
-              } else if (decodedToken.user.type === "organizer" && decodedToken.role === "organizer") {
+              } else if (
+                decodedToken.user.type === 'organizer' &&
+                decodedToken.role === 'organizer'
+              ) {
                 isAuthorized = true;
               }
             }
           } else {
-            console.warn("[WARN] JWT-Token enthält keine User-ID");
-            console.warn("[DEBUG] Token Payload:", JSON.stringify(decodedToken));
+            console.warn('[WARN] JWT-Token enthält keine User-ID');
+            console.warn('[DEBUG] Token Payload:', JSON.stringify(decodedToken));
           }
         } catch (jwtError) {
-          console.warn("[WARN] JWT-Token konnte nicht dekodiert werden:", jwtError);
+          console.warn('[WARN] JWT-Token konnte nicht dekodiert werden:', jwtError);
           console.error(jwtError);
         }
       }
     } catch (authError) {
-      console.warn("[WARN] WebSocket JWT Auth fehlgeschlagen:", authError);
+      console.warn('[WARN] WebSocket JWT Auth fehlgeschlagen:', authError);
     }
   }
 
   // METHODE 2: Fallback zu RefreshToken aus Cookies
-  if (!isAuthorized && ctx.extra && ctx.extra.request && ctx.extra.request.headers && ctx.extra.request.headers.cookie) {
-    token = extractCookieValueByHeader(
-      ctx.extra.request.headers.cookie,
-      "refreshToken",
-    );
+  if (
+    !isAuthorized &&
+    ctx.extra &&
+    ctx.extra.request &&
+    ctx.extra.request.headers &&
+    ctx.extra.request.headers.cookie
+  ) {
+    token = extractCookieValueByHeader(ctx.extra.request.headers.cookie, 'refreshToken');
 
     if (token) {
       isAuthorized = true;
@@ -290,7 +305,7 @@ export async function onConnectWebsocket(ctx) {
 
   // Wenn keine Authentifizierung erfolgreich war
   if (!isAuthorized) {
-    console.warn("[WARN] WebSocket Connect ohne gültige Authentifizierung");
+    console.warn('[WARN] WebSocket Connect ohne gültige Authentifizierung');
     return;
   }
 
@@ -305,7 +320,7 @@ export async function onConnectWebsocket(ctx) {
     const tokenRecord = await findOneByRefreshToken(token);
 
     if (!tokenRecord) {
-      console.warn("[WARN] Token im System nicht gefunden");
+      console.warn('[WARN] Token im System nicht gefunden');
       return;
     }
 
@@ -314,15 +329,15 @@ export async function onConnectWebsocket(ctx) {
 
     // Prüfen, ob eine eventUserId gefunden wurde
     if (!tokenRecord.eventUserId) {
-      console.warn("[WARN] Keine User-ID im Token gefunden, kann Online-Status nicht aktualisieren");
+      console.warn(
+        '[WARN] Keine User-ID im Token gefunden, kann Online-Status nicht aktualisieren'
+      );
       return;
     }
 
     // Event user has connected to the server.
     // Fetch and validate event user.
-    const eventUser = await findEventUserById(
-      parseInt(tokenRecord.eventUserId),
-    );
+    const eventUser = await findEventUserById(parseInt(tokenRecord.eventUserId));
 
     if (!eventUser) {
       console.error(`Event user with id ${tokenRecord.eventUserId} not found.`);
@@ -333,7 +348,7 @@ export async function onConnectWebsocket(ctx) {
     pubsub.publish(EVENT_USER_LIFE_CYCLE, {
       online: true,
       eventUserId: eventUser.id,
-      eventId: eventUser.eventId
+      eventId: eventUser.eventId,
     });
 
     // Handle active poll updates related to this event user.
@@ -345,9 +360,7 @@ export async function onConnectWebsocket(ctx) {
 
       await createPollUserIfNeeded(activePollResult.id, eventUser.id);
 
-      const leftAnswersDataSet = await findLeftAnswersCount(
-        activePollResult.id,
-      );
+      const leftAnswersDataSet = await findLeftAnswersCount(activePollResult.id);
       if (leftAnswersDataSet) {
         pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
           ...leftAnswersDataSet,
@@ -356,16 +369,14 @@ export async function onConnectWebsocket(ctx) {
       }
     }
   } catch (error) {
-    console.error("[ERROR] Fehler beim Verarbeiten des Refresh-Tokens:", error);
+    console.error('[ERROR] Fehler beim Verarbeiten des Refresh-Tokens:', error);
     return;
   }
 }
 
 export async function onDisconnectWebsocket(ctx) {
-
   // OPTIMIERUNG: Prüfen, ob JWT-Authentifizierung deaktiviert ist
-  if (process.env.ENABLE_JWT !== "1") {
-
+  if (process.env.ENABLE_JWT !== '1') {
     // Erweiterung: Versuche Benutzer-Metadaten aus den Verbindungsparametern oder Cookies zu extrahieren
     try {
       let eventUserId = null;
@@ -386,13 +397,19 @@ export async function onDisconnectWebsocket(ctx) {
 
             if (decodedToken && decodedToken.eventUserId) {
               eventUserId = parseInt(decodedToken.eventUserId);
-            }
-            else if (decodedToken && decodedToken.user && decodedToken.user.type === "event-user") {
+            } else if (
+              decodedToken &&
+              decodedToken.user &&
+              decodedToken.user.type === 'event-user'
+            ) {
               eventUserId = parseInt(decodedToken.user.id);
             }
           }
         } catch (error) {
-          console.warn("[WARN] Fehler beim Extrahieren der User-ID aus JWT-Token beim Disconnect:", error);
+          console.warn(
+            '[WARN] Fehler beim Extrahieren der User-ID aus JWT-Token beim Disconnect:',
+            error
+          );
         }
       }
 
@@ -413,15 +430,21 @@ export async function onDisconnectWebsocket(ctx) {
             pubsub.publish(EVENT_USER_LIFE_CYCLE, {
               online: false,
               eventUserId: eventUserId,
-              eventId: eventUserLookup.eventId
+              eventId: eventUserLookup.eventId,
             });
           }
         } catch (error) {
-          console.warn(`[WARN] Fehler beim Aktualisieren des Offline-Status für User ${eventUserId} mit deaktiviertem JWT:`, error);
+          console.warn(
+            `[WARN] Fehler beim Aktualisieren des Offline-Status für User ${eventUserId} mit deaktiviertem JWT:`,
+            error
+          );
         }
       }
     } catch (error) {
-      console.error("[ERROR] Fehler beim Verarbeiten des WebSocket-Disconnects mit deaktiviertem JWT:", error);
+      console.error(
+        '[ERROR] Fehler beim Verarbeiten des WebSocket-Disconnects mit deaktiviertem JWT:',
+        error
+      );
     }
 
     // Bei deaktivierter JWT-Authentifizierung beenden
@@ -449,7 +472,9 @@ export async function onDisconnectWebsocket(ctx) {
             // Event-User abrufen, um eventId zu holen
             const eventUserLookup = await findEventUserById(parseInt(eventUserId));
             if (!eventUserLookup) {
-              console.warn(`[WARN] Benutzer mit ID ${eventUserId} nicht gefunden beim JWT Disconnect`);
+              console.warn(
+                `[WARN] Benutzer mit ID ${eventUserId} nicht gefunden beim JWT Disconnect`
+              );
               return;
             }
 
@@ -461,7 +486,7 @@ export async function onDisconnectWebsocket(ctx) {
               pubsub.publish(EVENT_USER_LIFE_CYCLE, {
                 online: false,
                 eventUserId: parseInt(eventUserId),
-                eventId: eventUserLookup.eventId
+                eventId: eventUserLookup.eventId,
               });
             }
 
@@ -472,13 +497,15 @@ export async function onDisconnectWebsocket(ctx) {
             return;
           } else if (decodedToken && decodedToken.user && decodedToken.user.id) {
             // Benutzer-ID aus dem user-Feld extrahieren
-            if (decodedToken.user.type === "event-user" && decodedToken.role === "event-user") {
+            if (decodedToken.user.type === 'event-user' && decodedToken.role === 'event-user') {
               const eventUserId = decodedToken.user.id;
 
               // Event-User abrufen, um eventId zu holen
               const eventUserLookup = await findEventUserById(parseInt(eventUserId));
               if (!eventUserLookup) {
-                console.warn(`[WARN] Benutzer mit ID ${eventUserId} nicht gefunden beim JWT user.id Disconnect`);
+                console.warn(
+                  `[WARN] Benutzer mit ID ${eventUserId} nicht gefunden beim JWT user.id Disconnect`
+                );
                 return;
               }
 
@@ -490,35 +517,41 @@ export async function onDisconnectWebsocket(ctx) {
                 pubsub.publish(EVENT_USER_LIFE_CYCLE, {
                   online: false,
                   eventUserId: parseInt(eventUserId),
-                  eventId: eventUserLookup.eventId
+                  eventId: eventUserLookup.eventId,
                 });
               }
 
               // Wir haben den Offline-Status bereits aktualisiert, also hier fertig
               return;
-            } else if (decodedToken.user.type === "organizer" && decodedToken.role === "organizer") {
+            } else if (
+              decodedToken.user.type === 'organizer' &&
+              decodedToken.role === 'organizer'
+            ) {
               return;
             }
           }
-          console.warn("[WARN] JWT-Token enthält keine bekannte User-ID für Disconnect");
+          console.warn('[WARN] JWT-Token enthält keine bekannte User-ID für Disconnect');
         } catch (jwtError) {
-          console.warn("[WARN] JWT-Token konnte beim Disconnect nicht dekodiert werden:", jwtError);
+          console.warn('[WARN] JWT-Token konnte beim Disconnect nicht dekodiert werden:', jwtError);
           console.error(jwtError);
         }
 
         isAuthorized = true;
       }
     } catch (authError) {
-      console.warn("[WARN] WebSocket Disconnect JWT Auth fehlgeschlagen:", authError);
+      console.warn('[WARN] WebSocket Disconnect JWT Auth fehlgeschlagen:', authError);
     }
   }
 
   // METHODE 2: Token aus Cookies extrahieren (Standard-Methode)
-  if (!isAuthorized && ctx.extra && ctx.extra.request && ctx.extra.request.headers && ctx.extra.request.headers.cookie) {
-    token = extractCookieValueByHeader(
-      ctx.extra.request.headers.cookie,
-      "refreshToken",
-    );
+  if (
+    !isAuthorized &&
+    ctx.extra &&
+    ctx.extra.request &&
+    ctx.extra.request.headers &&
+    ctx.extra.request.headers.cookie
+  ) {
+    token = extractCookieValueByHeader(ctx.extra.request.headers.cookie, 'refreshToken');
 
     if (token) {
       isAuthorized = true;
@@ -533,7 +566,7 @@ export async function onDisconnectWebsocket(ctx) {
 
   // Wenn keine Authentifizierung erfolgreich war
   if (!isAuthorized) {
-    console.warn("[WARN] WebSocket Disconnect ohne gültige Authentifizierung");
+    console.warn('[WARN] WebSocket Disconnect ohne gültige Authentifizierung');
     return;
   }
 
@@ -548,7 +581,7 @@ export async function onDisconnectWebsocket(ctx) {
     const tokenRecord = await findOneByRefreshToken(token);
 
     if (!tokenRecord) {
-      console.warn("[WARN] Token für Disconnect nicht gefunden");
+      console.warn('[WARN] Token für Disconnect nicht gefunden');
       return;
     }
 
@@ -558,11 +591,11 @@ export async function onDisconnectWebsocket(ctx) {
       pubsub.publish(EVENT_USER_LIFE_CYCLE, {
         online: false,
         eventUserId: tokenRecord.eventUserId,
-        eventId: tokenEventUser ? tokenEventUser.eventId : null
+        eventId: tokenEventUser ? tokenEventUser.eventId : null,
       });
     }
   } catch (error) {
-    console.error("[ERROR] Fehler beim Verarbeiten des Refresh-Tokens für Disconnect:", error);
+    console.error('[ERROR] Fehler beim Verarbeiten des Refresh-Tokens für Disconnect:', error);
     return;
   }
 }

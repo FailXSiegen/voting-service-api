@@ -1,4 +1,4 @@
-import mailer from "../email-util";
+import mailer from '../email-util';
 
 /**
  * @param {String} email
@@ -12,7 +12,7 @@ export function emailTokenToEventUser(to, token, event) {
     to,
     replyTo: process.env.MAIL_DEFAULT_FROM,
     subject: `Einladung zu "${event.title}"`,
-    template: "new-event-user-auth-token",
+    template: 'new-event-user-auth-token',
     ctx: {
       tokenUrl,
       event,

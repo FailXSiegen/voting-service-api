@@ -1,9 +1,9 @@
-import { findOneByShortCode } from "../../repository/event-user-shortlink-repository";
-import { findOneById as findEventUserById } from "../../repository/event-user-repository";
-import { findById as findEventById } from "../../repository/event-repository";
+import { findOneByShortCode } from '../../repository/event-user-shortlink-repository';
+import { findOneById as findEventUserById } from '../../repository/event-user-repository';
+import { findById as findEventById } from '../../repository/event-repository';
 
 export default async function resolveShortlink(req, res) {
-  res.setHeader("content-type", "application/json");
+  res.setHeader('content-type', 'application/json');
   try {
     const { shortCode } = req.params;
 
@@ -14,7 +14,7 @@ export default async function resolveShortlink(req, res) {
       return res.send(
         JSON.stringify({
           success: false,
-          error: "Shortlink not found",
+          error: 'Shortlink not found',
         })
       );
     }
@@ -28,7 +28,7 @@ export default async function resolveShortlink(req, res) {
       return res.send(
         JSON.stringify({
           success: false,
-          error: "Event or user not found",
+          error: 'Event or user not found',
         })
       );
     }
@@ -46,12 +46,12 @@ export default async function resolveShortlink(req, res) {
       })
     );
   } catch (error) {
-    console.error("Shortlink resolve error:", error);
+    console.error('Shortlink resolve error:', error);
     res.status(500);
     res.send(
       JSON.stringify({
         success: false,
-        error: "Internal server error",
+        error: 'Internal server error',
       })
     );
   }

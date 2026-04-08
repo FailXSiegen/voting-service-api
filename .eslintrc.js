@@ -12,6 +12,13 @@ module.exports = {
   rules: {
     semi: [2, "always"],
     "no-multiple-empty-lines": [2, { max: 1, maxEOF: 0 }],
-    indent: ["error", 2, { SwitchCase: 1 }],
+
+    // Quality rules (equivalent to PHPMD)
+    complexity: ["warn", 20],
+    "max-depth": ["warn", 4],
+    "max-lines-per-function": ["warn", { max: 300, skipBlankLines: true, skipComments: true }],
+    "max-params": ["warn", 5],
+    "max-nested-callbacks": ["warn", 4],
+    "no-duplicate-imports": "error",
   },
 };

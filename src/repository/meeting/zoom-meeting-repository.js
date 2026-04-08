@@ -1,11 +1,6 @@
-import {
-  insert,
-  query,
-  remove as removeQuery,
-  update as updateQuery,
-} from "../../lib/database";
+import { insert, query, remove as removeQuery, update as updateQuery } from '../../lib/database';
 
-const table = "zoom_meeting";
+const table = 'zoom_meeting';
 
 export async function create(input) {
   const insertId = await insert(table, input);
@@ -26,8 +21,6 @@ export async function findOneById(id) {
 }
 
 export async function findByOrganizerId(id) {
-  const result = await query(`SELECT * FROM ${table} WHERE organizer_id = ?`, [
-    id,
-  ]);
+  const result = await query(`SELECT * FROM ${table} WHERE organizer_id = ?`, [id]);
   return Array.isArray(result) ? result : [];
 }

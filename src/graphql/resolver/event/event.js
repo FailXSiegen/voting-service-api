@@ -1,6 +1,6 @@
-import { findOneById } from "../../../repository/organizer-repository";
-import { findOneById as findOneZoomMeetingById } from "../../../repository/meeting/zoom-meeting-repository";
-import { VideoConferenceType } from "../../../enum";
+import { findOneById } from '../../../repository/organizer-repository';
+import { findOneById as findOneZoomMeetingById } from '../../../repository/meeting/zoom-meeting-repository';
+import { VideoConferenceType } from '../../../enum';
 
 export default {
   organizer: async ({ organizerId }) => {
@@ -22,10 +22,7 @@ export default {
     return parseInt(multivoteType);
   },
   zoomMeeting: async ({ videoConferenceConfig }) => {
-    if (
-      typeof videoConferenceConfig !== "string" ||
-      videoConferenceConfig.length === 0
-    ) {
+    if (typeof videoConferenceConfig !== 'string' || videoConferenceConfig.length === 0) {
       return null;
     }
 
@@ -48,8 +45,8 @@ export default {
       return null;
     }
 
-    record.meetingId = config.credentials.id ?? "";
-    record.meetingPassword = config.credentials.password ?? "";
+    record.meetingId = config.credentials.id ?? '';
+    record.meetingPassword = config.credentials.password ?? '';
 
     return record;
   },

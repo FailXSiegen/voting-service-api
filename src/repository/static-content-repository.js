@@ -105,7 +105,7 @@ class StaticContentRepository {
       header_class: data.headerClass || 'h2',
       ordering: data.ordering || 0,
       is_published: data.isPublished !== undefined ? data.isPublished : true,
-      created_by: organizerId
+      created_by: organizerId,
     };
 
     // Add column data if provided
@@ -118,7 +118,11 @@ class StaticContentRepository {
     }
 
     // Add accordion data if provided
-    if (data.contentType === 'accordion' && data.accordionItems && Array.isArray(data.accordionItems)) {
+    if (
+      data.contentType === 'accordion' &&
+      data.accordionItems &&
+      Array.isArray(data.accordionItems)
+    ) {
       insertData.accordion_items = JSON.stringify(data.accordionItems);
     }
 
@@ -205,7 +209,6 @@ class StaticContentRepository {
 
       fields.push(`ordering = ?`);
       params.push(orderingValue);
-
     }
 
     if (data.isPublished !== undefined) {
@@ -258,9 +261,15 @@ class StaticContentRepository {
     await db.query(updateQuery, params);
 
     // Create new version entry if content, title, or other important fields changed
-    if (data.content !== undefined || data.title !== undefined || data.headerClass !== undefined ||
-      data.contentType !== undefined || data.columnCount !== undefined ||
-      data.columnsContent !== undefined || data.accordionItems !== undefined) {
+    if (
+      data.content !== undefined ||
+      data.title !== undefined ||
+      data.headerClass !== undefined ||
+      data.contentType !== undefined ||
+      data.columnCount !== undefined ||
+      data.columnsContent !== undefined ||
+      data.accordionItems !== undefined
+    ) {
       try {
         const updatedContentType = data.contentType || content.contentType;
         let columnCount = content.columnCount;
@@ -369,7 +378,18 @@ class StaticContentRepository {
    * @param {string} headerClass - The header class for styling (h1-h5, d-none)
    * @returns {Promise<Object>} The created version entry
    */
-  async createVersion(contentId, content, title, version, organizerId, contentType = 'standard', columnCount = null, columnsContent = null, accordionItems = null, headerClass = 'h2') {
+  async createVersion(
+    contentId,
+    content,
+    title,
+    version,
+    organizerId,
+    contentType = 'standard',
+    columnCount = null,
+    columnsContent = null,
+    accordionItems = null,
+    headerClass = 'h2'
+  ) {
     // Prepare insertion data
     const insertData = {
       content_id: contentId,
@@ -378,7 +398,7 @@ class StaticContentRepository {
       header_class: headerClass,
       version: version,
       changed_by: organizerId,
-      content_type: contentType
+      content_type: contentType,
     };
 
     if (contentType === 'multi-column' && columnCount) {
@@ -387,14 +407,18 @@ class StaticContentRepository {
       if (columnsContent) {
         insertData.columns_content = Array.isArray(columnsContent)
           ? JSON.stringify(columnsContent)
-          : (typeof columnsContent === 'string' ? columnsContent : null);
+          : typeof columnsContent === 'string'
+            ? columnsContent
+            : null;
       }
     }
 
     if (contentType === 'accordion' && accordionItems) {
       insertData.accordion_items = Array.isArray(accordionItems)
         ? JSON.stringify(accordionItems)
-        : (typeof accordionItems === 'string' ? accordionItems : null);
+        : typeof accordionItems === 'string'
+          ? accordionItems
+          : null;
     }
 
     // MariaDB does not support RETURNING *, so we need to do a separate query
@@ -461,15 +485,19 @@ class StaticContentRepository {
     }
 
     // Update the content
-    return this.update(contentId, {
-      content: version.content,
-      title: version.title,
-      headerClass: version.headerClass,
-      contentType: version.contentType,
-      columnCount: version.columnCount,
-      columnsContent: version.columnsContent,
-      accordionItems: version.accordionItems
-    }, organizerId);
+    return this.update(
+      contentId,
+      {
+        content: version.content,
+        title: version.title,
+        headerClass: version.headerClass,
+        contentType: version.contentType,
+        columnCount: version.columnCount,
+        columnsContent: version.columnsContent,
+        accordionItems: version.accordionItems,
+      },
+      organizerId
+    );
   }
 
   /**
@@ -478,7 +506,7 @@ class StaticContentRepository {
    * @returns {Array} Parsed static content array
    */
   parseContentItems(items) {
-    return items.map(item => this.parseContentItem(item));
+    return items.map((item) => this.parseContentItem(item));
   }
 
   /**
@@ -502,7 +530,7 @@ class StaticContentRepository {
       createdAt: item.createdAt || new Date().toISOString(),
       updatedAt: item.updatedAt || new Date().toISOString(),
       publishedAt: item.publishedAt || null,
-      createdBy: item.createdBy || null
+      createdBy: item.createdBy || null,
     };
 
     // Parse column data if it exists
@@ -538,7 +566,7 @@ class StaticContentRepository {
    * @returns {Array} Parsed static content version array
    */
   parseVersionItems(items) {
-    return items.map(item => this.parseVersionItem(item));
+    return items.map((item) => this.parseVersionItem(item));
   }
 
   /**
@@ -558,7 +586,7 @@ class StaticContentRepository {
       version: item.version || 1,
       contentType: item.contentType || 'standard',
       changedBy: item.changedBy || null,
-      createdAt: item.createdAt || new Date().toISOString()
+      createdAt: item.createdAt || new Date().toISOString(),
     };
 
     // Parse column data if it exists

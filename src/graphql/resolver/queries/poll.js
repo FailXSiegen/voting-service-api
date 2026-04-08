@@ -2,12 +2,12 @@ import {
   findPollsWithNoResults,
   findOneById,
   findPollsByEventId,
-} from "../../../repository/poll/poll-repository";
-import { isAsyncEventStarted } from "../../../repository/event-repository";
-import { getUserVoteCycle } from "../../../repository/poll/poll-user-voted-repository";
-import { findOneByPollId } from "../../../repository/poll/poll-result-repository";
-import { findOneById as findEventUserById } from "../../../repository/event-user-repository";
-import { query } from "../../../lib/database";
+} from '../../../repository/poll/poll-repository';
+import { isAsyncEventStarted } from '../../../repository/event-repository';
+import { getUserVoteCycle } from '../../../repository/poll/poll-user-voted-repository';
+import { findOneByPollId } from '../../../repository/poll/poll-result-repository';
+import { findOneById as findEventUserById } from '../../../repository/event-user-repository';
+import { query } from '../../../lib/database';
 
 export default {
   poll: async (_, { id }) => {
@@ -16,7 +16,7 @@ export default {
   pollsWithNoResults: async (_, { eventId }, context) => {
     // Organizers können immer alle Polls sehen, auch vor dem Start von async Events
     const isOrganizer = context?.user?.type === 'organizer';
-    
+
     if (!isOrganizer) {
       // Nur für Event-User: Prüfe ob asynchrone Events gestartet sind
       const canShowPolls = await isAsyncEventStarted(eventId);
@@ -24,13 +24,13 @@ export default {
         return []; // Keine Polls für noch nicht gestartete async Events
       }
     }
-    
+
     return await findPollsWithNoResults(eventId);
   },
   polls: async (_, { eventId }, context) => {
     // Organizers können immer alle Polls sehen, auch vor dem Start von async Events
     const isOrganizer = context?.user?.type === 'organizer';
-    
+
     if (!isOrganizer) {
       // Nur für Event-User: Prüfe ob asynchrone Events gestartet sind
       const canShowPolls = await isAsyncEventStarted(eventId);
@@ -38,15 +38,17 @@ export default {
         return []; // Keine Polls für noch nicht gestartete async Events
       }
     }
-    
+
     return await findPollsByEventId(eventId);
   },
   userVoteCycle: async (_, { eventUserId, pollId }) => {
-    console.log(`[DEBUG:USER_VOTE_CYCLE] Query aufgerufen mit eventUserId=${eventUserId}, pollId=${pollId}`);
+    console.log(
+      `[DEBUG:USER_VOTE_CYCLE] Query aufgerufen mit eventUserId=${eventUserId}, pollId=${pollId}`
+    );
     try {
       // Parameter validieren
       if (!eventUserId || !pollId) {
-        console.error("Query.userVoteCycle: Fehlende Parameter:", { eventUserId, pollId });
+        console.error('Query.userVoteCycle: Fehlende Parameter:', { eventUserId, pollId });
         return { voteCycle: 0, maxVotes: 0 };
       }
 
@@ -58,9 +60,15 @@ export default {
       }
 
       const eventUser = await findEventUserById(eventUserId);
-      console.log(`[DEBUG:USER_VOTE_CYCLE] eventUser gefunden:`, eventUser?.id, eventUser?.voteAmount);
+      console.log(
+        `[DEBUG:USER_VOTE_CYCLE] eventUser gefunden:`,
+        eventUser?.id,
+        eventUser?.voteAmount
+      );
       if (!eventUser) {
-        console.log(`[DEBUG:USER_VOTE_CYCLE] Kein eventUser gefunden für eventUserId=${eventUserId}`);
+        console.log(
+          `[DEBUG:USER_VOTE_CYCLE] Kein eventUser gefunden für eventUserId=${eventUserId}`
+        );
         return { voteCycle: 0, maxVotes: 0 };
       }
 
@@ -83,7 +91,9 @@ export default {
           const dbVersion = parseInt(versionQuery[0].version, 10) || 0;
 
           if (dbVoteCycle !== dbVersion) {
-            console.warn(`[WARN] Query.userVoteCycle: Diskrepanz zwischen voteCycle (${dbVoteCycle}) und version (${dbVersion}) gefunden!`);
+            console.warn(
+              `[WARN] Query.userVoteCycle: Diskrepanz zwischen voteCycle (${dbVoteCycle}) und version (${dbVersion}) gefunden!`
+            );
             const maxValue = Math.max(dbVoteCycle, dbVersion);
 
             if (userVote) {
@@ -97,10 +107,13 @@ export default {
 
       return {
         voteCycle: voteCycle,
-        maxVotes: eventUser.voteAmount || 0
+        maxVotes: eventUser.voteAmount || 0,
       };
     } catch (error) {
-      console.error("Fehler beim Abrufen des Vote-Cycle für Query:", error, "für Parameter:", { pollId, eventUserId });
+      console.error('Fehler beim Abrufen des Vote-Cycle für Query:', error, 'für Parameter:', {
+        pollId,
+        eventUserId,
+      });
       return { voteCycle: 0, maxVotes: 0 };
     }
   },

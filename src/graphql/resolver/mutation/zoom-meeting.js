@@ -3,8 +3,8 @@ import {
   update,
   create as createZoomMeeting,
   findOneById,
-} from "../../../repository/meeting/zoom-meeting-repository";
-import RecordNotFoundError from "../../../errors/RecordNotFoundError";
+} from '../../../repository/meeting/zoom-meeting-repository';
+import RecordNotFoundError from '../../../errors/RecordNotFoundError';
 
 export default {
   createZoomMeeting: async (_, { input }) => {

@@ -19,7 +19,7 @@ class TranslationRepository {
     // In development: use src/, in production: use persistent uploads directory
     const srcPath = path.join(this.basePath, 'src', 'messages.local.json');
     const productionPath = path.join('/app/uploads', 'messages.local.json'); // Persistent volume
-    
+
     // Check if we're in production (no src directory)
     try {
       const srcDir = path.join(this.basePath, 'src');
@@ -45,7 +45,10 @@ class TranslationRepository {
         const defaultMessagesData = await fs.readFile(this.defaultMessagesPath, 'utf8');
         defaultMessages = JSON.parse(defaultMessagesData);
       } catch (defaultMessagesErr) {
-        console.error('TranslationRepository: Error loading default messages from client directory:', defaultMessagesErr.message);
+        console.error(
+          'TranslationRepository: Error loading default messages from client directory:',
+          defaultMessagesErr.message
+        );
         // Create empty structure if default messages cannot be loaded
         defaultMessages = { de: {}, en: {} };
       }
@@ -56,7 +59,9 @@ class TranslationRepository {
         const localMessagesData = await fs.readFile(this.localMessagesPath, 'utf8');
         localMessages = JSON.parse(localMessagesData);
       } catch (err) {
-        console.error('TranslationRepository: No local messages file found, using only default messages');
+        console.error(
+          'TranslationRepository: No local messages file found, using only default messages'
+        );
       }
 
       // Deep merge the two objects
@@ -96,7 +101,10 @@ class TranslationRepository {
           const defaultMessagesData = await fs.readFile(this.defaultMessagesPath, 'utf8');
           defaultMessages = JSON.parse(defaultMessagesData);
         } catch (defaultMessagesErr) {
-          console.error('TranslationRepository: Error loading default messages:', defaultMessagesErr.message);
+          console.error(
+            'TranslationRepository: Error loading default messages:',
+            defaultMessagesErr.message
+          );
           return { custom: customTranslations, defaults: {} };
         }
 
@@ -106,7 +114,7 @@ class TranslationRepository {
         // Beide Versionen zurückgeben
         return {
           custom: customTranslations,
-          defaults: defaultTranslations
+          defaults: defaultTranslations,
         };
       }
 
@@ -150,11 +158,7 @@ class TranslationRepository {
       }
 
       // Write the updated local messages file
-      await fs.writeFile(
-        this.localMessagesPath,
-        JSON.stringify(localMessages, null, 2),
-        'utf8'
-      );
+      await fs.writeFile(this.localMessagesPath, JSON.stringify(localMessages, null, 2), 'utf8');
 
       // Wir speichern keine Datei mehr im Client-Verzeichnis
       // Der Client holt sich die Daten über die API
@@ -193,11 +197,7 @@ class TranslationRepository {
       const result = this._deleteNestedValue(localMessages[locale], key.split('.'));
 
       // Write the updated local messages file
-      await fs.writeFile(
-        this.localMessagesPath,
-        JSON.stringify(localMessages, null, 2),
-        'utf8'
-      );
+      await fs.writeFile(this.localMessagesPath, JSON.stringify(localMessages, null, 2), 'utf8');
 
       // Wir speichern keine Datei mehr im Client-Verzeichnis
       // Der Client holt sich die Daten über die API
@@ -261,7 +261,7 @@ class TranslationRepository {
   _deepMerge(target, source) {
     const result = { ...target };
 
-    Object.keys(source).forEach(key => {
+    Object.keys(source).forEach((key) => {
       if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
         if (result[key] && typeof result[key] === 'object' && !Array.isArray(result[key])) {
           result[key] = this._deepMerge(result[key], source[key]);

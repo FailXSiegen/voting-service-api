@@ -1,7 +1,4 @@
-import {
-  findOrganizers,
-  findOneById,
-} from "../../../repository/organizer-repository";
+import { findOrganizers, findOneById } from '../../../repository/organizer-repository';
 
 export default {
   organizer: async (_, { organizerId }) => {

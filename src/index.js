@@ -1,7 +1,7 @@
-import startServer from "./server/server";
-import CommandManager from "./command/command-manager";
-import closeAsyncEventsCommand from "./command/close-async-events-command";
-import eventCleanupCommand from "./command/event-cleanup-command";
+import startServer from './server/server';
+import CommandManager from './command/command-manager';
+import closeAsyncEventsCommand from './command/close-async-events-command';
+import eventCleanupCommand from './command/event-cleanup-command';
 
 startServer();
 

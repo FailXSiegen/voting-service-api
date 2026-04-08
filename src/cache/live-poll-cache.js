@@ -7,9 +7,9 @@
  */
 
 /* global Map, Promise */
-import { findByPollResultId } from "../repository/poll/poll-user-voted-repository.js";
-import { findByPollResultId as findAnswersByPollResultId } from "../repository/poll/poll-answer-repository.js";
-import { findByEventId } from "../repository/poll/poll-user-repository.js";
+import { findByPollResultId } from '../repository/poll/poll-user-voted-repository.js';
+import { findByPollResultId as findAnswersByPollResultId } from '../repository/poll/poll-answer-repository.js';
+import { findByEventId } from '../repository/poll/poll-user-repository.js';
 
 class LivePollCache {
   constructor() {
@@ -85,7 +85,8 @@ class LivePollCache {
       console.log('[LivePollCache] Suche aktive PUBLIC polls...');
 
       // Dynamischer Import um Circular Dependencies zu vermeiden
-      const { findActivePublicPollsWithVisibility } = await import("../repository/poll/poll-result-repository.js");
+      const { findActivePublicPollsWithVisibility } =
+        await import('../repository/poll/poll-result-repository.js');
 
       // Hole alle aktiven PUBLIC polls mit publicVoteVisible = true
       const activePublicPolls = await findActivePublicPollsWithVisibility();
@@ -103,7 +104,6 @@ class LivePollCache {
           await this.updateCacheForSpecificPoll(pollInfo.eventId, pollInfo.pollId);
         }
       }
-
     } catch (error) {
       console.error('[LivePollCache] Fehler beim Update aller aktiven polls:', error);
     }
@@ -123,10 +123,12 @@ class LivePollCache {
           data: activePollData,
           timestamp: Date.now(),
           eventId: eventId,
-          pollId: pollId
+          pollId: pollId,
         });
 
-        console.log(`[LivePollCache] Cache aktualisiert: ${cacheKey} - ${activePollData.pollUser?.length || 0} Teilnehmer`);
+        console.log(
+          `[LivePollCache] Cache aktualisiert: ${cacheKey} - ${activePollData.pollUser?.length || 0} Teilnehmer`
+        );
       }
     } catch (error) {
       console.error(`[LivePollCache] Fehler beim Update für Poll ${eventId}:${pollId}:`, error);
@@ -188,7 +190,8 @@ class LivePollCache {
       console.log(`[LivePollCache] Aktualisiere Cache für Event ${eventId}`);
 
       // Hole aktuelle Poll-Daten für dieses Event (identisch zur originalen Query)
-      const { findActivePollEventUser } = await import("../repository/poll/poll-result-repository.js");
+      const { findActivePollEventUser } =
+        await import('../repository/poll/poll-result-repository.js');
       const activePollData = await findActivePollEventUser(eventId);
 
       if (activePollData && activePollData.poll?.id) {
@@ -199,9 +202,11 @@ class LivePollCache {
           data: activePollData,
           timestamp: Date.now(),
           eventId: eventId,
-          pollId: activePollData.poll.id
+          pollId: activePollData.poll.id,
         });
-        console.log(`[LivePollCache] Cache für Event ${eventId}, Poll ${activePollData.poll.id} aktualisiert - ${activePollData.pollUser?.length || 0} Teilnehmer`);
+        console.log(
+          `[LivePollCache] Cache für Event ${eventId}, Poll ${activePollData.poll.id} aktualisiert - ${activePollData.pollUser?.length || 0} Teilnehmer`
+        );
 
         // Alte Cache-Einträge für dieses Event (andere Poll-IDs) löschen
         this.cleanupOldCacheEntries(eventId, activePollData.poll.id);
@@ -226,7 +231,7 @@ class LivePollCache {
       }
     }
 
-    keysToDelete.forEach(key => {
+    keysToDelete.forEach((key) => {
       this.cache.delete(key);
       console.log(`[LivePollCache] Alte Cache-Daten gelöscht: ${key}`);
     });
@@ -243,7 +248,7 @@ class LivePollCache {
       }
     }
 
-    keysToDelete.forEach(key => {
+    keysToDelete.forEach((key) => {
       this.cache.delete(key);
     });
   }
@@ -254,8 +259,9 @@ class LivePollCache {
   async fetchActivePollData(eventId) {
     try {
       // Import hier um Circular Dependencies zu vermeiden
-      const { findActivePollEventUser } = await import("../repository/poll/poll-result-repository.js");
-      const { findOneById } = await import("../repository/poll/poll-repository.js");
+      const { findActivePollEventUser } =
+        await import('../repository/poll/poll-result-repository.js');
+      const { findOneById } = await import('../repository/poll/poll-repository.js');
 
       // Hole aktive Poll für dieses Event
       const activePollBasic = await findActivePollEventUser(eventId);
@@ -269,12 +275,14 @@ class LivePollCache {
       const pollResultId = activePollBasic.pollResultId;
 
       // Parallel alle benötigten Daten laden (EINE SQL-Abfrage pro Datentyp)
-      console.log(`[DEBUG] Loading data for pollResultId: ${pollResultId}, poll: ${activePollBasic.poll}`);
+      console.log(
+        `[DEBUG] Loading data for pollResultId: ${pollResultId}, poll: ${activePollBasic.poll}`
+      );
       const [pollUserVoted, pollAnswers, pollUser, pollData] = await Promise.all([
         findByPollResultId(pollResultId),
         findAnswersByPollResultId(pollResultId),
         findByEventId(eventId),
-        findOneById(activePollBasic.poll)
+        findOneById(activePollBasic.poll),
       ]);
       console.log(`[DEBUG] Loaded data - pollData:`, pollData, 'pollUser count:', pollUser?.length);
 
@@ -282,22 +290,26 @@ class LivePollCache {
       const finalPollAnswers = pollData?.type === 1 ? pollAnswers : [];
 
       // Convert poll type from number to string enum for GraphQL
-      const convertedPollData = pollData ? {
-        ...pollData,
-        type: pollData.type === 1 ? "PUBLIC" : "SECRET"
-      } : null;
+      const convertedPollData = pollData
+        ? {
+            ...pollData,
+            type: pollData.type === 1 ? 'PUBLIC' : 'SECRET',
+          }
+        : null;
 
       return {
-        state: activePollBasic.state || "active",
+        state: activePollBasic.state || 'active',
         pollResultId: pollResultId,
         pollAnswers: finalPollAnswers || [],
         pollUser: pollUser || [],
         pollUserVoted: pollUserVoted || [],
-        poll: convertedPollData
+        poll: convertedPollData,
       };
-
     } catch (error) {
-      console.error(`[LivePollCache] Fehler beim Laden der Poll-Daten für Event ${eventId}:`, error);
+      console.error(
+        `[LivePollCache] Fehler beim Laden der Poll-Daten für Event ${eventId}:`,
+        error
+      );
       return null;
     }
   }
@@ -325,7 +337,9 @@ class LivePollCache {
     }
 
     const age = Date.now() - mostRecentCache.timestamp;
-    console.log(`[LivePollCache] Cache-Hit für Event ${eventIdStr}, Poll ${mostRecentCache.pollId} (${Math.round(age/1000)}s alt)`);
+    console.log(
+      `[LivePollCache] Cache-Hit für Event ${eventIdStr}, Poll ${mostRecentCache.pollId} (${Math.round(age / 1000)}s alt)`
+    );
 
     return mostRecentCache.data;
   }
@@ -343,7 +357,7 @@ class LivePollCache {
     }
 
     const age = Date.now() - cached.timestamp;
-    console.log(`[LivePollCache] Cache-Hit für ${cacheKey} (${Math.round(age/1000)}s alt)`);
+    console.log(`[LivePollCache] Cache-Hit für ${cacheKey} (${Math.round(age / 1000)}s alt)`);
 
     return cached.data;
   }
@@ -351,7 +365,8 @@ class LivePollCache {
   /**
    * Prüft ob Cache existiert und aktuell ist
    */
-  isCacheValid(eventId, maxAge = 20000) { // 20 Sekunden max
+  isCacheValid(eventId, maxAge = 20000) {
+    // 20 Sekunden max
     const eventIdStr = eventId.toString();
 
     // Suche nach aktuellem Cache-Eintrag für dieses Event
@@ -395,7 +410,7 @@ class LivePollCache {
       cachedPollKeys: Array.from(this.cache.keys()),
       activeTimers: Array.from(this.timers.keys()),
       cacheEntries: this.cache.size,
-      updateInterval: this.updateInterval
+      updateInterval: this.updateInterval,
     };
   }
 }

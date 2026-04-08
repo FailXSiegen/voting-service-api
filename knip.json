@@ -1,0 +1,11 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": ["src/index.js"],
+  "project": ["src/**/*.js"],
+  "ignore": ["_obsolete/**"],
+  "ignoreDependencies": [
+    "db-migrate-mysql",
+    "cross-env",
+    "minimist"
+  ]
+}

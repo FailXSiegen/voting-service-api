@@ -1,35 +1,25 @@
-/* global Promise */
-import { insertPollSubmitAnswer } from "../../../repository/poll/poll-answer-repository";
+import { insertPollSubmitAnswer } from '../../../repository/poll/poll-answer-repository';
 import {
   findLeftAnswersCount,
   findLeftAnswersCountForAsync,
   closePollResult,
   findOneByPollId,
-} from "../../../repository/poll/poll-result-repository";
-import {
-  findEventIdByPollResultId,
-  getMultivoteType,
-} from "../../../repository/event-repository";
-import { findOneById } from "../../../repository/event-user-repository";
-import { pubsub } from "../../../server/graphql";
-import {
-  POLL_ANSWER_LIFE_CYCLE,
-  POLL_LIFE_CYCLE,
-} from "../subscription/subscription-types";
-import {
-  createPollUserIfNeeded,
-  existsPollUserVoted,
-} from "../../../service/poll-service";
+} from '../../../repository/poll/poll-result-repository';
+import { findEventIdByPollResultId, getMultivoteType } from '../../../repository/event-repository';
+import { findOneById } from '../../../repository/event-user-repository';
+import { pubsub } from '../../../server/graphql';
+import { POLL_ANSWER_LIFE_CYCLE, POLL_LIFE_CYCLE } from '../subscription/subscription-types';
+import { createPollUserIfNeeded, existsPollUserVoted } from '../../../service/poll-service';
 // Wir haben die Inkrementierung des vote_cycle in die insertPollSubmitAnswer-Funktion integriert,
 // daher importieren wir incrementVoteCycleAfterVote nicht mehr
-import { incrementVoteCycleAfterVote } from "../../../repository/poll/poll-user-voted-repository";
-import { query } from "../../../lib/database";
-import { getCurrentUnixTimeStamp } from "../../../lib/time-stamp";
+import { incrementVoteCycleAfterVote } from '../../../repository/poll/poll-user-voted-repository';
+import { query } from '../../../lib/database';
+import { getCurrentUnixTimeStamp } from '../../../lib/time-stamp';
 
 /**
  * Publishes a POLL_LIFE_CYCLE event with the "closed" state
  * Ensures all necessary poll data is included for proper client-side processing
- * 
+ *
  * @param {number} pollResultId - The ID of the poll result
  * @param {number} eventId - The ID of the event
  * @param {number|null} pollId - Optional poll ID (will be fetched if not provided)
@@ -38,10 +28,14 @@ import { getCurrentUnixTimeStamp } from "../../../lib/time-stamp";
 async function publishPollClosedEvent(pollResultId, eventId, pollId = null) {
   // First ensure the poll_result is actually closed in the database
   // Da wir kein vollständiges Objekt mit ID haben, nutzen wir den direkten query-Ansatz
-  await query("UPDATE poll_result SET closed = 1 WHERE id = ?", [pollResultId], { throwError: true });
+  await query('UPDATE poll_result SET closed = 1 WHERE id = ?', [pollResultId], {
+    throwError: true,
+  });
   // Fetch poll_id if not provided
   if (!pollId) {
-    const pollQuery = await query("SELECT poll_id AS pollId FROM poll_result WHERE id = ?", [pollResultId]);
+    const pollQuery = await query('SELECT poll_id AS pollId FROM poll_result WHERE id = ?', [
+      pollResultId,
+    ]);
     pollId = Array.isArray(pollQuery) && pollQuery.length > 0 ? pollQuery[0].pollId : null;
   }
 
@@ -60,17 +54,14 @@ async function publishPollClosedEvent(pollResultId, eventId, pollId = null) {
 
   // Fetch possible answers
   const possibleAnswersQuery = await query(
-    "SELECT id, content FROM poll_possible_answer WHERE poll_id = ?",
+    'SELECT id, content FROM poll_possible_answer WHERE poll_id = ?',
     [pollId]
   );
 
-  let completePoll = Array.isArray(completePollQuery) && completePollQuery.length > 0
-    ? completePollQuery[0]
-    : null;
+  let completePoll =
+    Array.isArray(completePollQuery) && completePollQuery.length > 0 ? completePollQuery[0] : null;
 
-  const possibleAnswers = Array.isArray(possibleAnswersQuery)
-    ? possibleAnswersQuery
-    : [];
+  const possibleAnswers = Array.isArray(possibleAnswersQuery) ? possibleAnswersQuery : [];
 
   if (!completePoll) {
     console.error(`[ERROR:POLL_LIFECYCLE] Could not find complete poll data for poll ${pollId}`);
@@ -78,14 +69,14 @@ async function publishPollClosedEvent(pollResultId, eventId, pollId = null) {
     // Create fallback object with default values for non-nullable fields
     completePoll = {
       id: pollId,
-      title: "[Unknown Poll]",
-      pollAnswer: "",
-      type: "SECRET",
+      title: '[Unknown Poll]',
+      pollAnswer: '',
+      type: 'SECRET',
       list: false,
       minVotes: 0,
       maxVotes: 0,
       allowAbstain: false,
-      possibleAnswers: []
+      possibleAnswers: [],
     };
 
     console.warn(`[WARN:POLL_LIFECYCLE] Using fallback poll data due to missing information`);
@@ -98,50 +89,50 @@ async function publishPollClosedEvent(pollResultId, eventId, pollId = null) {
   // CRITICAL: When publishing poll closed events, we must ensure they are delivered
   // Don't throttle, don't debounce, but still deduplicate just in case
   // Force immediate delivery with priority flag
-  pubsub.publish(POLL_LIFE_CYCLE, {
-    eventId: eventId,
-    state: "closed",
-    poll: completePoll,
-    pollResultId: pollResultId
-  }, {
-    // No throttling for poll state changes - critical real-time updates
-    throttleMs: 0,
-    debounceMs: 0,
-    cacheState: true,
-    skipIfEqual: false, // Always send even if payload looks the same
-    filterBy: { pollResultId, state: "closed" },
-    priority: true  // Mark as high priority event
-  });
-
+  pubsub.publish(
+    POLL_LIFE_CYCLE,
+    {
+      eventId: eventId,
+      state: 'closed',
+      poll: completePoll,
+      pollResultId: pollResultId,
+    },
+    {
+      // No throttling for poll state changes - critical real-time updates
+      throttleMs: 0,
+      debounceMs: 0,
+      cacheState: true,
+      skipIfEqual: false, // Always send even if payload looks the same
+      filterBy: { pollResultId, state: 'closed' },
+      priority: true, // Mark as high priority event
+    }
+  );
 }
 
 /**
  * Helper function to check if an event is asynchronous
  */
 async function isAsyncEvent(eventId) {
-  const eventQuery = await query(
-    "SELECT async FROM event WHERE id = ?",
-    [eventId]
-  );
-  
-  return Array.isArray(eventQuery) && 
-    eventQuery.length > 0 && 
-    eventQuery[0].async === 1;
+  const eventQuery = await query('SELECT async FROM event WHERE id = ?', [eventId]);
+
+  return Array.isArray(eventQuery) && eventQuery.length > 0 && eventQuery[0].async === 1;
 }
 
 async function publishPollLifeCycle(pollResultId) {
   const eventId = await findEventIdByPollResultId(pollResultId);
   if (!eventId) {
-    console.warn(
-      'Could not execute publishPollLifeCycle. Missing "eventId" or "pollResultId"',
-      { pollResultId, eventId },
-    );
+    console.warn('Could not execute publishPollLifeCycle. Missing "eventId" or "pollResultId"', {
+      pollResultId,
+      eventId,
+    });
     return;
   }
 
   // Check if this is an async event - don't auto-close async event polls
   if (await isAsyncEvent(eventId)) {
-    console.info(`[INFO:POLL_LIFECYCLE] Skipping auto-close for async event ${eventId}, poll ${pollResultId}`);
+    console.info(
+      `[INFO:POLL_LIFECYCLE] Skipping auto-close for async event ${eventId}, poll ${pollResultId}`
+    );
     return;
   }
 
@@ -153,21 +144,23 @@ async function publishPollLifeCycle(pollResultId) {
 export default {
   // todo refactor + document the logic here.
   createPollSubmitAnswer: async (_, { input }) => {
-    console.log(`[DEBUG:POLL_ANSWER] Starting createPollSubmitAnswer for user ${input.eventUserId}, poll ${input.pollId}`);
+    console.log(
+      `[DEBUG:POLL_ANSWER] Starting createPollSubmitAnswer for user ${input.eventUserId}, poll ${input.pollId}`
+    );
 
     const cloneAnswerObject = {};
     const pollId = input.pollId;
     const pollResult = await findOneByPollId(input.pollId);
     if (!pollResult) {
       console.error(`[DEBUG:POLL_ANSWER] Error: Missing poll result for pollId ${input.pollId}`);
-      throw Error("Missing poll result record!");
+      throw Error('Missing poll result record!');
     }
     console.log(`[DEBUG:POLL_ANSWER] Found pollResult:`, pollResult);
 
     const eventId = await findEventIdByPollResultId(pollResult.id);
     if (!eventId) {
       console.error(`[DEBUG:POLL_ANSWER] Error: Missing event for pollResultId ${pollResult.id}`);
-      throw Error("Missing related event record!");
+      throw Error('Missing related event record!');
     }
 
     input.pollResultId = pollResult.id; // fixme This is a quick fix because the following code relies on the now missing input.pollResultId.
@@ -186,40 +179,44 @@ export default {
        WHERE poll_result_id = ? AND event_user_id = ?`,
       [pollResult.id, input.eventUserId]
     );
-    const currentVoteCycle = Array.isArray(userVotedQuery) && userVotedQuery.length > 0
-      ? parseInt(userVotedQuery[0].voteCycle, 10) || 0
-      : 0;
+    const currentVoteCycle =
+      Array.isArray(userVotedQuery) && userVotedQuery.length > 0
+        ? parseInt(userVotedQuery[0].voteCycle, 10) || 0
+        : 0;
 
     // Get user's total allowed votes
     const eventUser = await findOneById(input.eventUserId);
     const totalAllowedVotes = eventUser ? parseInt(eventUser.voteAmount, 10) || 0 : 0;
 
     // Define isLastAnswerInBallot at function scope so it's available throughout
-    const isLastAnswerInBallot = (cloneAnswerObject.answerItemCount === cloneAnswerObject.answerItemLength);
+    const isLastAnswerInBallot =
+      cloneAnswerObject.answerItemCount === cloneAnswerObject.answerItemLength;
 
-    if (
-      cloneAnswerObject.answerItemLength === cloneAnswerObject.answerItemCount
-    ) {
-      ;
+    if (cloneAnswerObject.answerItemLength === cloneAnswerObject.answerItemCount) {
       // Use async-optimized version for async events
       const isAsync = await isAsyncEvent(eventId);
       if (isAsync) {
         leftAnswersDataSet = await findLeftAnswersCountForAsync(pollResult.id);
-        console.log(`[DEBUG:POLL_ANSWER] findLeftAnswersCountForAsync returned:`, leftAnswersDataSet);
+        console.log(
+          `[DEBUG:POLL_ANSWER] findLeftAnswersCountForAsync returned:`,
+          leftAnswersDataSet
+        );
       } else {
         leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);
         console.log(`[DEBUG:POLL_ANSWER] findLeftAnswersCount returned:`, leftAnswersDataSet);
       }
       if (leftAnswersDataSet === null) {
-        console.log(`[DEBUG:POLL_ANSWER] leftAnswersDataSet is null - poll may be closed or at capacity`);
-
-        // First check if the poll is already closed
-        const pollStatusCheck = await query(
-          "SELECT closed FROM poll_result WHERE id = ?",
-          [pollResult.id]
+        console.log(
+          `[DEBUG:POLL_ANSWER] leftAnswersDataSet is null - poll may be closed or at capacity`
         );
 
-        const isAlreadyClosed = Array.isArray(pollStatusCheck) &&
+        // First check if the poll is already closed
+        const pollStatusCheck = await query('SELECT closed FROM poll_result WHERE id = ?', [
+          pollResult.id,
+        ]);
+
+        const isAlreadyClosed =
+          Array.isArray(pollStatusCheck) &&
           pollStatusCheck.length > 0 &&
           pollStatusCheck[0].closed === 1;
 
@@ -237,65 +234,74 @@ export default {
 
             // Mögliche Antworten abrufen
             const possibleAnswersQuery = await query(
-              "SELECT id, content FROM poll_possible_answer WHERE poll_id = ?",
+              'SELECT id, content FROM poll_possible_answer WHERE poll_id = ?',
               [pollId]
             );
 
-            const completePoll = Array.isArray(completePollQuery) && completePollQuery.length > 0
-              ? completePollQuery[0]
-              : null;
+            const completePoll =
+              Array.isArray(completePollQuery) && completePollQuery.length > 0
+                ? completePollQuery[0]
+                : null;
 
-            const possibleAnswers = Array.isArray(possibleAnswersQuery)
-              ? possibleAnswersQuery
-              : [];
+            const possibleAnswers = Array.isArray(possibleAnswersQuery) ? possibleAnswersQuery : [];
 
             // Sicherstellen, dass wir ein vollständiges Poll-Objekt mit allen erforderlichen Feldern haben
             if (completePoll) {
               // Füge die möglichen Antworten hinzu
               completePoll.possibleAnswers = possibleAnswers;
 
-              pubsub.publish(POLL_LIFE_CYCLE, {
-                eventId: eventId,
-                state: "closed",
-                poll: completePoll,
-                pollResultId: pollResult.id
-              }, {
-                // No throttling for poll state changes - critical real-time updates
-                throttleMs: 0,
-                debounceMs: 0,
-                cacheState: true,
-                skipIfEqual: false, // Always send even if payload looks the same
-                filterBy: { pollResultId: pollResult.id, state: "closed" },
-                priority: true  // Mark as high priority event
-              });
+              pubsub.publish(
+                POLL_LIFE_CYCLE,
+                {
+                  eventId: eventId,
+                  state: 'closed',
+                  poll: completePoll,
+                  pollResultId: pollResult.id,
+                },
+                {
+                  // No throttling for poll state changes - critical real-time updates
+                  throttleMs: 0,
+                  debounceMs: 0,
+                  cacheState: true,
+                  skipIfEqual: false, // Always send even if payload looks the same
+                  filterBy: { pollResultId: pollResult.id, state: 'closed' },
+                  priority: true, // Mark as high priority event
+                }
+              );
             } else {
-              console.error(`[ERROR:POLL_ANSWER] Could not find complete poll data for poll ${pollId}`);
+              console.error(
+                `[ERROR:POLL_ANSWER] Could not find complete poll data for poll ${pollId}`
+              );
 
               // Fallback für den Fall, dass keine vollständigen Daten gefunden wurden
-              pubsub.publish(POLL_LIFE_CYCLE, {
-                eventId: eventId,
-                state: "closed",
-                poll: {
-                  id: pollId,
-                  title: "[Unknown Poll]", // Standardwert für non-nullable Feld
-                  pollAnswer: "",
-                  type: "SECRET",
-                  list: false,
-                  minVotes: 0,
-                  maxVotes: 0,
-                  allowAbstain: false,
-                  possibleAnswers: []
+              pubsub.publish(
+                POLL_LIFE_CYCLE,
+                {
+                  eventId: eventId,
+                  state: 'closed',
+                  poll: {
+                    id: pollId,
+                    title: '[Unknown Poll]', // Standardwert für non-nullable Feld
+                    pollAnswer: '',
+                    type: 'SECRET',
+                    list: false,
+                    minVotes: 0,
+                    maxVotes: 0,
+                    allowAbstain: false,
+                    possibleAnswers: [],
+                  },
+                  pollResultId: pollResult.id,
                 },
-                pollResultId: pollResult.id
-              }, {
-                // No throttling for poll state changes - critical real-time updates
-                throttleMs: 0,
-                debounceMs: 0,
-                cacheState: true,
-                skipIfEqual: false, // Always send even if payload looks the same
-                filterBy: { pollResultId: pollResult.id, state: "closed" },
-                priority: true  // Mark as high priority event
-              });
+                {
+                  // No throttling for poll state changes - critical real-time updates
+                  throttleMs: 0,
+                  debounceMs: 0,
+                  cacheState: true,
+                  skipIfEqual: false, // Always send even if payload looks the same
+                  filterBy: { pollResultId: pollResult.id, state: 'closed' },
+                  priority: true, // Mark as high priority event
+                }
+              );
             }
           }
         } else {
@@ -305,7 +311,9 @@ export default {
         return false;
       }
 
-      console.log(`[DEBUG:POLL_ANSWER] Calling existsPollUserVoted for user ${input.eventUserId}, multiVote=${multiVote}`);
+      console.log(
+        `[DEBUG:POLL_ANSWER] Calling existsPollUserVoted for user ${input.eventUserId}, multiVote=${multiVote}`
+      );
       allowToVote = await existsPollUserVoted(
         pollResult.id,
         input.eventUserId,
@@ -313,13 +321,14 @@ export default {
         input // Übergebe den gesamten input, damit voteCycle verfügbar ist
       );
       console.log(`[DEBUG:POLL_ANSWER] existsPollUserVoted returned: ${allowToVote}`);
-
     }
     if (allowToVote) {
-      console.log(`[DEBUG:POLL_ANSWER] Calling createPollUserIfNeeded with pollResultId=${pollResult.id}, eventUserId=${input.eventUserId}`);
+      console.log(
+        `[DEBUG:POLL_ANSWER] Calling createPollUserIfNeeded with pollResultId=${pollResult.id}, eventUserId=${input.eventUserId}`
+      );
       await createPollUserIfNeeded(pollResult.id, input.eventUserId);
       let actualAnswerCount = 0;
-      await query("START TRANSACTION", [], { throwError: true });
+      await query('START TRANSACTION', [], { throwError: true });
       try {
         // For SECRET polls, we need to use poll_user_voted.vote_cycle as our source of truth
         const voteCycleQuery = await query(
@@ -338,7 +347,9 @@ export default {
 
           // If vote_cycle and version are out of sync, try to fix them
           if (voteCycle !== version) {
-            console.warn(`[WARN:POLL_ANSWER] Found discrepancy between vote_cycle (${voteCycle}) and version (${version}). Attempting to sync them to ${actualAnswerCount}`);
+            console.warn(
+              `[WARN:POLL_ANSWER] Found discrepancy between vote_cycle (${voteCycle}) and version (${version}). Attempting to sync them to ${actualAnswerCount}`
+            );
 
             // Update both to the higher value for consistency
             // Da wir einen komplexen WHERE haben und kein einzelnes ID-Feld,
@@ -350,16 +361,18 @@ export default {
               [actualAnswerCount, actualAnswerCount, pollResult.id, input.eventUserId],
               { throwError: true }
             );
-
           }
         }
 
         // Commit the transaction after getting the accurate count
-        await query("COMMIT", [], { throwError: true });
+        await query('COMMIT', [], { throwError: true });
       } catch (error) {
         // Rollback in case of any errors
-        await query("ROLLBACK", [], { throwError: true });
-        console.error(`[ERROR:POLL_ANSWER] Error during vote count check, rolled back transaction:`, error);
+        await query('ROLLBACK', [], { throwError: true });
+        console.error(
+          `[ERROR:POLL_ANSWER] Error during vote count check, rolled back transaction:`,
+          error
+        );
         throw error;
       }
 
@@ -367,7 +380,7 @@ export default {
       const eventUser = await findOneById(input.eventUserId);
       if (!eventUser) {
         console.error(`[DEBUG:POLL_ANSWER] Event user ${input.eventUserId} not found!`);
-        throw Error("Event user not found!");
+        throw Error('Event user not found!');
       }
 
       // Calculate total allowed votes
@@ -375,12 +388,13 @@ export default {
 
       // HARD BLOCK: If user already has more answers than their allowed votes, block any further submissions
       if (actualAnswerCount > totalAllowedVotes) {
-        console.warn(`[WARN:POLL_ANSWER] BLOCKING SUBMISSION: User ${input.eventUserId} already has ${actualAnswerCount} answers which exceeds their limit of ${totalAllowedVotes}`);
+        console.warn(
+          `[WARN:POLL_ANSWER] BLOCKING SUBMISSION: User ${input.eventUserId} already has ${actualAnswerCount} answers which exceeds their limit of ${totalAllowedVotes}`
+        );
         return false;
       }
 
       if (multiVote) {
-
         // Get current vote cycle for this user to know how many votes they've already used
         const userVotedQuery = await query(
           `SELECT vote_cycle AS voteCycle FROM poll_user_voted 
@@ -389,9 +403,10 @@ export default {
         );
 
         // Calculate votes already used
-        const voteCycleUsed = Array.isArray(userVotedQuery) && userVotedQuery.length > 0
-          ? parseInt(userVotedQuery[0].voteCycle, 10) || 0
-          : 0;
+        const voteCycleUsed =
+          Array.isArray(userVotedQuery) && userVotedQuery.length > 0
+            ? parseInt(userVotedQuery[0].voteCycle, 10) || 0
+            : 0;
 
         // Calculate how many votes we can actually submit (remaining votes)
         // Use ACTUAL answer count instead of voteCycle for safety
@@ -413,7 +428,7 @@ export default {
             let currentCount = 0;
 
             // Start transaction for this check to ensure consistency
-            await query("START TRANSACTION", [], { throwError: true });
+            await query('START TRANSACTION', [], { throwError: true });
 
             try {
               const voteCheck = await query(
@@ -431,7 +446,9 @@ export default {
 
                 // Fix inconsistency if found
                 if (voteCycle !== version) {
-                  console.warn(`[WARN:POLL_ANSWER] Found pre-insert discrepancy: voteCycle=${voteCycle}, version=${version}. Fixing to ${currentCount}`);
+                  console.warn(
+                    `[WARN:POLL_ANSWER] Found pre-insert discrepancy: voteCycle=${voteCycle}, version=${version}. Fixing to ${currentCount}`
+                  );
 
                   await query(
                     `UPDATE poll_user_voted 
@@ -444,26 +461,32 @@ export default {
 
               // Check if we would exceed the limit
               if (currentCount > totalAllowedVotes) {
-                console.warn(`[WARN:POLL_ANSWER] BLOCKING INSERTION: User ${input.eventUserId} exceeded limit during multi-insertion (${currentCount}/${totalAllowedVotes})`);
-                await query("COMMIT", [], { throwError: true }); // Still commit the transaction to release locks
+                console.warn(
+                  `[WARN:POLL_ANSWER] BLOCKING INSERTION: User ${input.eventUserId} exceeded limit during multi-insertion (${currentCount}/${totalAllowedVotes})`
+                );
+                await query('COMMIT', [], { throwError: true }); // Still commit the transaction to release locks
                 break;
               }
 
               // Commit transaction before proceeding with insert
-              await query("COMMIT", [], { throwError: true });
+              await query('COMMIT', [], { throwError: true });
             } catch (error) {
               // Rollback in case of any errors
-              await query("ROLLBACK", [], { throwError: true });
-              console.error(`[ERROR:POLL_ANSWER] Error during pre-insert check, rolled back transaction:`, error);
+              await query('ROLLBACK', [], { throwError: true });
+              console.error(
+                `[ERROR:POLL_ANSWER] Error during pre-insert check, rolled back transaction:`,
+                error
+              );
               break; // Stop insertion on error
             }
 
             // Für Multi-Vote-Stimmzettel: Vote-Cycle NUR beim letzten Element des Batches erhöhen
-            const isLastInBatch = (index === votesToSubmit);
+            const isLastInBatch = index === votesToSubmit;
 
             // Zusätzlich soll das voteComplete-Flag auch überprüfen, ob dies die letzte Antwort
             // des gesamten Stimmzettels ist (answerItemCount === answerItemLength)
-            const isLastAnswerInBallot = (cloneAnswerObject.answerItemCount === cloneAnswerObject.answerItemLength);
+            const isLastAnswerInBallot =
+              cloneAnswerObject.answerItemCount === cloneAnswerObject.answerItemLength;
 
             // Nur wenn BEIDE Bedingungen erfüllt sind, wird der vote_cycle erhöht
             const voteComplete = isLastInBatch && isLastAnswerInBallot;
@@ -497,20 +520,24 @@ export default {
             [pollResult.id, input.eventUserId]
           );
 
-          const updatedVoteCycle = Array.isArray(verifyVoteCycleQuery) && verifyVoteCycleQuery.length > 0
-            ? parseInt(verifyVoteCycleQuery[0].voteCycle, 10) || 0
-            : 0;
+          const updatedVoteCycle =
+            Array.isArray(verifyVoteCycleQuery) && verifyVoteCycleQuery.length > 0
+              ? parseInt(verifyVoteCycleQuery[0].voteCycle, 10) || 0
+              : 0;
 
           // Bei Multi-Vote sollte der vote_cycle idealerweise nur um 1 erhöht worden sein, nicht um die Anzahl der Antworten
           if (updatedVoteCycle !== voteCycleUsed + 1 && updatedVoteCycle !== 0) {
-            console.warn(`[WARN:POLL_ANSWER] Vote cycle was not incremented correctly! Expected: ${voteCycleUsed + 1}, Actual: ${updatedVoteCycle}`);
+            console.warn(
+              `[WARN:POLL_ANSWER] Vote cycle was not incremented correctly! Expected: ${voteCycleUsed + 1}, Actual: ${updatedVoteCycle}`
+            );
           }
         } else {
-          console.warn(`[WARN:POLL_ANSWER] User ${input.eventUserId} attempted to submit more votes than allowed!`);
+          console.warn(
+            `[WARN:POLL_ANSWER] User ${input.eventUserId} attempted to submit more votes than allowed!`
+          );
         }
       } else {
-
-        await query("START TRANSACTION", [], { throwError: true });
+        await query('START TRANSACTION', [], { throwError: true });
 
         try {
           let currentCount = 0;
@@ -529,7 +556,9 @@ export default {
 
             // Fix inconsistency if found
             if (voteCycle !== version) {
-              console.warn(`[WARN:POLL_ANSWER] Found single vote discrepancy: voteCycle=${voteCycle}, version=${version}. Fixing to ${currentCount}`);
+              console.warn(
+                `[WARN:POLL_ANSWER] Found single vote discrepancy: voteCycle=${voteCycle}, version=${version}. Fixing to ${currentCount}`
+              );
 
               await query(
                 `UPDATE poll_user_voted 
@@ -542,17 +571,22 @@ export default {
 
           // Check if we would exceed the limit
           if (currentCount > totalAllowedVotes) {
-            console.warn(`[WARN:POLL_ANSWER] BLOCKING SINGLE VOTE: User ${input.eventUserId} exceeded limit (${currentCount}/${totalAllowedVotes})`);
-            await query("COMMIT", [], { throwError: true }); // Still commit the transaction to release locks
+            console.warn(
+              `[WARN:POLL_ANSWER] BLOCKING SINGLE VOTE: User ${input.eventUserId} exceeded limit (${currentCount}/${totalAllowedVotes})`
+            );
+            await query('COMMIT', [], { throwError: true }); // Still commit the transaction to release locks
             return false;
           }
 
           // Commit transaction before proceeding with insert
-          await query("COMMIT", [], { throwError: true });
+          await query('COMMIT', [], { throwError: true });
         } catch (error) {
           // Rollback in case of any errors
-          await query("ROLLBACK", [], { throwError: true });
-          console.error(`[ERROR:POLL_ANSWER] Error during single vote check, rolled back transaction:`, error);
+          await query('ROLLBACK', [], { throwError: true });
+          console.error(
+            `[ERROR:POLL_ANSWER] Error during single vote check, rolled back transaction:`,
+            error
+          );
           return false; // Don't insert on error
         }
 
@@ -569,14 +603,16 @@ export default {
 
         // If this is the last answer in ballot, update poll_user_voted
         if (isLastAnswerInBallot) {
-          const incrementedVoteCycle = await incrementVoteCycleAfterVote(pollResult.id, input.eventUserId);
+          const incrementedVoteCycle = await incrementVoteCycleAfterVote(
+            pollResult.id,
+            input.eventUserId
+          );
           if (!incrementedVoteCycle) {
             console.warn(`[DEBUG:POLL_ANSWER] Increment vote_cycle for single vote failed`);
           }
         }
-
       }
-      
+
       // Use async-optimized version for async events
       if (await isAsyncEvent(eventId)) {
         leftAnswersDataSet = await findLeftAnswersCountForAsync(pollResult.id);
@@ -588,12 +624,12 @@ export default {
         // Again check if there are votes left.
         if (leftAnswersDataSet === null) {
           // First check if the poll is already closed
-          const pollStatusCheck = await query(
-            "SELECT closed FROM poll_result WHERE id = ?",
-            [pollResult.id]
-          );
+          const pollStatusCheck = await query('SELECT closed FROM poll_result WHERE id = ?', [
+            pollResult.id,
+          ]);
 
-          const isAlreadyClosed = Array.isArray(pollStatusCheck) &&
+          const isAlreadyClosed =
+            Array.isArray(pollStatusCheck) &&
             pollStatusCheck.length > 0 &&
             pollStatusCheck[0].closed === 1;
 
@@ -604,7 +640,9 @@ export default {
               if (pollId) {
                 await publishPollClosedEvent(pollResult.id, eventId, pollId);
               } else {
-                console.error(`[ERROR:POLL_ANSWER] Could not find poll_id for poll_result ${pollResult.id}`);
+                console.error(
+                  `[ERROR:POLL_ANSWER] Could not find poll_id for poll_result ${pollResult.id}`
+                );
               }
             }
           } else {
@@ -615,28 +653,34 @@ export default {
         }
       }
     } else {
-      console.warn(`[DEBUG:POLL_ANSWER] Vote NOT allowed for user ${input.eventUserId}, allowToVote=${allowToVote}`);
+      console.warn(
+        `[DEBUG:POLL_ANSWER] Vote NOT allowed for user ${input.eventUserId}, allowToVote=${allowToVote}`
+      );
     }
 
     if (leftAnswersDataSet) {
       // Notify the organizer about the current voted count.
       // Stellen wir sicher, dass alle erforderlichen Felder mit camelCase vorhanden sind
-      pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
-        pollResultId: leftAnswersDataSet.pollResultId || 0,
-        maxVotes: leftAnswersDataSet.maxVotes || 0,
-        maxVoteCycles: leftAnswersDataSet.maxVoteCycles || 0,
-        pollUserVoteCycles: leftAnswersDataSet.pollUserVoteCycles || 0,
-        pollUserVotedCount: leftAnswersDataSet.pollUserVotedCount || 0,
-        pollAnswersCount: leftAnswersDataSet.pollAnswersCount || 0,
-        pollUserCount: leftAnswersDataSet.pollUserCount || 0,
-        usersCompletedVoting: leftAnswersDataSet.usersCompletedVoting || 0,
-        eventId: eventId
-      }, {
-        throttleMs: 1000, // Limit to one update per second
-        cacheState: true, // Only send if data changed
-        filterBy: { pollResultId: leftAnswersDataSet.pollResultId }, // Per-poll throttling
-        compareFields: ['pollUserVotedCount', 'pollAnswersCount', 'usersCompletedVoting'] // Critical fields
-      });
+      pubsub.publish(
+        POLL_ANSWER_LIFE_CYCLE,
+        {
+          pollResultId: leftAnswersDataSet.pollResultId || 0,
+          maxVotes: leftAnswersDataSet.maxVotes || 0,
+          maxVoteCycles: leftAnswersDataSet.maxVoteCycles || 0,
+          pollUserVoteCycles: leftAnswersDataSet.pollUserVoteCycles || 0,
+          pollUserVotedCount: leftAnswersDataSet.pollUserVotedCount || 0,
+          pollAnswersCount: leftAnswersDataSet.pollAnswersCount || 0,
+          pollUserCount: leftAnswersDataSet.pollUserCount || 0,
+          usersCompletedVoting: leftAnswersDataSet.usersCompletedVoting || 0,
+          eventId: eventId,
+        },
+        {
+          throttleMs: 1000, // Limit to one update per second
+          cacheState: true, // Only send if data changed
+          filterBy: { pollResultId: leftAnswersDataSet.pollResultId }, // Per-poll throttling
+          compareFields: ['pollUserVotedCount', 'pollAnswersCount', 'usersCompletedVoting'], // Critical fields
+        }
+      );
     } else {
       // If leftAnswersDataSet is null it could be because:
       // 1. The poll is already closed
@@ -645,12 +689,12 @@ export default {
       // Try to close the poll (if not already closed)
 
       if (pollResult) {
-        const pollStatusCheck = await query(
-          "SELECT closed FROM poll_result WHERE id = ?",
-          [pollResult.id]
-        );
+        const pollStatusCheck = await query('SELECT closed FROM poll_result WHERE id = ?', [
+          pollResult.id,
+        ]);
 
-        const isAlreadyClosed = Array.isArray(pollStatusCheck) &&
+        const isAlreadyClosed =
+          Array.isArray(pollStatusCheck) &&
           pollStatusCheck.length > 0 &&
           pollStatusCheck[0].closed === 1;
 
@@ -664,7 +708,6 @@ export default {
     const atVoteLimit = currentVoteCycle >= totalAllowedVotes;
 
     if (atVoteLimit && isLastAnswerInBallot) {
-
       // Check if ALL users have completed their voting
       // We need to count all eligible users and check if all of them have used their votes
       const allUsersQuery = await query(
@@ -679,20 +722,26 @@ export default {
         [pollResult.id]
       );
 
-      const totalEligibleUsers = Array.isArray(allUsersQuery) && allUsersQuery.length > 0
-        ? parseInt(allUsersQuery[0].totalUsers, 10) || 0
-        : 0;
+      const totalEligibleUsers =
+        Array.isArray(allUsersQuery) && allUsersQuery.length > 0
+          ? parseInt(allUsersQuery[0].totalUsers, 10) || 0
+          : 0;
 
-      const usersCompletedVoting = Array.isArray(votedUsersQuery) && votedUsersQuery.length > 0
-        ? parseInt(votedUsersQuery[0].votedUsers, 10) || 0
-        : 0;
+      const usersCompletedVoting =
+        Array.isArray(votedUsersQuery) && votedUsersQuery.length > 0
+          ? parseInt(votedUsersQuery[0].votedUsers, 10) || 0
+          : 0;
 
       // Only close the poll if ALL eligible users have voted (and it's not an async event)
       if (totalEligibleUsers > 0 && usersCompletedVoting >= totalEligibleUsers) {
         if (await isAsyncEvent(eventId)) {
-          console.info(`[INFO:POLL_ANSWER] All users completed voting in async event ${eventId}, but NOT closing poll ${pollResult.id}`);
+          console.info(
+            `[INFO:POLL_ANSWER] All users completed voting in async event ${eventId}, but NOT closing poll ${pollResult.id}`
+          );
         } else {
-          console.info(`[INFO:POLL_ANSWER] All users have completed voting, closing poll ${pollResult.id} in event ${eventId}`);
+          console.info(
+            `[INFO:POLL_ANSWER] All users have completed voting, closing poll ${pollResult.id} in event ${eventId}`
+          );
           await publishPollClosedEvent(pollResult.id, eventId, pollId);
         }
       }
@@ -708,7 +757,7 @@ export default {
   /**
    * Bulk vote submission for identical votes - optimizes performance when a user
    * submits multiple identical votes at once
-   * 
+   *
    * @param {Object} _ - GraphQL parent object (not used)
    * @param {Object} args - GraphQL arguments
    * @param {Object} args.input - BulkPollSubmitAnswerInput data
@@ -722,28 +771,34 @@ export default {
     const pollId = input.pollId;
     const pollResult = await findOneByPollId(input.pollId);
     if (!pollResult) {
-      console.error(`[ERROR:BULK_VOTE][${executionId}] Missing poll result for pollId ${input.pollId}`);
-      throw Error("Missing poll result record!");
+      console.error(
+        `[ERROR:BULK_VOTE][${executionId}] Missing poll result for pollId ${input.pollId}`
+      );
+      throw Error('Missing poll result record!');
     }
 
     const eventId = await findEventIdByPollResultId(pollResult.id);
     if (!eventId) {
-      console.error(`[ERROR:BULK_VOTE][${executionId}] Missing event for pollResultId ${pollResult.id}`);
-      throw Error("Missing related event record!");
+      console.error(
+        `[ERROR:BULK_VOTE][${executionId}] Missing event for pollResultId ${pollResult.id}`
+      );
+      throw Error('Missing related event record!');
     }
 
     // Check if poll is already closed
-    const pollStatusCheck = await query(
-      "SELECT closed FROM poll_result WHERE id = ?",
-      [pollResult.id]
-    );
+    const pollStatusCheck = await query('SELECT closed FROM poll_result WHERE id = ?', [
+      pollResult.id,
+    ]);
 
-    const isAlreadyClosed = Array.isArray(pollStatusCheck) &&
+    const isAlreadyClosed =
+      Array.isArray(pollStatusCheck) &&
       pollStatusCheck.length > 0 &&
       pollStatusCheck[0].closed === 1;
 
     if (isAlreadyClosed) {
-      console.warn(`[WARN:BULK_VOTE][${executionId}] Poll ${pollResult.id} is already closed, cannot submit votes`);
+      console.warn(
+        `[WARN:BULK_VOTE][${executionId}] Poll ${pollResult.id} is already closed, cannot submit votes`
+      );
       return 0;
     }
 
@@ -751,12 +806,14 @@ export default {
     const eventUser = await findOneById(input.eventUserId);
     if (!eventUser) {
       console.error(`[ERROR:BULK_VOTE][${executionId}] Event user ${input.eventUserId} not found!`);
-      throw Error("Event user not found!");
+      throw Error('Event user not found!');
     }
 
     // Validate user is allowed to vote
     if (!eventUser.verified || !eventUser.allowToVote) {
-      console.warn(`[WARN:BULK_VOTE][${executionId}] User ${input.eventUserId} is not verified or not allowed to vote`);
+      console.warn(
+        `[WARN:BULK_VOTE][${executionId}] User ${input.eventUserId} is not verified or not allowed to vote`
+      );
       return 0;
     }
 
@@ -765,7 +822,7 @@ export default {
     let successfulVotes = 0;
 
     // Start transaction BEFORE reading vote_cycle to prevent race conditions
-    await query("START TRANSACTION", [], { throwError: true });
+    await query('START TRANSACTION', [], { throwError: true });
 
     try {
       // Create poll user if needed
@@ -780,10 +837,9 @@ export default {
 
       if (!Array.isArray(userVotedQuery) || userVotedQuery.length === 0) {
         // Eintrag existiert noch nicht — erstellen
-        const usernameQuery = await query(
-          `SELECT username FROM event_user WHERE id = ?`,
-          [input.eventUserId]
-        );
+        const usernameQuery = await query(`SELECT username FROM event_user WHERE id = ?`, [
+          input.eventUserId,
+        ]);
 
         if (Array.isArray(usernameQuery) && usernameQuery.length > 0) {
           const username = usernameQuery[0].username;
@@ -796,21 +852,26 @@ export default {
             [input.eventUserId, username, pollResult.id, createDatetime]
           );
         } else {
-          console.warn(`[WARN:BULK_VOTE][${executionId}] Could not find username for user ${input.eventUserId}`);
+          console.warn(
+            `[WARN:BULK_VOTE][${executionId}] Could not find username for user ${input.eventUserId}`
+          );
         }
       }
 
       // vote_cycle jetzt MIT Lock lesen — kein anderer Request kann hier gleichzeitig durch
-      const currentVoteCycle = Array.isArray(userVotedQuery) && userVotedQuery.length > 0
-        ? parseInt(userVotedQuery[0].voteCycle, 10) || 0
-        : 0;
+      const currentVoteCycle =
+        Array.isArray(userVotedQuery) && userVotedQuery.length > 0
+          ? parseInt(userVotedQuery[0].voteCycle, 10) || 0
+          : 0;
 
       const remainingVotes = Math.max(0, maxAllowedVotes - currentVoteCycle);
       const votesToSubmit = Math.min(input.voteCount, remainingVotes);
 
       if (votesToSubmit <= 0) {
-        console.warn(`[WARN:BULK_VOTE][${executionId}] User ${input.eventUserId} has no remaining votes (max: ${maxAllowedVotes}, used: ${currentVoteCycle})`);
-        await query("ROLLBACK", [], { throwError: true });
+        console.warn(
+          `[WARN:BULK_VOTE][${executionId}] User ${input.eventUserId} has no remaining votes (max: ${maxAllowedVotes}, used: ${currentVoteCycle})`
+        );
+        await query('ROLLBACK', [], { throwError: true });
         return 0;
       }
 
@@ -818,7 +879,7 @@ export default {
       const timestamp = getCurrentUnixTimeStamp();
 
       // Insert votes in bulk based on poll type
-      if (input.type === "PUBLIC") {
+      if (input.type === 'PUBLIC') {
         // Get poll user ID for PUBLIC polls
         const pollUserQuery = await query(
           `SELECT poll_user.id FROM poll_user
@@ -828,8 +889,10 @@ export default {
         );
 
         if (!Array.isArray(pollUserQuery) || pollUserQuery.length === 0) {
-          console.error(`[ERROR:BULK_VOTE][${executionId}] Could not find poll_user for eventUserId=${input.eventUserId}, pollResultId=${pollResult.id}`);
-          await query("ROLLBACK", [], { throwError: true });
+          console.error(
+            `[ERROR:BULK_VOTE][${executionId}] Could not find poll_user for eventUserId=${input.eventUserId}, pollResultId=${pollResult.id}`
+          );
+          await query('ROLLBACK', [], { throwError: true });
           return 0;
         }
 
@@ -852,7 +915,9 @@ export default {
           // Build the bulk values string for this chunk
           const valuesList = [];
           for (let i = 0; i < currentBatchSize; i++) {
-            valuesList.push(`(${pollResult.id}, ${input.possibleAnswerId || 'NULL'}, ${input.answerContent ? `'${input.answerContent.replace(/'/g, "''")}'` : 'NULL'}, ${pollUserId}, ${timestamp})`);
+            valuesList.push(
+              `(${pollResult.id}, ${input.possibleAnswerId || 'NULL'}, ${input.answerContent ? `'${input.answerContent.replace(/'/g, "''")}'` : 'NULL'}, ${pollUserId}, ${timestamp})`
+            );
           }
 
           const bulkValues = valuesList.join(',');
@@ -874,9 +939,10 @@ export default {
           [eventId]
         );
 
-        const activeUserCount = Array.isArray(activeUsersQuery) && activeUsersQuery.length > 0
-          ? parseInt(activeUsersQuery[0].activeUserCount, 10) || 0
-          : 0;
+        const activeUserCount =
+          Array.isArray(activeUsersQuery) && activeUsersQuery.length > 0
+            ? parseInt(activeUsersQuery[0].activeUserCount, 10) || 0
+            : 0;
 
         // Dynamische Anpassung der Chunk-Größe basierend auf der Anzahl aktiver Benutzer
         let chunkSize = 500; // Standardwert
@@ -899,7 +965,9 @@ export default {
           // Build the bulk values string for this chunk
           const valuesList = [];
           for (let i = 0; i < currentBatchSize; i++) {
-            valuesList.push(`(${pollResult.id}, ${input.possibleAnswerId || 'NULL'}, ${input.answerContent ? `'${input.answerContent.replace(/'/g, "''")}'` : 'NULL'}, ${timestamp})`);
+            valuesList.push(
+              `(${pollResult.id}, ${input.possibleAnswerId || 'NULL'}, ${input.answerContent ? `'${input.answerContent.replace(/'/g, "''")}'` : 'NULL'}, ${timestamp})`
+            );
           }
 
           const bulkValues = valuesList.join(',');
@@ -922,12 +990,15 @@ export default {
         [pollResult.id, timestamp]
       );
 
-      const insertCount = Array.isArray(verifyInsertQuery) && verifyInsertQuery.length > 0
-        ? parseInt(verifyInsertQuery[0].insertCount, 10) || 0
-        : 0;
+      const insertCount =
+        Array.isArray(verifyInsertQuery) && verifyInsertQuery.length > 0
+          ? parseInt(verifyInsertQuery[0].insertCount, 10) || 0
+          : 0;
 
       if (insertCount < votesToSubmit) {
-        console.warn(`[WARN:BULK_VOTE][${executionId}] Expected to insert ${votesToSubmit} votes, but only found ${insertCount}`);
+        console.warn(
+          `[WARN:BULK_VOTE][${executionId}] Expected to insert ${votesToSubmit} votes, but only found ${insertCount}`
+        );
       }
 
       // vote_cycle erhöhen — Lock haben wir bereits seit dem SELECT FOR UPDATE oben
@@ -943,7 +1014,7 @@ export default {
       );
 
       // Commit transaction
-      await query("COMMIT", [], { throwError: true });
+      await query('COMMIT', [], { throwError: true });
       successfulVotes = insertCount;
 
       // Get updated poll answer counts for notification
@@ -951,22 +1022,26 @@ export default {
 
       if (leftAnswersDataSet) {
         // Notify subscribers about updated vote counts
-        pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
-          pollResultId: leftAnswersDataSet.pollResultId || 0,
-          maxVotes: leftAnswersDataSet.maxVotes || 0,
-          maxVoteCycles: leftAnswersDataSet.maxVoteCycles || 0,
-          pollUserVoteCycles: leftAnswersDataSet.pollUserVoteCycles || 0,
-          pollUserVotedCount: leftAnswersDataSet.pollUserVotedCount || 0,
-          pollAnswersCount: leftAnswersDataSet.pollAnswersCount || 0,
-          pollUserCount: leftAnswersDataSet.pollUserCount || 0,
-          usersCompletedVoting: leftAnswersDataSet.usersCompletedVoting || 0,
-          eventId: eventId
-        }, {
-          throttleMs: 1000, // Limit to one update per second
-          cacheState: true, // Only send if data changed
-          filterBy: { pollResultId: leftAnswersDataSet.pollResultId }, // Per-poll throttling
-          compareFields: ['pollUserVotedCount', 'pollAnswersCount', 'usersCompletedVoting'] // Critical fields
-        });
+        pubsub.publish(
+          POLL_ANSWER_LIFE_CYCLE,
+          {
+            pollResultId: leftAnswersDataSet.pollResultId || 0,
+            maxVotes: leftAnswersDataSet.maxVotes || 0,
+            maxVoteCycles: leftAnswersDataSet.maxVoteCycles || 0,
+            pollUserVoteCycles: leftAnswersDataSet.pollUserVoteCycles || 0,
+            pollUserVotedCount: leftAnswersDataSet.pollUserVotedCount || 0,
+            pollAnswersCount: leftAnswersDataSet.pollAnswersCount || 0,
+            pollUserCount: leftAnswersDataSet.pollUserCount || 0,
+            usersCompletedVoting: leftAnswersDataSet.usersCompletedVoting || 0,
+            eventId: eventId,
+          },
+          {
+            throttleMs: 1000, // Limit to one update per second
+            cacheState: true, // Only send if data changed
+            filterBy: { pollResultId: leftAnswersDataSet.pollResultId }, // Per-poll throttling
+            compareFields: ['pollUserVotedCount', 'pollAnswersCount', 'usersCompletedVoting'], // Critical fields
+          }
+        );
 
         // Check if this was the user's last vote
         const newVoteCycleQuery = await query(
@@ -975,9 +1050,10 @@ export default {
           [pollResult.id, input.eventUserId]
         );
 
-        const newVoteCycle = Array.isArray(newVoteCycleQuery) && newVoteCycleQuery.length > 0
-          ? parseInt(newVoteCycleQuery[0].voteCycle, 10) || 0
-          : 0;
+        const newVoteCycle =
+          Array.isArray(newVoteCycleQuery) && newVoteCycleQuery.length > 0
+            ? parseInt(newVoteCycleQuery[0].voteCycle, 10) || 0
+            : 0;
 
         // If user has reached vote limit, check if all users have completed voting
         if (newVoteCycle >= maxAllowedVotes) {
@@ -994,18 +1070,22 @@ export default {
             [pollResult.id]
           );
 
-          const totalEligibleUsers = Array.isArray(allUsersQuery) && allUsersQuery.length > 0
-            ? parseInt(allUsersQuery[0].totalUsers, 10) || 0
-            : 0;
+          const totalEligibleUsers =
+            Array.isArray(allUsersQuery) && allUsersQuery.length > 0
+              ? parseInt(allUsersQuery[0].totalUsers, 10) || 0
+              : 0;
 
-          const usersCompletedVoting = Array.isArray(votedUsersQuery) && votedUsersQuery.length > 0
-            ? parseInt(votedUsersQuery[0].votedUsers, 10) || 0
-            : 0;
+          const usersCompletedVoting =
+            Array.isArray(votedUsersQuery) && votedUsersQuery.length > 0
+              ? parseInt(votedUsersQuery[0].votedUsers, 10) || 0
+              : 0;
 
           // Only close the poll if ALL eligible users have voted (and it's not an async event)
           if (totalEligibleUsers > 0 && usersCompletedVoting >= totalEligibleUsers) {
             if (await isAsyncEvent(eventId)) {
-              console.info(`[INFO:BULK_VOTE] All users completed voting in async event ${eventId}, but NOT closing poll ${pollResult.id}`);
+              console.info(
+                `[INFO:BULK_VOTE] All users completed voting in async event ${eventId}, but NOT closing poll ${pollResult.id}`
+              );
             } else {
               await publishPollClosedEvent(pollResult.id, eventId, pollId);
             }
@@ -1019,7 +1099,7 @@ export default {
       return successfulVotes;
     } catch (error) {
       // Rollback on any error
-      await query("ROLLBACK", [], { throwError: true });
+      await query('ROLLBACK', [], { throwError: true });
       console.error(`[ERROR:BULK_VOTE][${executionId}] Transaction error:`, error);
       return 0;
     }
@@ -1030,14 +1110,20 @@ export default {
     const executionId = Math.random().toString(36).substring(2, 10);
 
     const pollResult = await findOneByPollId(input.pollId);
-    if (!pollResult) throw Error("Missing poll result record!");
+    if (!pollResult) throw Error('Missing poll result record!');
 
     const eventId = await findEventIdByPollResultId(pollResult.id);
-    if (!eventId) throw Error("Missing related event record!");
+    if (!eventId) throw Error('Missing related event record!');
 
     // Check poll not closed
-    const pollStatusCheck = await query("SELECT closed FROM poll_result WHERE id = ?", [pollResult.id]);
-    if (Array.isArray(pollStatusCheck) && pollStatusCheck.length > 0 && pollStatusCheck[0].closed === 1) {
+    const pollStatusCheck = await query('SELECT closed FROM poll_result WHERE id = ?', [
+      pollResult.id,
+    ]);
+    if (
+      Array.isArray(pollStatusCheck) &&
+      pollStatusCheck.length > 0 &&
+      pollStatusCheck[0].closed === 1
+    ) {
       return 0;
     }
 
@@ -1051,7 +1137,7 @@ export default {
     const ballotCount = parseInt(input.answers[0]?.voteCount, 10) || 0;
 
     // Start transaction with FOR UPDATE lock
-    await query("START TRANSACTION", [], { throwError: true });
+    await query('START TRANSACTION', [], { throwError: true });
 
     try {
       await createPollUserIfNeeded(pollResult.id, input.eventUserId);
@@ -1065,7 +1151,9 @@ export default {
 
       if (!Array.isArray(userVotedQuery) || userVotedQuery.length === 0) {
         // Create entry
-        const usernameQuery = await query("SELECT username FROM event_user WHERE id = ?", [input.eventUserId]);
+        const usernameQuery = await query('SELECT username FROM event_user WHERE id = ?', [
+          input.eventUserId,
+        ]);
         if (Array.isArray(usernameQuery) && usernameQuery.length > 0) {
           await query(
             `INSERT INTO poll_user_voted (event_user_id, username, poll_result_id, vote_cycle, create_datetime, version)
@@ -1075,12 +1163,14 @@ export default {
         }
       }
 
-      const currentVoteCycle = Array.isArray(userVotedQuery) && userVotedQuery.length > 0
-        ? parseInt(userVotedQuery[0].voteCycle, 10) || 0 : 0;
+      const currentVoteCycle =
+        Array.isArray(userVotedQuery) && userVotedQuery.length > 0
+          ? parseInt(userVotedQuery[0].voteCycle, 10) || 0
+          : 0;
 
       const remainingBallots = Math.max(0, maxAllowedVotes - currentVoteCycle);
       if (remainingBallots <= 0) {
-        await query("ROLLBACK", [], { throwError: true });
+        await query('ROLLBACK', [], { throwError: true });
         return 0;
       }
 
@@ -1091,7 +1181,7 @@ export default {
 
       // Get poll_user for PUBLIC polls
       let pollUserId = null;
-      if (input.type === "PUBLIC") {
+      if (input.type === 'PUBLIC') {
         const pollUserQuery = await query(
           `SELECT poll_user.id FROM poll_user
            INNER JOIN poll_result ON poll_user.poll_id = poll_result.poll_id
@@ -1108,7 +1198,9 @@ export default {
         const count = actualBallots;
         if (count <= 0) continue;
 
-        const answerContent = answer.answerContent ? `'${answer.answerContent.replace(/'/g, "''")}'` : 'NULL';
+        const answerContent = answer.answerContent
+          ? `'${answer.answerContent.replace(/'/g, "''")}'`
+          : 'NULL';
         const possibleAnswerId = answer.possibleAnswerId || 'NULL';
 
         // Chunked insert
@@ -1117,17 +1209,25 @@ export default {
           const batchSize = Math.min(chunkSize, count - i);
           const values = [];
           for (let j = 0; j < batchSize; j++) {
-            if (input.type === "PUBLIC" && pollUserId) {
-              values.push(`(${pollResult.id}, ${possibleAnswerId}, ${answerContent}, ${pollUserId}, ${timestamp})`);
+            if (input.type === 'PUBLIC' && pollUserId) {
+              values.push(
+                `(${pollResult.id}, ${possibleAnswerId}, ${answerContent}, ${pollUserId}, ${timestamp})`
+              );
             } else {
-              values.push(`(${pollResult.id}, ${possibleAnswerId}, ${answerContent}, ${timestamp})`);
+              values.push(
+                `(${pollResult.id}, ${possibleAnswerId}, ${answerContent}, ${timestamp})`
+              );
             }
           }
 
-          if (input.type === "PUBLIC" && pollUserId) {
-            await query(`INSERT INTO poll_answer (poll_result_id, poll_possible_answer_id, answer_content, poll_user_id, create_datetime) VALUES ${values.join(',')}`);
+          if (input.type === 'PUBLIC' && pollUserId) {
+            await query(
+              `INSERT INTO poll_answer (poll_result_id, poll_possible_answer_id, answer_content, poll_user_id, create_datetime) VALUES ${values.join(',')}`
+            );
           } else {
-            await query(`INSERT INTO poll_answer (poll_result_id, poll_possible_answer_id, answer_content, create_datetime) VALUES ${values.join(',')}`);
+            await query(
+              `INSERT INTO poll_answer (poll_result_id, poll_possible_answer_id, answer_content, create_datetime) VALUES ${values.join(',')}`
+            );
           }
         }
         totalInserted += count;
@@ -1141,23 +1241,27 @@ export default {
         [newVoteCycle, actualBallots, pollResult.id, input.eventUserId]
       );
 
-      await query("COMMIT", [], { throwError: true });
+      await query('COMMIT', [], { throwError: true });
 
       // Publish events
       const leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);
       if (leftAnswersDataSet) {
-        pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
-          pollResultId: leftAnswersDataSet.pollResultId || 0,
-          maxVotes: leftAnswersDataSet.maxVotes || 0,
-          maxVoteCycles: leftAnswersDataSet.maxVoteCycles || 0,
-          pollUserVoteCycles: leftAnswersDataSet.pollUserVoteCycles || 0,
-          pollUserVotedCount: leftAnswersDataSet.pollUserVotedCount || 0,
-          pollAnswersCount: leftAnswersDataSet.pollAnswersCount || 0,
-        }, { priority: true });
+        pubsub.publish(
+          POLL_ANSWER_LIFE_CYCLE,
+          {
+            pollResultId: leftAnswersDataSet.pollResultId || 0,
+            maxVotes: leftAnswersDataSet.maxVotes || 0,
+            maxVoteCycles: leftAnswersDataSet.maxVoteCycles || 0,
+            pollUserVoteCycles: leftAnswersDataSet.pollUserVoteCycles || 0,
+            pollUserVotedCount: leftAnswersDataSet.pollUserVotedCount || 0,
+            pollAnswersCount: leftAnswersDataSet.pollAnswersCount || 0,
+          },
+          { priority: true }
+        );
 
         if (leftAnswersDataSet === null) {
           await publishPollLifeCycle(pollResult.id);
-          const isAsync = await query("SELECT async FROM event WHERE id = ?", [eventId]);
+          const isAsync = await query('SELECT async FROM event WHERE id = ?', [eventId]);
           if (Array.isArray(isAsync) && isAsync.length > 0 && isAsync[0].async === 1) {
             console.info(`[INFO:MULTI_VOTE] Async event ${eventId}, not closing poll`);
           } else {
@@ -1168,10 +1272,12 @@ export default {
         await publishPollLifeCycle(pollResult.id);
       }
 
-      console.info(`[INFO:MULTI_VOTE][${executionId}] User ${input.eventUserId}: ${actualBallots} ballots × ${input.answers.length} answers = ${totalInserted} rows`);
+      console.info(
+        `[INFO:MULTI_VOTE][${executionId}] User ${input.eventUserId}: ${actualBallots} ballots × ${input.answers.length} answers = ${totalInserted} rows`
+      );
       return actualBallots;
     } catch (error) {
-      await query("ROLLBACK", [], { throwError: true });
+      await query('ROLLBACK', [], { throwError: true });
       console.error(`[ERROR:MULTI_VOTE][${executionId}] Transaction error:`, error);
       return 0;
     }

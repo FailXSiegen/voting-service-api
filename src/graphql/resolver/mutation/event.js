@@ -6,9 +6,9 @@ import {
   findById,
   transferToOrganizer,
   resetToOriginalOrganizer,
-} from "../../../repository/event-repository";
-import SlugAlreadyExistsError from "../../../errors/event/SlugAlreadyExistsError";
-import EventNotFoundError from "../../../errors/event/EventNotFoundError";
+} from '../../../repository/event-repository';
+import SlugAlreadyExistsError from '../../../errors/event/SlugAlreadyExistsError';
+import EventNotFoundError from '../../../errors/event/EventNotFoundError';
 
 export default {
   createEvent: async (_, { input }) => {

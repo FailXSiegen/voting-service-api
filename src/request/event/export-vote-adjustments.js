@@ -1,6 +1,6 @@
-import { getVoteAdjustmentsByEventId, convertLogsToTXT } from "../../lib/vote-adjustment-logger.js";
-import * as fs from "fs";
-import path from "path";
+import { getVoteAdjustmentsByEventId, convertLogsToTXT } from '../../lib/vote-adjustment-logger.js';
+import * as fs from 'fs';
+import path from 'path';
 
 export default async function downloadVoteAdjustmentsCsv(req, res) {
   try {
@@ -8,7 +8,7 @@ export default async function downloadVoteAdjustmentsCsv(req, res) {
 
     if (!eventId) {
       return res.status(400).json({
-        error: "Event ID ist erforderlich",
+        error: 'Event ID ist erforderlich',
         success: false,
       });
     }
@@ -18,7 +18,7 @@ export default async function downloadVoteAdjustmentsCsv(req, res) {
 
     if (!logs || logs.length === 0) {
       return res.status(404).json({
-        error: "Keine Stimmen-Anpassungen für dieses Event gefunden",
+        error: 'Keine Stimmen-Anpassungen für dieses Event gefunden',
         success: false,
       });
     }
@@ -29,7 +29,7 @@ export default async function downloadVoteAdjustmentsCsv(req, res) {
     // Generiere Dateinamen
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `vote-adjustments-event-${eventId}-${timestamp}.txt`;
-    const tempPath = path.join(__dirname, "../../../", filename);
+    const tempPath = path.join(__dirname, '../../../', filename);
 
     // Schreibe TXT-Datei
     fs.writeFileSync(tempPath, txtContent, 'utf8');
@@ -47,7 +47,6 @@ export default async function downloadVoteAdjustmentsCsv(req, res) {
         console.error('Fehler beim Download:', err);
       }
     });
-
   } catch (error) {
     console.error('Fehler beim Export der Vote-Anpassungen:', error);
     res.status(500).json({

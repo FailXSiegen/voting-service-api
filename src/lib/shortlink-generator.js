@@ -1,5 +1,5 @@
-import crypto from "crypto";
-import { findOneByShortCode } from "../repository/event-user-shortlink-repository";
+import crypto from 'crypto';
+import { findOneByShortCode } from '../repository/event-user-shortlink-repository';
 
 /**
  * Generate a random alphanumeric string
@@ -7,9 +7,9 @@ import { findOneByShortCode } from "../repository/event-user-shortlink-repositor
  * @returns {string}
  */
 function generateRandomString(length) {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   const bytes = crypto.randomBytes(length);
-  let result = "";
+  let result = '';
   for (let i = 0; i < length; i++) {
     result += chars[bytes[i] % chars.length];
   }

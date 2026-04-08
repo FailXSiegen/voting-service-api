@@ -1,4 +1,4 @@
-import { togglePollResultHidden } from "../../../repository/poll/poll-result-repository";
+import { togglePollResultHidden } from '../../../repository/poll/poll-result-repository';
 
 export default {
   togglePollResultHidden: async (_, { pollResultId }) => {

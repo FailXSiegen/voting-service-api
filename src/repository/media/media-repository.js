@@ -16,27 +16,31 @@ class MediaRepository {
   async create(data) {
     // MariaDB unterstützt nicht RETURNING *, daher müssen wir erst einfügen und dann abfragen
     // Erst einfügen
-    const insertResult = await db.insert('media', {
-      filename: data.filename,
-      path: data.path,
-      mime_type: data.mimeType,
-      file_size: data.fileSize,
-      created_by: data.createdBy
-    }, true);
-    
+    const insertResult = await db.insert(
+      'media',
+      {
+        filename: data.filename,
+        path: data.path,
+        mime_type: data.mimeType,
+        file_size: data.fileSize,
+        created_by: data.createdBy,
+      },
+      true
+    );
+
     if (!insertResult || !insertResult.insertId) {
       throw new Error('Failed to insert media record');
     }
-    
+
     // Dann abholen mit ID
     const selectQuery = `
       SELECT * FROM media WHERE id = ?
     `;
-    
+
     const result = await db.query(selectQuery, [insertResult.insertId]);
     return result[0];
   }
-  
+
   /**
    * Findet alle Medien
    * @param {number} limit - Begrenzung der Anzahl (optional)
@@ -50,18 +54,18 @@ class MediaRepository {
       ORDER BY m.created_at DESC
       LIMIT ?
     `;
-    
+
     console.log('Running query to fetch all media');
     const result = await db.query(query, [limit]);
     console.log('Query result:', result ? result.length : 0);
-    
+
     if (result && result.length > 0) {
       console.log('First media item sample:', JSON.stringify(result[0]));
     }
-    
+
     return result || [];
   }
-  
+
   /**
    * Findet ein Medium anhand der ID
    * @param {number} id - Die Media-ID
@@ -74,11 +78,11 @@ class MediaRepository {
       LEFT JOIN organizer o ON m.created_by = o.id
       WHERE m.id = ?
     `;
-    
+
     const result = await db.query(query, [id]);
     return result[0] || null;
   }
-  
+
   /**
    * Löscht ein Medium
    * @param {number} id - Die Media-ID
@@ -88,28 +92,28 @@ class MediaRepository {
     try {
       // Hole zuerst die Mediendaten
       const media = await this.findById(id);
-      
+
       if (!media) {
         return false;
       }
-      
+
       // Lösche die physische Datei
       const filePath = path.join(
-        __dirname, 
-        '../../../../voting-service-client-v2/public', 
+        __dirname,
+        '../../../../voting-service-client-v2/public',
         media.path
       );
-      
+
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
-      
+
       // Lösche den Datenbankeintrag
       const query = `
         DELETE FROM media
         WHERE id = ?
       `;
-      
+
       await db.query(query, [id]);
       return true;
     } catch (err) {

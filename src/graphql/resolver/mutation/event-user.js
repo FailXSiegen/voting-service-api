@@ -1,47 +1,42 @@
 import {
   findOneByEventUserId,
   remove as removeEventUSerAuthToken,
-} from "../../../repository/event-user-auth-token-repository";
+} from '../../../repository/event-user-auth-token-repository';
 import {
   findOneById,
   findOneByUsernameAndEventId,
   update,
   create,
   remove,
-} from "../../../repository/event-user-repository";
-import { pubsub } from "../../../server/graphql";
+} from '../../../repository/event-user-repository';
+import { pubsub } from '../../../server/graphql';
 import {
   UPDATE_EVENT_USER_ACCESS_RIGHTS,
   NEW_EVENT_USER,
   TOKEN_REFRESH_REQUIRED,
-} from "../subscription/subscription-types";
-import { refreshUserJwtAfterVerification } from "../../../lib/jwt-auth";
+} from '../subscription/subscription-types';
+import { refreshUserJwtAfterVerification } from '../../../lib/jwt-auth';
 
 export default {
   createEventUser: async (_, args) => {
-    const eventUser = await findOneByUsernameAndEventId(
-      args.input.username,
-      args.input.eventId,
-    );
+    const eventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId);
     if (eventUser) {
-      throw new Error("EventUser already exists");
+      throw new Error('EventUser already exists');
     }
     await create(args.input);
-    const newEventUser = await findOneByUsernameAndEventId(
-      args.input.username,
-      args.input.eventId,
-    );
+    const newEventUser = await findOneByUsernameAndEventId(args.input.username, args.input.eventId);
     pubsub.publish(NEW_EVENT_USER, { ...newEventUser }, { priority: true });
     return newEventUser;
   },
   updateEventUser: async (_, { input }) => {
     let eventUser = await findOneById(input.id);
     if (!eventUser) {
-      throw new Error("EventUser not found");
+      throw new Error('EventUser not found');
     }
 
     // Check if verification status is changing
-    const verificationChanged = input.verified !== undefined && eventUser.verified !== input.verified;
+    const verificationChanged =
+      input.verified !== undefined && eventUser.verified !== input.verified;
     const previousVerificationStatus = eventUser.verified;
 
     await update(input);
@@ -70,13 +65,12 @@ export default {
         pubsub.publish(TOKEN_REFRESH_REQUIRED, {
           eventUserId: eventUser.id,
           userId: eventUser.id,
-          userType: "event-user",
+          userType: 'event-user',
           token: newToken,
-          reason: "verification_change",
+          reason: 'verification_change',
           previousVerificationStatus,
-          currentVerificationStatus: eventUser.verified
+          currentVerificationStatus: eventUser.verified,
         });
-
       } catch (error) {
         console.error(`[ERROR] Failed to generate refresh token for user ${eventUser.id}:`, error);
       }
@@ -87,7 +81,7 @@ export default {
   updateUserToGuest: async (_, { eventUserId }) => {
     const eventUser = await findOneById(eventUserId);
     if (!eventUser) {
-      throw new Error("EventUser not found");
+      throw new Error('EventUser not found');
     }
 
     // Check if verification status is changing
@@ -124,15 +118,17 @@ export default {
         pubsub.publish(TOKEN_REFRESH_REQUIRED, {
           eventUserId: eventUser.id,
           userId: eventUser.id,
-          userType: "event-user",
+          userType: 'event-user',
           token: newToken,
-          reason: "verification_change",
+          reason: 'verification_change',
           previousVerificationStatus,
-          currentVerificationStatus: eventUser.verified
+          currentVerificationStatus: eventUser.verified,
         });
-
       } catch (error) {
-        console.error(`[ERROR] Failed to generate refresh token for guest user ${eventUser.id}:`, error);
+        console.error(
+          `[ERROR] Failed to generate refresh token for guest user ${eventUser.id}:`,
+          error
+        );
       }
     }
 
@@ -141,7 +137,7 @@ export default {
   updateUserToParticipant: async (_, { eventUserId }) => {
     const eventUser = await findOneById(eventUserId);
     if (!eventUser) {
-      throw new Error("EventUser not found");
+      throw new Error('EventUser not found');
     }
 
     // Check if verification status is changing
@@ -178,15 +174,17 @@ export default {
         pubsub.publish(TOKEN_REFRESH_REQUIRED, {
           eventUserId: eventUser.id,
           userId: eventUser.id,
-          userType: "event-user",
+          userType: 'event-user',
           token: newToken,
-          reason: "verification_change",
+          reason: 'verification_change',
           previousVerificationStatus,
-          currentVerificationStatus: eventUser.verified
+          currentVerificationStatus: eventUser.verified,
         });
-
       } catch (error) {
-        console.error(`[ERROR] Failed to generate refresh token for participant user ${eventUser.id}:`, error);
+        console.error(
+          `[ERROR] Failed to generate refresh token for participant user ${eventUser.id}:`,
+          error
+        );
       }
     }
 
@@ -195,7 +193,7 @@ export default {
   deleteEventUser: async (_, { eventUserId }) => {
     const existingUser = await findOneById(eventUserId);
     if (!existingUser) {
-      throw new Error("EventUser not found");
+      throw new Error('EventUser not found');
     }
 
     const eventUserAuthToken = await findOneByEventUserId(existingUser.id);

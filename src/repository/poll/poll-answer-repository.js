@@ -1,53 +1,16 @@
 /* global Promise */
-import {
-  insert,
-  update as updateQuery,
-  remove as removeQuery,
-  query,
-} from "./../../lib/database";
-import { getCurrentUnixTimeStamp } from "../../lib/time-stamp";
+import { insert, query } from './../../lib/database';
+import { getCurrentUnixTimeStamp } from '../../lib/time-stamp';
 
 export async function findByPollResultId(pollResultId) {
-  const result = await query(
-    "SELECT * FROM poll_answer WHERE poll_result_id = ?",
-    [pollResultId],
-  );
+  const result = await query('SELECT * FROM poll_answer WHERE poll_result_id = ?', [pollResultId]);
   return Array.isArray(result) ? result : [];
-}
-
-/**
- * Creates a new poll answer record
- * @param {Object} input - The poll answer data to insert
- * @returns {Promise<number|null>} - The ID of the created record or null if failed
- */
-export async function create(input) {
-  input.createDatetime = getCurrentUnixTimeStamp();
-  return await insert("poll_answer", input);
-}
-
-/**
- * Updates an existing poll answer record
- * @param {Object} input - The poll answer data to update (must include id)
- * @returns {Promise<boolean>} - True if the update was successful, false otherwise
- */
-export async function update(input) {
-  input.modifiedDatetime = getCurrentUnixTimeStamp();
-  return await updateQuery("poll_answer", input);
-}
-
-/**
- * Removes a poll answer record
- * @param {number} id - The ID of the poll answer to remove
- * @returns {Promise<boolean>} - True if the removal was successful, false otherwise
- */
-export async function remove(id) {
-  return await removeQuery("poll_answer", id);
 }
 
 /**
  * Inserts a poll answer while ensuring vote limits are not exceeded
  * Uses transactions for atomicity and consistency
- * WICHTIG: Diese Funktion unterstützt jetzt auch einen voteComplete-Parameter, 
+ * WICHTIG: Diese Funktion unterstützt jetzt auch einen voteComplete-Parameter,
  * der anzeigt, ob der vote_cycle nach erfolgreicher Einfügung erhöht werden soll
  * @param {Object} input Input data with pollId, pollResultId, eventUserId, type, etc.
  * @param {boolean} [voteComplete=false] Flag indicating if this is the final answer in a ballot and vote_cycle should be incremented
@@ -64,13 +27,15 @@ export async function insertPollSubmitAnswer(input) {
     // Kleinere Verzögerung als bei Bulk (0-150ms)
     const jitterMs = (input.eventUserId % 5) * 30;
     if (jitterMs > 0) {
-      console.log(`[INFO:INSERT_ANSWER][${executionId}] Adding jitter delay of ${jitterMs}ms for user ${input.eventUserId}`);
-      await new Promise(resolve => setTimeout(resolve, jitterMs));
+      console.log(
+        `[INFO:INSERT_ANSWER][${executionId}] Adding jitter delay of ${jitterMs}ms for user ${input.eventUserId}`
+      );
+      await new Promise((resolve) => setTimeout(resolve, jitterMs));
     }
   }
 
   try {
-    await query("START TRANSACTION", [], { throwError: true });
+    await query('START TRANSACTION', [], { throwError: true });
 
     try {
       // OPTIMIERT: Check if the poll is already closed but ohne FOR UPDATE Lock, um Concurrency zu erhöhen
@@ -82,14 +47,20 @@ export async function insertPollSubmitAnswer(input) {
          WHERE pr.id = ?`,
         [input.pollResultId]
       );
-      
+
       // Falls der Poll geschlossen ist, können wir sofort abbrechen ohne weitere Locks
-      if (Array.isArray(pollStatusQuery) && pollStatusQuery.length > 0 && pollStatusQuery[0].closed === 1) {
-        console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING vote: Poll ${input.pollResultId} is already closed (fast path)`);
-        await query("COMMIT", [], { throwError: true });
+      if (
+        Array.isArray(pollStatusQuery) &&
+        pollStatusQuery.length > 0 &&
+        pollStatusQuery[0].closed === 1
+      ) {
+        console.warn(
+          `[WARN:INSERT_ANSWER][${executionId}] BLOCKING vote: Poll ${input.pollResultId} is already closed (fast path)`
+        );
+        await query('COMMIT', [], { throwError: true });
         return null;
       }
-      
+
       // Nur wenn der Poll offen ist, holen wir die Antworten mit Lock
       const pollQuery = await query(
         `SELECT pr.id, pr.max_votes AS maxVotes, pr.max_vote_cycles AS maxVoteCycles, 
@@ -103,7 +74,7 @@ export async function insertPollSubmitAnswer(input) {
 
       if (!Array.isArray(pollQuery) || pollQuery.length === 0) {
         console.error(`[ERROR:INSERT_ANSWER] Poll result ${input.pollResultId} not found`);
-        await query("ROLLBACK", [], { throwError: true });
+        await query('ROLLBACK', [], { throwError: true });
         return null;
       }
 
@@ -111,8 +82,10 @@ export async function insertPollSubmitAnswer(input) {
 
       // If poll is closed, block the insertion
       if (isClosed) {
-        console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING vote: Poll ${input.pollResultId} is already closed`);
-        await query("COMMIT", [], { throwError: true });
+        console.warn(
+          `[WARN:INSERT_ANSWER][${executionId}] BLOCKING vote: Poll ${input.pollResultId} is already closed`
+        );
+        await query('COMMIT', [], { throwError: true });
         return null;
       }
 
@@ -123,32 +96,38 @@ export async function insertPollSubmitAnswer(input) {
         [input.eventUserId]
       );
 
-      const maxVotes = Array.isArray(userQueryNoLock) && userQueryNoLock.length > 0
-        ? parseInt(userQueryNoLock[0].voteAmount, 10) || 0
-        : 0;
-      
+      const maxVotes =
+        Array.isArray(userQueryNoLock) && userQueryNoLock.length > 0
+          ? parseInt(userQueryNoLock[0].voteAmount, 10) || 0
+          : 0;
+
       // Wenn der Benutzer keine Stimmberechtigung hat, können wir sofort abbrechen
       if (maxVotes <= 0) {
-        console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING vote: User ${input.eventUserId} has no vote rights (voteAmount: ${maxVotes})`);
-        await query("COMMIT", [], { throwError: true });
+        console.warn(
+          `[WARN:INSERT_ANSWER][${executionId}] BLOCKING vote: User ${input.eventUserId} has no vote rights (voteAmount: ${maxVotes})`
+        );
+        await query('COMMIT', [], { throwError: true });
         return null;
       }
-      
+
       // Nur wenn der Benutzer Stimmrechte hat, holen wir die Daten mit Lock
       // Dies ist notwendig für die Konsistenz beim Verändern von Daten
       const userQuery = await query(
         `SELECT vote_amount AS voteAmount FROM event_user WHERE id = ? FOR UPDATE`,
         [input.eventUserId]
       );
-      
+
       // Nochmalige Überprüfung mit Lock (falls zwischen den Abfragen etwas geändert wurde)
-      const maxVotesWithLock = Array.isArray(userQuery) && userQuery.length > 0
-        ? parseInt(userQuery[0].voteAmount, 10) || 0
-        : 0;
-        
+      const maxVotesWithLock =
+        Array.isArray(userQuery) && userQuery.length > 0
+          ? parseInt(userQuery[0].voteAmount, 10) || 0
+          : 0;
+
       if (maxVotesWithLock <= 0) {
-        console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING vote: User ${input.eventUserId} lost vote rights between queries`);
-        await query("COMMIT", [], { throwError: true });
+        console.warn(
+          `[WARN:INSERT_ANSWER][${executionId}] BLOCKING vote: User ${input.eventUserId} lost vote rights between queries`
+        );
+        await query('COMMIT', [], { throwError: true });
         return null;
       }
 
@@ -168,12 +147,14 @@ export async function insertPollSubmitAnswer(input) {
 
         // Block insertion if it would exceed the limit (schneller Pfad ohne Lock)
         if (currentCount > maxVotesWithLock) {
-          console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING SECRET vote (fast path): User ${input.eventUserId} exceeded limit (${currentCount}/${maxVotesWithLock})`);
-          await query("COMMIT", [], { throwError: true });
+          console.warn(
+            `[WARN:INSERT_ANSWER][${executionId}] BLOCKING SECRET vote (fast path): User ${input.eventUserId} exceeded limit (${currentCount}/${maxVotesWithLock})`
+          );
+          await query('COMMIT', [], { throwError: true });
           return null;
         }
       }
-      
+
       // Nur wenn die Vorprüfung ok ist, mit Lock abfragen für die tatsächliche Transaktion
       const voteCycleQuery = await query(
         `SELECT vote_cycle as voteCycle, version FROM poll_user_voted
@@ -189,14 +170,16 @@ export async function insertPollSubmitAnswer(input) {
 
         // Nochmalige Prüfung mit Lock (falls sich etwas zwischen den Abfragen geändert hat)
         if (currentCount > maxVotesWithLock) {
-          console.warn(`[WARN:INSERT_ANSWER][${executionId}] BLOCKING SECRET vote: User ${input.eventUserId} exceeded limit (${currentCount}/${maxVotesWithLock})`);
-          await query("COMMIT", [], { throwError: true });
+          console.warn(
+            `[WARN:INSERT_ANSWER][${executionId}] BLOCKING SECRET vote: User ${input.eventUserId} exceeded limit (${currentCount}/${maxVotesWithLock})`
+          );
+          await query('COMMIT', [], { throwError: true });
           return null;
         }
       }
 
       // THIRD: Now perform the actual insertion based on poll type
-      if (input.type === "PUBLIC") {
+      if (input.type === 'PUBLIC') {
         // OPTIMIERT: Get poll user ID ohne Lock für schnellere Parallelverarbeitung
         const pollUserQueryNoLock = await query(
           `SELECT poll_user.id FROM poll_user
@@ -205,30 +188,33 @@ export async function insertPollSubmitAnswer(input) {
           [input.eventUserId, input.pollResultId]
         );
 
-        const pollUserId = Array.isArray(pollUserQueryNoLock) && pollUserQueryNoLock.length > 0
-          ? pollUserQueryNoLock[0].id
-          : null;
+        const pollUserId =
+          Array.isArray(pollUserQueryNoLock) && pollUserQueryNoLock.length > 0
+            ? pollUserQueryNoLock[0].id
+            : null;
 
         if (!pollUserId) {
-          console.error(`[ERROR:INSERT_ANSWER][${executionId}] Could not find poll_user for eventUserId=${input.eventUserId}, pollResultId=${input.pollResultId}`);
-          await query("ROLLBACK", [], { throwError: true });
+          console.error(
+            `[ERROR:INSERT_ANSWER][${executionId}] Could not find poll_user for eventUserId=${input.eventUserId}, pollResultId=${input.pollResultId}`
+          );
+          await query('ROLLBACK', [], { throwError: true });
           return null;
         }
-        
+
         // Prüfen wir noch einmal mit Lock, aber nur wenn wir einen gültigen poll_user gefunden haben
         // Dies ist notwendig, um sicherzustellen, dass der poll_user nicht in der Zwischenzeit gelöscht wurde
-        const pollUserQuery = await query(
-          `SELECT id FROM poll_user WHERE id = ? FOR UPDATE`,
-          [pollUserId]
-        );
-        
-        const pollUserIdWithLock = Array.isArray(pollUserQuery) && pollUserQuery.length > 0
-          ? pollUserQuery[0].id
-          : null;
-          
+        const pollUserQuery = await query(`SELECT id FROM poll_user WHERE id = ? FOR UPDATE`, [
+          pollUserId,
+        ]);
+
+        const pollUserIdWithLock =
+          Array.isArray(pollUserQuery) && pollUserQuery.length > 0 ? pollUserQuery[0].id : null;
+
         if (!pollUserIdWithLock) {
-          console.error(`[ERROR:INSERT_ANSWER][${executionId}] poll_user ${pollUserId} was deleted between queries`);
-          await query("ROLLBACK", [], { throwError: true });
+          console.error(
+            `[ERROR:INSERT_ANSWER][${executionId}] poll_user ${pollUserId} was deleted between queries`
+          );
+          await query('ROLLBACK', [], { throwError: true });
           return null;
         }
 
@@ -238,22 +224,22 @@ export async function insertPollSubmitAnswer(input) {
 
         // Insert with poll_user_id for PUBLIC polls
         // Use insert() instead of raw query for better error handling and consistency
-        await insert("poll_answer", {
+        await insert('poll_answer', {
           pollResultId: input.pollResultId,
           pollPossibleAnswerId: input.possibleAnswerId,
           answerContent: input.answerContent,
           pollUserId: pollUserId,
-          createDatetime: getCurrentUnixTimeStamp()
+          createDatetime: getCurrentUnixTimeStamp(),
         });
       } else {
         // Use insert() instead of raw query for SECRET polls
         // WICHTIG: Kein Timestamp bei geheimen Wahlen für Anonymität
         // Verwende Default-Wert (0) statt NULL für create_datetime
-        await insert("poll_answer", {
+        await insert('poll_answer', {
           pollResultId: input.pollResultId,
           pollPossibleAnswerId: input.possibleAnswerId,
           answerContent: input.answerContent,
-          createDatetime: 0
+          createDatetime: 0,
         });
       }
 
@@ -266,13 +252,13 @@ export async function insertPollSubmitAnswer(input) {
       // Wir erhöhen hier NICHT mehr den vote_cycle innerhalb derselben Transaktion, da dies dazu führen würde,
       // dass der Benutzer sofort zum nächsten Stimmzettel übergeht, bevor er eine weitere Antwort abgeben kann
 
-      await query("COMMIT", [], { throwError: true });
+      await query('COMMIT', [], { throwError: true });
 
       return true;
     } catch (txError) {
       // Rollback on any error
       console.error(`[ERROR:INSERT_ANSWER][${executionId}] Transaction error:`, txError);
-      await query("ROLLBACK", [], { throwError: true });
+      await query('ROLLBACK', [], { throwError: true });
       throw txError;
     }
   } catch (error) {
@@ -280,7 +266,7 @@ export async function insertPollSubmitAnswer(input) {
 
     // Attempt to rollback in case transaction is still open
     try {
-      await query("ROLLBACK", [], { throwError: false });
+      await query('ROLLBACK', [], { throwError: false });
     } catch (e) {
       console.error(`[ERROR:INSERT_ANSWER][${executionId}] Error during emergency rollback:`, e);
       // Continue despite error - we're already in an error handler

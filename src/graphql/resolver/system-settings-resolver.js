@@ -11,18 +11,17 @@ const resolvers = {
      * @returns {Promise<Object>} The system settings object
      */
     systemSettings: async () => {
-
       // Always return default values for now to ensure the application can start
       const defaults = {
         id: 0,
-        useDirectStaticPaths: true,  // Enable direct paths by default
+        useDirectStaticPaths: true, // Enable direct paths by default
         useDbFooterNavigation: true, // Enable DB footer navigation by default
         faviconUrl: null,
         titleSuffix: 'digitalwahl.org',
         recaptchaEnabled: false,
         recaptchaSiteKey: '',
         recaptchaSecretKey: '',
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
 
       try {
@@ -39,17 +38,18 @@ const resolvers = {
         if (settings && settings.id) {
           return {
             id: settings.id,
-            useDirectStaticPaths: settings.useDirectStaticPaths !== undefined ?
-              settings.useDirectStaticPaths : true,
-            useDbFooterNavigation: settings.useDbFooterNavigation !== undefined ?
-              settings.useDbFooterNavigation : true,
+            useDirectStaticPaths:
+              settings.useDirectStaticPaths !== undefined ? settings.useDirectStaticPaths : true,
+            useDbFooterNavigation:
+              settings.useDbFooterNavigation !== undefined ? settings.useDbFooterNavigation : true,
             faviconUrl: settings.faviconUrl || null,
             titleSuffix: settings.titleSuffix || 'digitalwahl.org',
             recaptchaEnabled: settings.recaptchaEnabled || false,
             recaptchaSiteKey: settings.recaptchaSiteKey || '',
             recaptchaSecretKey: settings.recaptchaSecretKey || '',
-            updatedAt: settings.updatedAt ? new Date(settings.updatedAt).toISOString() :
-              new Date().toISOString()
+            updatedAt: settings.updatedAt
+              ? new Date(settings.updatedAt).toISOString()
+              : new Date().toISOString(),
           };
         }
 
@@ -59,7 +59,7 @@ const resolvers = {
         console.error('Unhandled error in systemSettings resolver:', err);
         return defaults;
       }
-    }
+    },
   },
 
   Mutation: {
@@ -74,14 +74,16 @@ const resolvers = {
       // Default settings to return if something goes wrong
       const defaults = {
         id: 0,
-        useDirectStaticPaths: input.useDirectStaticPaths !== undefined ? input.useDirectStaticPaths : true,
-        useDbFooterNavigation: input.useDbFooterNavigation !== undefined ? input.useDbFooterNavigation : true,
+        useDirectStaticPaths:
+          input.useDirectStaticPaths !== undefined ? input.useDirectStaticPaths : true,
+        useDbFooterNavigation:
+          input.useDbFooterNavigation !== undefined ? input.useDbFooterNavigation : true,
         faviconUrl: input.faviconUrl !== undefined ? input.faviconUrl : null,
         titleSuffix: input.titleSuffix !== undefined ? input.titleSuffix : 'digitalwahl.org',
         recaptchaEnabled: input.recaptchaEnabled !== undefined ? input.recaptchaEnabled : false,
         recaptchaSiteKey: input.recaptchaSiteKey !== undefined ? input.recaptchaSiteKey : '',
         recaptchaSecretKey: input.recaptchaSecretKey !== undefined ? input.recaptchaSecretKey : '',
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
 
       try {
@@ -149,29 +151,51 @@ const resolvers = {
 
           return {
             id: updatedSettings.id || 0,
-            useDirectStaticPaths: updatedSettings.useDirectStaticPaths !== undefined ?
-              updatedSettings.useDirectStaticPaths :
-              (input.useDirectStaticPaths !== undefined ? input.useDirectStaticPaths : true),
-            useDbFooterNavigation: updatedSettings.useDbFooterNavigation !== undefined ?
-              updatedSettings.useDbFooterNavigation :
-              (input.useDbFooterNavigation !== undefined ? input.useDbFooterNavigation : true),
-            faviconUrl: updatedSettings.faviconUrl !== undefined ?
-              updatedSettings.faviconUrl :
-              (input.faviconUrl !== undefined ? input.faviconUrl : null),
-            titleSuffix: updatedSettings.titleSuffix !== undefined ?
-              updatedSettings.titleSuffix :
-              (input.titleSuffix !== undefined ? input.titleSuffix : 'digitalwahl.org'),
-            recaptchaEnabled: updatedSettings.recaptchaEnabled !== undefined ?
-              updatedSettings.recaptchaEnabled :
-              (input.recaptchaEnabled !== undefined ? input.recaptchaEnabled : false),
-            recaptchaSiteKey: updatedSettings.recaptchaSiteKey !== undefined ?
-              updatedSettings.recaptchaSiteKey :
-              (input.recaptchaSiteKey !== undefined ? input.recaptchaSiteKey : ''),
-            recaptchaSecretKey: updatedSettings.recaptchaSecretKey !== undefined ?
-              updatedSettings.recaptchaSecretKey :
-              (input.recaptchaSecretKey !== undefined ? input.recaptchaSecretKey : ''),
-            updatedAt: updatedSettings.updatedAt ? new Date(updatedSettings.updatedAt).toISOString() :
-              new Date().toISOString()
+            useDirectStaticPaths:
+              updatedSettings.useDirectStaticPaths !== undefined
+                ? updatedSettings.useDirectStaticPaths
+                : input.useDirectStaticPaths !== undefined
+                  ? input.useDirectStaticPaths
+                  : true,
+            useDbFooterNavigation:
+              updatedSettings.useDbFooterNavigation !== undefined
+                ? updatedSettings.useDbFooterNavigation
+                : input.useDbFooterNavigation !== undefined
+                  ? input.useDbFooterNavigation
+                  : true,
+            faviconUrl:
+              updatedSettings.faviconUrl !== undefined
+                ? updatedSettings.faviconUrl
+                : input.faviconUrl !== undefined
+                  ? input.faviconUrl
+                  : null,
+            titleSuffix:
+              updatedSettings.titleSuffix !== undefined
+                ? updatedSettings.titleSuffix
+                : input.titleSuffix !== undefined
+                  ? input.titleSuffix
+                  : 'digitalwahl.org',
+            recaptchaEnabled:
+              updatedSettings.recaptchaEnabled !== undefined
+                ? updatedSettings.recaptchaEnabled
+                : input.recaptchaEnabled !== undefined
+                  ? input.recaptchaEnabled
+                  : false,
+            recaptchaSiteKey:
+              updatedSettings.recaptchaSiteKey !== undefined
+                ? updatedSettings.recaptchaSiteKey
+                : input.recaptchaSiteKey !== undefined
+                  ? input.recaptchaSiteKey
+                  : '',
+            recaptchaSecretKey:
+              updatedSettings.recaptchaSecretKey !== undefined
+                ? updatedSettings.recaptchaSecretKey
+                : input.recaptchaSecretKey !== undefined
+                  ? input.recaptchaSecretKey
+                  : '',
+            updatedAt: updatedSettings.updatedAt
+              ? new Date(updatedSettings.updatedAt).toISOString()
+              : new Date().toISOString(),
           };
         } catch (updateError) {
           console.error('Error updating settings:', updateError);
@@ -182,7 +206,7 @@ const resolvers = {
         console.error('Unhandled error in updateSystemSettings resolver:', err);
         return defaults;
       }
-    }
+    },
   },
 
   SystemSettings: {
@@ -200,8 +224,8 @@ const resolvers = {
         console.error('Error resolving updatedBy in SystemSettings:', err);
         return null;
       }
-    }
-  }
+    },
+  },
 };
 
 module.exports = resolvers;

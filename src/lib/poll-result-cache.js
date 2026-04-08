@@ -20,20 +20,22 @@ const cacheExpiryTimes = new Map(); // Map of pollResultId -> expiry timestamp
 export function setPollResultCache(pollResultId, data, ttlMs = CACHE_TTL_MS) {
   // Prevent caching null/undefined values
   if (!data) return;
-  
+
   pollResultId = Number(pollResultId);
-  
+
   // Don't cache if the poll is not closed
   if (data.closed !== 1 && data.closed !== true) return;
-  
+
   // Store in cache
   pollResultCache.set(pollResultId, JSON.parse(JSON.stringify(data)));
-  
+
   // Set expiry time
   const expiryTime = Date.now() + ttlMs;
   cacheExpiryTimes.set(pollResultId, expiryTime);
-  
-  console.log(`[INFO:CACHE] Cached poll result ${pollResultId}, expires in ${ttlMs/1000} seconds`);
+
+  console.log(
+    `[INFO:CACHE] Cached poll result ${pollResultId}, expires in ${ttlMs / 1000} seconds`
+  );
 }
 
 /**
@@ -43,12 +45,12 @@ export function setPollResultCache(pollResultId, data, ttlMs = CACHE_TTL_MS) {
  */
 export function getPollResultCache(pollResultId) {
   pollResultId = Number(pollResultId);
-  
+
   // Check if in cache
   if (!pollResultCache.has(pollResultId)) {
     return null;
   }
-  
+
   // Check if expired
   const expiryTime = cacheExpiryTimes.get(pollResultId);
   if (expiryTime && Date.now() > expiryTime) {
@@ -57,7 +59,7 @@ export function getPollResultCache(pollResultId) {
     cacheExpiryTimes.delete(pollResultId);
     return null;
   }
-  
+
   // Return deep copy of cached data to prevent modification
   return JSON.parse(JSON.stringify(pollResultCache.get(pollResultId)));
 }
@@ -68,7 +70,7 @@ export function getPollResultCache(pollResultId) {
  */
 export function invalidatePollResultCache(pollResultId) {
   pollResultId = Number(pollResultId);
-  
+
   if (pollResultCache.has(pollResultId)) {
     pollResultCache.delete(pollResultId);
     cacheExpiryTimes.delete(pollResultId);
@@ -77,68 +79,13 @@ export function invalidatePollResultCache(pollResultId) {
 }
 
 /**
- * Invalidates all poll results for a specific event
- * @param {number} eventId - The ID of the event
- * @param {Array} [pollResultIds] - Optional array of poll result IDs belonging to this event
- */
-export function invalidateEventPollResultsCache(eventId, pollResultIds) {
-  let count = 0;
-  
-  // If we have the list of poll result IDs, use it directly
-  if (Array.isArray(pollResultIds) && pollResultIds.length > 0) {
-    pollResultIds.forEach(id => {
-      if (pollResultCache.has(Number(id))) {
-        pollResultCache.delete(Number(id));
-        cacheExpiryTimes.delete(Number(id));
-        count++;
-      }
-    });
-  } else {
-    // Otherwise, iterate through all cache entries and check eventId
-    for (const [id, data] of pollResultCache.entries()) {
-      if (data.poll && data.poll.eventId === eventId) {
-        pollResultCache.delete(id);
-        cacheExpiryTimes.delete(id);
-        count++;
-      }
-    }
-  }
-  
-  if (count > 0) {
-    console.log(`[INFO:CACHE] Invalidated ${count} cache entries for event ${eventId}`);
-  }
-}
-
-/**
- * Gets the current cache stats
- * @returns {Object} - Cache statistics
- */
-export function getPollResultCacheStats() {
-  return {
-    totalEntries: pollResultCache.size,
-    memoryUsageBytes: estimateCacheSize(),
-    oldestEntryAge: getOldestEntryAge()
-  };
-}
-
-/**
- * Clears all entries from the cache
- */
-export function clearPollResultCache() {
-  const count = pollResultCache.size;
-  pollResultCache.clear();
-  cacheExpiryTimes.clear();
-  console.log(`[INFO:CACHE] Cleared ${count} entries from poll result cache`);
-}
-
-/**
  * Removes expired entries from the cache
  * @returns {number} - Number of entries removed
  */
-export function cleanupExpiredPollResultCache() {
+function cleanupExpiredPollResultCache() {
   let count = 0;
   const now = Date.now();
-  
+
   for (const [id, expiryTime] of cacheExpiryTimes.entries()) {
     if (now > expiryTime) {
       pollResultCache.delete(id);
@@ -146,39 +93,14 @@ export function cleanupExpiredPollResultCache() {
       count++;
     }
   }
-  
+
   if (count > 0) {
     console.log(`[INFO:CACHE] Cleaned up ${count} expired cache entries`);
   }
-  
+
   return count;
 }
 
 // Set up automatic periodic cleanup
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 setInterval(cleanupExpiredPollResultCache, CLEANUP_INTERVAL_MS);
-
-// Helper function to estimate cache size in bytes (rough approximation)
-function estimateCacheSize() {
-  let totalSize = 0;
-
-  for (const [, data] of pollResultCache.entries()) {
-    // Estimate base size of key (number = 8 bytes)
-    totalSize += 8;
-
-    // Estimate size of value using JSON serialization (rough approximation)
-    const jsonStr = JSON.stringify(data);
-    totalSize += jsonStr.length * 2; // Unicode characters can be 2 bytes each
-  }
-
-  return totalSize;
-}
-
-// Helper function to get the age of the oldest entry in milliseconds
-function getOldestEntryAge() {
-  if (cacheExpiryTimes.size === 0) return 0;
-  
-  const now = Date.now();
-  const oldestExpiryTime = Math.min(...cacheExpiryTimes.values());
-  return Math.max(0, oldestExpiryTime - (now - CACHE_TTL_MS));
-}

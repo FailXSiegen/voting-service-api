@@ -4,36 +4,30 @@ import {
   create,
   update,
   setEventUserOnline,
-} from "../../repository/event-user-repository";
-import { generateJwt } from "../../lib/jwt-auth";
-import * as jwt from "jsonwebtoken";
-import { addRefreshToken } from "./refresh-token";
-import { verify } from "../../lib/crypto";
-import AuthenticationError from "../../errors/AuthenticationError";
-import { findById as findOneEventById } from "../../repository/event-repository";
-import { pubsub } from "../../server/graphql";
+} from '../../repository/event-user-repository';
+import { generateJwt } from '../../lib/jwt-auth';
+import * as jwt from 'jsonwebtoken';
+import { addRefreshToken } from './refresh-token';
+import { verify } from '../../lib/crypto';
+import AuthenticationError from '../../errors/AuthenticationError';
+import { findById as findOneEventById } from '../../repository/event-repository';
+import { pubsub } from '../../server/graphql';
 import {
   EVENT_USER_LIFE_CYCLE,
   NEW_EVENT_USER,
-  POLL_ANSWER_LIFE_CYCLE
-} from "../../graphql/resolver/subscription/subscription-types";
-import { InactiveEventLoginError } from "../../errors/event/InactiveEventLoginError";
-import { EventNotFoundError } from "../../errors/event/EventNotFoundError";
-import { InvalidAnonymousLoginError } from "../../errors/event/InvalidAnonymousLoginError";
-import { findActivePoll, findLeftAnswersCount } from "../../repository/poll/poll-result-repository";
-import { createPollUserIfNeeded } from "../../service/poll-service";
+  POLL_ANSWER_LIFE_CYCLE,
+} from '../../graphql/resolver/subscription/subscription-types';
+import { InactiveEventLoginError } from '../../errors/event/InactiveEventLoginError';
+import { EventNotFoundError } from '../../errors/event/EventNotFoundError';
+import { InvalidAnonymousLoginError } from '../../errors/event/InvalidAnonymousLoginError';
+import { findActivePoll, findLeftAnswersCount } from '../../repository/poll/poll-result-repository';
+import { createPollUserIfNeeded } from '../../service/poll-service';
 
-async function buildNewEventUserObject(
-  username,
-  password,
-  email,
-  displayName,
-  eventId,
-) {
+async function buildNewEventUserObject(username, password, email, displayName, eventId) {
   return {
     username,
     password,
-    email: typeof email === "string" ? email : "",
+    email: typeof email === 'string' ? email : '',
     publicName: displayName,
     allowToVote: false,
     online: true,
@@ -43,18 +37,12 @@ async function buildNewEventUserObject(
   };
 }
 
-export async function loginEventUser({
-  username,
-  password,
-  email,
-  displayName,
-  eventId,
-}) {
+export async function loginEventUser({ username, password, email, displayName, eventId }) {
   if (process.env.NODE_ENV === 'development') {
     console.log('[DEBUG] login-event-user.js - Login attempt:', {
       username,
       eventId,
-      displayName
+      displayName,
     });
   }
   const event = await findOneEventById(eventId);
@@ -76,26 +64,20 @@ export async function loginEventUser({
 
     // create new event user.
     const newEventUserId = await create(
-      await buildNewEventUserObject(
-        username,
-        password,
-        email,
-        displayName,
-        eventId,
-      ),
+      await buildNewEventUserObject(username, password, email, displayName, eventId)
     );
     // Fetch newly created event user.
     eventUser = await findOneById(newEventUserId);
     if (eventUser === null) {
-      throw new Error("Could not create new user!");
+      throw new Error('Could not create new user!');
     }
-    
+
     if (process.env.NODE_ENV === 'development') {
       console.log('[DEBUG] login-event-user.js - New user created:', {
         id: eventUser.id,
         eventId: eventUser.eventId,
         username: eventUser.username,
-        verified: eventUser.verified
+        verified: eventUser.verified,
       });
     }
 
@@ -105,17 +87,21 @@ export async function loginEventUser({
         eventId: eventUser.eventId,
         userId: eventUser.id,
         username: eventUser.username,
-        verified: eventUser.verified
+        verified: eventUser.verified,
       });
     }
-    
-    pubsub.publish(NEW_EVENT_USER, {
-      eventUser: eventUser,
-      eventId: eventUser.eventId
-    }, { priority: true });
+
+    pubsub.publish(
+      NEW_EVENT_USER,
+      {
+        eventUser: eventUser,
+        eventId: eventUser.eventId,
+      },
+      { priority: true }
+    );
   } else {
     let isAuthenticated = false;
-    if (eventUser.password === "") {
+    if (eventUser.password === '') {
       const eventUserPasswordUpdate = {
         id: eventUser.id,
         password: password,
@@ -137,18 +123,25 @@ export async function loginEventUser({
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[DEBUG] login-event-user.js - Publishing EVENT_USER_LIFE_CYCLE for existing user:', {
-        eventId: eventId,
-        userId: eventUser.id,
-        online: true
-      });
+      console.log(
+        '[DEBUG] login-event-user.js - Publishing EVENT_USER_LIFE_CYCLE for existing user:',
+        {
+          eventId: eventId,
+          userId: eventUser.id,
+          online: true,
+        }
+      );
     }
-    
-    pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-      online: true,
-      eventUserId: eventUser.id,
-      eventId: eventId
-    }, { priority: true });
+
+    pubsub.publish(
+      EVENT_USER_LIFE_CYCLE,
+      {
+        online: true,
+        eventUserId: eventUser.id,
+        eventId: eventId,
+      },
+      { priority: true }
+    );
   }
 
   // Update user as online.
@@ -156,7 +149,7 @@ export async function loginEventUser({
     console.log('[DEBUG] login-event-user.js - Updating user online status:', {
       userId: eventUser.id,
       eventId: eventUser.eventId,
-      online: true
+      online: true,
     });
   }
   await setEventUserOnline(eventUser.id);
@@ -184,17 +177,17 @@ export async function loginEventUser({
   }
 
   // Create jwt and refresh token.
-  const refreshToken = await addRefreshToken("event-user", eventUser.id);
+  const refreshToken = await addRefreshToken('event-user', eventUser.id);
   const claims = {
     user: {
       id: eventUser.id,
       eventId,
-      type: "event-user",
+      type: 'event-user',
       verified: eventUser.verified,
     },
-    role: "event-user",
+    role: 'event-user',
     // Für WebSocket-Authentifizierung hinzufügen
-    eventUserId: eventUser.id
+    eventUserId: eventUser.id,
   };
   const token = await generateJwt(claims);
   const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);

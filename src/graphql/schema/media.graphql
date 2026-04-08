@@ -11,7 +11,7 @@ type Media {
 extend type Query {
   # Get all media items
   mediaItems: [Media]
-  
+
   # Get specific media item
   media(id: ID!): Media
 }

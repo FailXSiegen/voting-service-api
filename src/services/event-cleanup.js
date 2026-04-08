@@ -3,16 +3,18 @@ import {
   markToDelete,
   findAllMarkedDelete,
   remove,
-} from "../repository/event-repository.js";
-import { findOneById } from "../repository/organizer-repository.js";
-import mailer from "../lib/email-util.js";
+} from '../repository/event-repository.js';
+import { findOneById } from '../repository/organizer-repository.js';
+import mailer from '../lib/email-util.js';
 
 /**
  * Performs cleanup of expired events
  * @param {string} origin - The origin URL for email templates (optional)
  * @returns {Promise<{success: boolean, expiredEvents: Array, eventsToRemove: Array, error?: string}>}
  */
-export async function performEventCleanup(origin = process.env.APP_URL || "https://digitalwahl.org") {
+export async function performEventCleanup(
+  origin = process.env.APP_URL || 'https://digitalwahl.org'
+) {
   try {
     const expiredEvents = await findAllExpired();
     if (expiredEvents !== null) {
@@ -22,9 +24,8 @@ export async function performEventCleanup(origin = process.env.APP_URL || "https
           from: process.env.MAIL_DEFAULT_FROM,
           to: organizer.email,
           replyTo: process.env.MAIL_DEFAULT_FROM,
-          subject:
-            'Löschung Veranstaltung "' + event.title + '" - digitalwahl.org',
-          template: "delete-planned",
+          subject: 'Löschung Veranstaltung "' + event.title + '" - digitalwahl.org',
+          template: 'delete-planned',
           ctx: {
             username: organizer.username,
             eventname: event.title,
@@ -37,7 +38,7 @@ export async function performEventCleanup(origin = process.env.APP_URL || "https
         });
       }
     }
-    
+
     await markToDelete();
     const eventsToRemove = await findAllMarkedDelete();
     if (eventsToRemove !== null) {

@@ -1,8 +1,8 @@
-import { v4 as uuidv4 } from "uuid";
-import { create } from "../../../repository/event-user-auth-token-repository";
-import { create as createEventUser } from "../../../repository/event-user-repository";
-import { findById } from "../../../repository/event-repository";
-import { emailTokenToEventUser } from "../../../lib/event-user/email-service";
+import { v4 as uuidv4 } from 'uuid';
+import { create } from '../../../repository/event-user-auth-token-repository';
+import { create as createEventUser } from '../../../repository/event-user-repository';
+import { findById } from '../../../repository/event-repository';
+import { emailTokenToEventUser } from '../../../lib/event-user/email-service';
 
 export default {
   createEventUserAuthToken: async (_, { input }) => {

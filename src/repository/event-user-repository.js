@@ -1,16 +1,14 @@
-import {
-  query,
-  insert,
-  update as updateQuery,
-  remove as removeQuery,
-} from "./../lib/database";
-import { hash } from "../lib/crypto";
-import { getCurrentUnixTimeStamp } from "../lib/time-stamp";
-import { createPollUserIfNeeded } from "../service/poll-service";
-import { findActivePoll } from "./poll/poll-result-repository";
+import { query, insert, update as updateQuery, remove as removeQuery } from './../lib/database';
+import { hash } from '../lib/crypto';
+import { getCurrentUnixTimeStamp } from '../lib/time-stamp';
+import { createPollUserIfNeeded } from '../service/poll-service';
+import { findActivePoll } from './poll/poll-result-repository';
 
 export async function findOneById(id) {
-  const result = await query("SELECT id, event_id, create_datetime, username, email, password, public_name, allow_to_vote, vote_amount, online, coorganizer, verified, last_activity, poll_hints FROM event_user WHERE id = ?", [id]);
+  const result = await query(
+    'SELECT id, event_id, create_datetime, username, email, password, public_name, allow_to_vote, vote_amount, online, coorganizer, verified, last_activity, poll_hints FROM event_user WHERE id = ?',
+    [id]
+  );
   const user = Array.isArray(result) ? result[0] || null : null;
 
   return user;
@@ -18,44 +16,44 @@ export async function findOneById(id) {
 
 export async function findOneByUsernameAndEventId(username, eventId) {
   const result = await query(
-    "SELECT event_user.* FROM event_user INNER JOIN event ON event_user.event_id = event.id WHERE event_user.username = ? AND event.id = ? AND event.deleted = 0",
-    [username, eventId],
+    'SELECT event_user.* FROM event_user INNER JOIN event ON event_user.event_id = event.id WHERE event_user.username = ? AND event.id = ? AND event.deleted = 0',
+    [username, eventId]
   );
   return Array.isArray(result) ? result[0] || null : null;
 }
 
 export async function findEventUserByEventId(eventId) {
   return await query(
-    "SELECT * FROM event_user WHERE event_id = ? ORDER BY online DESC, public_name ASC",
-    [eventId],
+    'SELECT * FROM event_user WHERE event_id = ? ORDER BY online DESC, public_name ASC',
+    [eventId]
   );
 }
 
 export async function findVotableEventUserByEventId(eventId) {
   return await query(
-    "SELECT * FROM event_user WHERE event_id = ? AND verified = 1 AND allow_to_vote = 1 ORDER BY public_name ASC",
-    [eventId],
+    'SELECT * FROM event_user WHERE event_id = ? AND verified = 1 AND allow_to_vote = 1 ORDER BY public_name ASC',
+    [eventId]
   );
 }
 
 export async function findOnlineEventUserByEventId(eventId) {
   return await query(
-    "SELECT * FROM event_user WHERE event_id = ? AND verified = 1 AND online = 1 AND allow_to_vote = 1 ORDER BY public_name ASC",
-    [eventId],
+    'SELECT * FROM event_user WHERE event_id = ? AND verified = 1 AND online = 1 AND allow_to_vote = 1 ORDER BY public_name ASC',
+    [eventId]
   );
 }
 
 /**
  * Aktualisiert poll_hints für einen Event User
  */
-export async function updatePollHints(eventUserId, pollHints) {
+async function updatePollHints(eventUserId, pollHints) {
   try {
-    await query(
-      "UPDATE event_user SET poll_hints = ? WHERE id = ?",
-      [pollHints, eventUserId]
-    );
+    await query('UPDATE event_user SET poll_hints = ? WHERE id = ?', [pollHints, eventUserId]);
   } catch (error) {
-    console.error(`[ERROR] Fehler beim Aktualisieren der poll_hints für Benutzer ${eventUserId}:`, error);
+    console.error(
+      `[ERROR] Fehler beim Aktualisieren der poll_hints für Benutzer ${eventUserId}:`,
+      error
+    );
     throw error;
   }
 }
@@ -75,7 +73,9 @@ export async function addPollHint(eventUserId, voteAmount, fromUserName, hintTyp
       try {
         existingHints = JSON.parse(eventUser.pollHints);
       } catch (e) {
-        console.warn(`[WARN] Konnte pollHints für User ${eventUserId} nicht parsen, setze auf leeres Array`);
+        console.warn(
+          `[WARN] Konnte pollHints für User ${eventUserId} nicht parsen, setze auf leeres Array`
+        );
         existingHints = [];
       }
     }
@@ -85,26 +85,15 @@ export async function addPollHint(eventUserId, voteAmount, fromUserName, hintTyp
       voteAmount,
       fromUserName,
       type: hintType,
-      timestamp: getCurrentUnixTimeStamp()
+      timestamp: getCurrentUnixTimeStamp(),
     });
 
     await updatePollHints(eventUserId, JSON.stringify(existingHints));
-    console.log(`[INFO] Poll hint hinzugefügt: ${voteAmount} Stimmen ${hintType === 'received' ? 'von' : 'an'} ${fromUserName} für User ${eventUserId}`);
+    console.log(
+      `[INFO] Poll hint hinzugefügt: ${voteAmount} Stimmen ${hintType === 'received' ? 'von' : 'an'} ${fromUserName} für User ${eventUserId}`
+    );
   } catch (error) {
     console.error(`[ERROR] Fehler beim Hinzufügen des poll_hints:`, error);
-    throw error;
-  }
-}
-
-/**
- * Leert die poll_hints für einen Event User
- */
-export async function clearPollHints(eventUserId) {
-  try {
-    await updatePollHints(eventUserId, null);
-    console.log(`[INFO] Poll hints für User ${eventUserId} geleert`);
-  } catch (error) {
-    console.error(`[ERROR] Fehler beim Leeren der poll_hints für User ${eventUserId}:`, error);
     throw error;
   }
 }
@@ -119,7 +108,10 @@ export async function updateEventUserOnlineState(eventUserId, online) {
 
   try {
     // Find the event user first to check if it exists and to get the event_id and current status
-    const eventUserResult = await query("SELECT id, event_id, online FROM event_user WHERE id = ?", [eventUserId]);
+    const eventUserResult = await query(
+      'SELECT id, event_id, online FROM event_user WHERE id = ?',
+      [eventUserId]
+    );
     const eventUser = eventUserResult[0];
 
     if (!eventUser) {
@@ -154,13 +146,19 @@ export async function updateEventUserOnlineState(eventUserId, online) {
           await createPollUserIfNeeded(activePoll.id, eventUserId);
         }
       } catch (error) {
-        console.error(`[ERROR] Fehler beim Hinzufügen des Benutzers ${eventUserId} zum aktiven Poll:`, error);
+        console.error(
+          `[ERROR] Fehler beim Hinzufügen des Benutzers ${eventUserId} zum aktiven Poll:`,
+          error
+        );
       }
     }
 
     return { shouldPublish: false };
   } catch (error) {
-    console.error(`[ERROR] Fehler beim Aktualisieren des Online-Status für Benutzer ${eventUserId}:`, error);
+    console.error(
+      `[ERROR] Fehler beim Aktualisieren des Online-Status für Benutzer ${eventUserId}:`,
+      error
+    );
     return { shouldPublish: false };
   }
 }
@@ -205,7 +203,10 @@ export async function toggleUserOnlineStateByRequestToken(token, online) {
         await createPollUserIfNeeded(activePoll.id, eventUser.id);
       }
     } catch (error) {
-      console.error(`[ERROR] Fehler beim Hinzufügen des Benutzers ${eventUser.id} zum aktiven Poll:`, error);
+      console.error(
+        `[ERROR] Fehler beim Hinzufügen des Benutzers ${eventUser.id} zum aktiven Poll:`,
+        error
+      );
     }
 
     return;
@@ -242,10 +243,10 @@ export async function toggleUserOnlineStateByRequestToken(token, online) {
 
 export async function updateLastActivity(eventUserId) {
   const timestamp = getCurrentUnixTimeStamp();
-  return await query(
-    "UPDATE event_user SET last_activity = ?, online = true WHERE id = ?",
-    [timestamp, eventUserId]
-  );
+  return await query('UPDATE event_user SET last_activity = ?, online = true WHERE id = ?', [
+    timestamp,
+    eventUserId,
+  ]);
 }
 
 export async function create(input) {
@@ -253,25 +254,25 @@ export async function create(input) {
   if (input.password) {
     input.password = await hash(input.password);
   }
-  return await insert("event_user", input);
+  return await insert('event_user', input);
 }
 
 export async function update(input) {
   if (input.password) {
     input.password = await hash(input.password);
   }
-  await updateQuery("event_user", input);
+  await updateQuery('event_user', input);
 }
 
 export async function remove(id) {
-  await query("DELETE FROM jwt_refresh_token WHERE event_user_id = ?", [id]);
-  return await removeQuery("event_user", id);
+  await query('DELETE FROM jwt_refresh_token WHERE event_user_id = ?', [id]);
+  return await removeQuery('event_user', id);
 }
 
 export async function setEventUserOnline(id) {
   const timestamp = getCurrentUnixTimeStamp();
   return await query(
-    "UPDATE event_user SET online = true, last_activity = ? WHERE id = ? AND online = false",
-    [timestamp, id],
+    'UPDATE event_user SET online = true, last_activity = ? WHERE id = ? AND online = false',
+    [timestamp, id]
   );
 }

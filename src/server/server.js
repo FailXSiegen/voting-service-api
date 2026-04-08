@@ -1,21 +1,21 @@
-import "dotenv/config";
-import "regenerator-runtime";
-import express from "express";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-import { query } from "../lib/database";
-import addStandaloneRequests from "./standalone-requests";
-import { context, yoga } from "./graphql";
-import { WebSocketServer } from "ws";
-import { useServer } from "graphql-ws/lib/use/ws";
-import { createServer } from "node:http";
-import authenticate from "../middleware/authenticate";
+import 'dotenv/config';
+import 'regenerator-runtime';
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import { query } from '../lib/database';
+import addStandaloneRequests from './standalone-requests';
+import { context, yoga } from './graphql';
+import { WebSocketServer } from 'ws';
+import { useServer } from 'graphql-ws/lib/use/ws';
+import { createServer } from 'node:http';
+import authenticate from '../middleware/authenticate';
 import {
   onConnectWebsocket,
   onDisconnectWebsocket,
   onSubscribeWebsocket,
-} from "../auth/websocket-events";
-import { startInactivityCleanup, stopInactivityCleanup } from "../services/inactivity-cleanup";
+} from '../auth/websocket-events';
+import { startInactivityCleanup, stopInactivityCleanup } from '../services/inactivity-cleanup';
 
 // Handle für den Inaktivitäts-Cleanup-Timer
 let inactivityCleanupInterval = null;
@@ -34,11 +34,11 @@ export default function () {
         // We allow all origins to access this server for now.
         return callback(null, origin);
       },
-      methods: ["GET", "POST", "OPTIONS"],
+      methods: ['GET', 'POST', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
       exposedHeaders: ['Content-Range', 'X-Content-Range'],
       maxAge: 600,
-    }),
+    })
   );
   app.use((req, res, next) => {
     context.req = req;
@@ -67,17 +67,17 @@ export default function () {
       zlibDeflateOptions: {
         chunkSize: 1024,
         memLevel: 7,
-        level: 3
+        level: 3,
       },
       zlibInflateOptions: {
-        chunkSize: 10 * 1024
+        chunkSize: 10 * 1024,
       },
       clientNoContextTakeover: true,
       serverNoContextTakeover: true,
       serverMaxWindowBits: 10,
       concurrencyLimit: 10,
-      threshold: 1024
-    }
+      threshold: 1024,
+    },
   });
 
   // Verbesserte Header für WebSocket-Verbindungen
@@ -104,18 +104,18 @@ export default function () {
       // Erhöhe Timeouts für stabilere Verbindungen
       connectionInitWaitTimeout: 60000, // 60 Sekunden Timeout für die Verbindungsinitialisierung
     },
-    wsServer,
+    wsServer
   );
 
   server.listen(process.env.APP_PORT, '0.0.0.0', () => {
-    console.info("----------------------------");
-    console.info("Voting service API");
-    console.info("----------------------------");
+    console.info('----------------------------');
+    console.info('Voting service API');
+    console.info('----------------------------');
     console.info(
-      `Running API Server at http://0.0.0.0:${process.env.APP_PORT}${process.env.GRAPHQL_ENDPOINT}`,
+      `Running API Server at http://0.0.0.0:${process.env.APP_PORT}${process.env.GRAPHQL_ENDPOINT}`
     );
     console.info(
-      `Running WS Server at ws://0.0.0.0:${process.env.APP_PORT}${process.env.WEBSOCKET_ENDPOINT}`,
+      `Running WS Server at ws://0.0.0.0:${process.env.APP_PORT}${process.env.WEBSOCKET_ENDPOINT}`
     );
 
     // Starte den Inaktivitäts-Cleanup-Job nach dem Serverstart
@@ -135,7 +135,7 @@ export default function () {
 
 function resetEventUserOnlineState() {
   // Set each event user to offline on server start up.
-  query("UPDATE event_user SET online = ?, last_activity = NULL", [false]).catch((error) => {
+  query('UPDATE event_user SET online = ?, last_activity = NULL', [false]).catch((error) => {
     console.error(error);
   });
 }

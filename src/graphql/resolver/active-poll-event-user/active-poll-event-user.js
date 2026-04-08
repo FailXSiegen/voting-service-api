@@ -1,7 +1,7 @@
-import { findOneById } from "../../../repository/poll/poll-repository";
-import { findByPollResultId } from "../../../repository/poll/poll-user-voted-repository";
-import { findByPollResultId as findAnswersByPollResultId } from "../../../repository/poll/poll-answer-repository";
-import { findByEventId } from "../../../repository/poll/poll-user-repository";
+import { findOneById } from '../../../repository/poll/poll-repository';
+import { findByPollResultId } from '../../../repository/poll/poll-user-voted-repository';
+import { findByPollResultId as findAnswersByPollResultId } from '../../../repository/poll/poll-answer-repository';
+import { findByEventId } from '../../../repository/poll/poll-user-repository';
 
 export default {
   poll: async ({ poll }) => {

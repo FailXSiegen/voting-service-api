@@ -28,7 +28,10 @@ const resolvers = {
      */
     translationsByLocale: async (_, { locale, includeDefaults }) => {
       try {
-        const translations = await TranslationRepository.getTranslationsByLocale(locale, includeDefaults);
+        const translations = await TranslationRepository.getTranslationsByLocale(
+          locale,
+          includeDefaults
+        );
         return JSON.stringify(translations);
       } catch (err) {
         console.error('Error in translationsByLocale resolver:', err);
@@ -50,7 +53,7 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has admin permissions
-        if (!user || !user.organizer || !(user.organizer.superAdmin)) {
+        if (!user || !user.organizer || !user.organizer.superAdmin) {
           console.warn('User not authorized to save translations');
           throw new AuthenticationError('Not authorized to save translations');
         }
@@ -74,7 +77,7 @@ const resolvers = {
         const { user } = context;
 
         // Check if user is authenticated and has admin permissions
-        if (!user || !user.organizer || !(user.organizer.superAdmin)) {
+        if (!user || !user.organizer || !user.organizer.superAdmin) {
           console.warn('User not authorized to delete translations');
           throw new AuthenticationError('Not authorized to delete translations');
         }

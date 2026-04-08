@@ -1,27 +1,14 @@
-import { query, insert, baseQuery } from "./../lib/database";
-import { getCurrentUnixTimeStamp } from "../lib/time-stamp";
+import { query, insert, baseQuery } from './../lib/database';
+import { getCurrentUnixTimeStamp } from '../lib/time-stamp';
 
 /**
  * @param {string} shortCode
  * @returns {object|null}
  */
 export async function findOneByShortCode(shortCode) {
-  const result = await query(
-    "SELECT * FROM event_user_shortlink WHERE short_code = ?",
-    [shortCode],
-  );
-  return Array.isArray(result) ? result[0] || null : null;
-}
-
-/**
- * @param {number} eventUserId
- * @returns {object|null}
- */
-export async function findByEventUserId(eventUserId) {
-  const result = await query(
-    "SELECT * FROM event_user_shortlink WHERE event_user_id = ?",
-    [eventUserId],
-  );
+  const result = await query('SELECT * FROM event_user_shortlink WHERE short_code = ?', [
+    shortCode,
+  ]);
   return Array.isArray(result) ? result[0] || null : null;
 }
 
@@ -32,7 +19,7 @@ export async function findByEventUserId(eventUserId) {
  * @return {number|null}
  */
 export async function create(eventUserId, eventId, shortCode) {
-  return await insert("event_user_shortlink", {
+  return await insert('event_user_shortlink', {
     eventUserId,
     eventId,
     shortCode,
@@ -63,7 +50,7 @@ export async function findEventUsersWithShortlinks(eventId) {
     FROM event_user eu
     LEFT JOIN event_user_shortlink eus ON eu.id = eus.event_user_id AND eus.event_id = ?
     WHERE eu.event_id = ? AND eu.verified = 1`,
-    [eventId, eventId],
+    [eventId, eventId]
   );
   return Array.isArray(result) ? result : [];
 }
@@ -74,9 +61,6 @@ export async function findEventUsersWithShortlinks(eventId) {
  * @returns {Promise<boolean>}
  */
 export async function deleteAllByEventId(eventId) {
-  const result = await baseQuery(
-    "DELETE FROM event_user_shortlink WHERE event_id = ?",
-    [eventId],
-  );
+  const result = await baseQuery('DELETE FROM event_user_shortlink WHERE event_id = ?', [eventId]);
   return result !== null;
 }

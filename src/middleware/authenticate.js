@@ -1,25 +1,25 @@
-import * as jwt from "jsonwebtoken";
-import { updateLastActivity } from "../repository/event-user-repository";
-import { findOneByRefreshToken } from "../repository/jwt-refresh-token-repository";
+import * as jwt from 'jsonwebtoken';
+import { updateLastActivity } from '../repository/event-user-repository';
+import { findOneByRefreshToken } from '../repository/jwt-refresh-token-repository';
 
 export default async function (req, res, next) {
   // If JWT is disabled, skip authentication
-  if (process.env.ENABLE_JWT !== "1") {
+  if (process.env.ENABLE_JWT !== '1') {
     return next();
   }
 
   // Skip authentication for public endpoints
   const publicEndpoints = [
     '/login',
-    '/login/refresh', 
+    '/login/refresh',
     '/login/activate-event-user-auth-token',
     '/login/event-user-auth-token',
     '/organizer/validate-hash',
     '/organizer/password-forgot',
     '/organizer/create',
-    '/event/verify-slug'
+    '/event/verify-slug',
   ];
-  
+
   if (publicEndpoints.includes(req.url) || req.url !== process.env.GRAPHQL_ENDPOINT) {
     return next();
   }
@@ -50,23 +50,24 @@ export default async function (req, res, next) {
       }
 
       // Check if it's a public query - these should be allowed without auth
-      if (body.query && (
+      if (
+        body.query &&
         // System settings queries
-        body.query.includes('systemSettings') ||
-        body.query.includes('GetSystemSettings') ||
-        body.operationName === 'GetSystemSettings' ||
-        // Static content queries for public pages
-        body.query.includes('staticContentsByPage') ||
-        body.query.includes('GetFaqContent') ||
-        body.operationName === 'GetFaqContent' ||
-        // Translations queries
-        body.query.includes('translations') ||
-        body.query.includes('GetTranslations') ||
-        body.operationName === 'GetTranslations' ||
-        // WebSocket keep-alive query
-        body.query.includes('__typename') ||
-        body.operationName === 'KeepAlive'
-      )) {
+        (body.query.includes('systemSettings') ||
+          body.query.includes('GetSystemSettings') ||
+          body.operationName === 'GetSystemSettings' ||
+          // Static content queries for public pages
+          body.query.includes('staticContentsByPage') ||
+          body.query.includes('GetFaqContent') ||
+          body.operationName === 'GetFaqContent' ||
+          // Translations queries
+          body.query.includes('translations') ||
+          body.query.includes('GetTranslations') ||
+          body.operationName === 'GetTranslations' ||
+          // WebSocket keep-alive query
+          body.query.includes('__typename') ||
+          body.operationName === 'KeepAlive')
+      ) {
         return next();
       }
     } catch (parseError) {
@@ -84,7 +85,7 @@ export default async function (req, res, next) {
       return res.status(401).json({ error: 'No authorization header' });
     }
 
-    const token = authHeader.split(" ")[1] || "";
+    const token = authHeader.split(' ')[1] || '';
     await jwt.verify(token, process.env.JWT_SECRET);
     next();
   } catch (e) {

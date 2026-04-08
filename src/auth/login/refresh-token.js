@@ -1,15 +1,15 @@
-import { insert, query } from "../../lib/database";
-import crypto from "crypto";
-import { getCurrentUnixTimeStamp } from "../../lib/time-stamp";
+import { insert, query } from '../../lib/database';
+import crypto from 'crypto';
+import { getCurrentUnixTimeStamp } from '../../lib/time-stamp';
 
-const table = "jwt_refresh_token";
+const table = 'jwt_refresh_token';
 
 async function generateRefreshTokenHash() {
-  return crypto.randomBytes(20).toString("hex");
+  return crypto.randomBytes(20).toString('hex');
 }
 
 export async function addRefreshToken(type, id) {
-  const userField = type === "organizer" ? "organizer_id" : "event_user_id";
+  const userField = type === 'organizer' ? 'organizer_id' : 'event_user_id';
   if (id) {
     // Remove existing tokens.
     await query(`DELETE FROM ${table} WHERE ${userField} = ${id}`);
@@ -18,8 +18,8 @@ export async function addRefreshToken(type, id) {
   const token = await generateRefreshTokenHash();
   await insert(table, {
     token,
-    organizerId: type === "organizer" ? id : null,
-    eventUserId: type === "event-user" ? id : null,
+    organizerId: type === 'organizer' ? id : null,
+    eventUserId: type === 'event-user' ? id : null,
     createDatetime: getCurrentUnixTimeStamp(),
   });
   return token;

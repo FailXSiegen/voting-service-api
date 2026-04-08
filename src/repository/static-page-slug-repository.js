@@ -74,10 +74,11 @@ class StaticPageSlugRepository {
     if (!slug) return null;
 
     // Convert to string, lowercase, and replace invalid characters
-    let normalizedSlug = String(slug).toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-')  // Replace invalid chars with dashes
-      .replace(/-+/g, '-')          // Replace multiple dashes with single dash
-      .replace(/^-|-$/g, '');       // Remove leading/trailing dashes
+    let normalizedSlug = String(slug)
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-') // Replace invalid chars with dashes
+      .replace(/-+/g, '-') // Replace multiple dashes with single dash
+      .replace(/^-|-$/g, ''); // Remove leading/trailing dashes
 
     // Check if the slug is too long
     if (normalizedSlug.length > 255) {
@@ -141,7 +142,7 @@ class StaticPageSlugRepository {
     // Prepare data for insertion
     const insertData = {
       page_key: data.pageKey,
-      slug: slug
+      slug: slug,
     };
 
     // MariaDB does not support RETURNING *, so we need to do a separate query
@@ -237,7 +238,7 @@ class StaticPageSlugRepository {
    * @returns {Array} Parsed page slug array
    */
   parseItems(items) {
-    return items.map(item => this.parseItem(item));
+    return items.map((item) => this.parseItem(item));
   }
 
   /**
@@ -253,7 +254,7 @@ class StaticPageSlugRepository {
       pageKey: item.pageKey || '',
       slug: item.slug || '',
       createdAt: item.createdAt || new Date().toISOString(),
-      updatedAt: item.updatedAt || new Date().toISOString()
+      updatedAt: item.updatedAt || new Date().toISOString(),
     };
   }
 }

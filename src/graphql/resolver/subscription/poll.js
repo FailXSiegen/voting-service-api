@@ -1,11 +1,10 @@
-import { pubsub } from "../../../server/graphql";
-import { filter, pipe } from "graphql-yoga";
-import { POLL_LIFE_CYCLE } from "./subscription-types";
+import { pubsub } from '../../../server/graphql';
+import { filter, pipe } from 'graphql-yoga';
+import { POLL_LIFE_CYCLE } from './subscription-types';
 
 export default {
   [POLL_LIFE_CYCLE]: {
     subscribe: (_, args) => {
-
       // Use pipe for filtering but with improved debugging
       return pipe(
         pubsub.subscribe(POLL_LIFE_CYCLE),
@@ -14,7 +13,7 @@ export default {
           if (!args.eventId || !payload.eventId) {
             console.warn(`[POLL_LIFECYCLE] Missing eventId in filter or payload`, {
               argsEventId: args.eventId,
-              payloadEventId: payload.eventId
+              payloadEventId: payload.eventId,
             });
             return false;
           }
@@ -23,7 +22,7 @@ export default {
           const isMatch = parseInt(payload.eventId, 10) === parseInt(args.eventId, 10);
 
           return isMatch;
-        }),
+        })
       );
     },
     resolve: (payload) => {
@@ -37,7 +36,7 @@ export default {
         poll: payload.poll || null,
         pollResultId: payload.pollResultId,
         // Add timestamp to help with debugging and ensure clients have fresh data
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       return result;

@@ -1,4 +1,4 @@
-import cron from "node-cron";
+import cron from 'node-cron';
 
 export default class CommandManager {
   constructor() {
@@ -9,7 +9,7 @@ export default class CommandManager {
   }
   setupSchedule() {
     if (this.commands.length === 0) {
-      console.info("[Cron] There are no registered commands to schedule.");
+      console.info('[Cron] There are no registered commands to schedule.');
     }
     this.commands.forEach((command) => {
       if (!command.active) {

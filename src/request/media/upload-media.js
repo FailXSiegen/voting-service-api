@@ -27,7 +27,7 @@ const storage = multer.diskStorage({
     const fileExt = path.extname(file.originalname);
     const fileName = `${uuidv4()}${fileExt}`;
     cb(null, fileName);
-  }
+  },
 });
 
 // Upload-Filter: Nur Bilder erlauben
@@ -43,14 +43,14 @@ const fileFilter = (req, file, cb) => {
 
 // Größenlimit: 5MB
 const limits = {
-  fileSize: 5 * 1024 * 1024
+  fileSize: 5 * 1024 * 1024,
 };
 
 // Multer-Upload-Funktion mit Konfiguration
 const upload = multer({
   storage,
   fileFilter,
-  limits
+  limits,
 }).single('file');
 
 /**
@@ -65,7 +65,7 @@ module.exports = async function (req, res) {
       console.error('Upload error:', err);
       return res.status(400).json({
         error: true,
-        message: err.message || 'Fehler beim Hochladen der Datei'
+        message: err.message || 'Fehler beim Hochladen der Datei',
       });
     }
 
@@ -74,7 +74,7 @@ module.exports = async function (req, res) {
       if (!req.file) {
         return res.status(400).json({
           error: true,
-          message: 'Keine Datei ausgewählt'
+          message: 'Keine Datei ausgewählt',
         });
       }
 
@@ -87,7 +87,7 @@ module.exports = async function (req, res) {
         path: clientPath,
         mimeType: req.file.mimetype,
         fileSize: req.file.size,
-        createdBy: req.user?.organizer?.id || null
+        createdBy: req.user?.organizer?.id || null,
       };
 
       // Speichere in Datenbank
@@ -100,13 +100,13 @@ module.exports = async function (req, res) {
         url: savedMedia.path,
         mimeType: savedMedia.mimeType,
         fileSize: savedMedia.fileSize,
-        uploadedAt: savedMedia.createdAt
+        uploadedAt: savedMedia.createdAt,
       });
     } catch (error) {
       console.error('Media upload error:', error);
       return res.status(500).json({
         error: true,
-        message: 'Serverfehler beim Verarbeiten des Uploads'
+        message: 'Serverfehler beim Verarbeiten des Uploads',
       });
     }
   });
