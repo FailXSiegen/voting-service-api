@@ -5,6 +5,7 @@ import pollResultQueries from './resolver/queries/poll-result';
 import cachedPollResultQueries from './resolver/queries/cached-poll-result';
 import organizerQueries from './resolver/queries/organizer';
 import zoomMeetingQueries from './resolver/queries/zoom-meeting';
+import jitsiMeetingQueries from './resolver/queries/jitsi-meeting';
 import organizerMutations from './resolver/mutation/organizer';
 import eventMutations from './resolver/mutation/event';
 import eventUserMutations from './resolver/mutation/event-user';
@@ -13,6 +14,7 @@ import pollResultMutations from './resolver/mutation/poll-result';
 import pollAnswerMutations from './resolver/mutation/poll-answer';
 import pollUserVotedMutations from './resolver/mutation/poll-user-voted';
 import zoomMeetingMutations from './resolver/mutation/zoom-meeting';
+import jitsiMeetingMutations from './resolver/mutation/jitsi-meeting';
 import eventUserAuthTokenMutations from './resolver/mutation/event-user-auth-token';
 import transferVotesMutations from './resolver/mutation/transfer-votes';
 import activePollEventUser from './resolver/active-poll-event-user/active-poll-event-user';
@@ -34,6 +36,7 @@ const translationsResolvers = require('./resolver/translations-resolver');
 export default {
   VideoConferenceType: {
     ZOOM: 1,
+    JITSI: 2,
   },
   Query: {
     ...eventQueries,
@@ -43,6 +46,7 @@ export default {
     ...cachedPollResultQueries,
     ...organizerQueries,
     ...zoomMeetingQueries,
+    ...jitsiMeetingQueries,
     ...staticContentResolvers.Query,
     ...pageSlugResolvers.Query,
     ...mediaResolvers.Query,
@@ -58,6 +62,7 @@ export default {
     ...eventUserMutations,
     ...pollUserVotedMutations,
     ...zoomMeetingMutations,
+    ...jitsiMeetingMutations,
     ...eventUserAuthTokenMutations,
     ...transferVotesMutations,
     ...staticContentResolvers.Mutation,

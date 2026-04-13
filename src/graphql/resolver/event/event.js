@@ -1,5 +1,6 @@
 import { findOneById } from '../../../repository/organizer-repository';
 import { findOneById as findOneZoomMeetingById } from '../../../repository/meeting/zoom-meeting-repository';
+import { findOneById as findOneJitsiMeetingById } from '../../../repository/meeting/jitsi-meeting-repository';
 import { VideoConferenceType } from '../../../enum';
 
 export default {
@@ -47,6 +48,34 @@ export default {
 
     record.meetingId = config.credentials.id ?? '';
     record.meetingPassword = config.credentials.password ?? '';
+
+    return record;
+  },
+  jitsiMeeting: async ({ videoConferenceConfig }) => {
+    if (typeof videoConferenceConfig !== 'string' || videoConferenceConfig.length === 0) {
+      return null;
+    }
+
+    const config = JSON.parse(videoConferenceConfig);
+
+    if (!config?.id || !config?.type) {
+      return null;
+    }
+
+    config.id = parseInt(config.id, 10);
+    config.type = parseInt(config.type, 10);
+
+    if (config.type !== VideoConferenceType.JITSI) {
+      return null;
+    }
+
+    const record = await findOneJitsiMeetingById(config.id);
+
+    if (record === null) {
+      return null;
+    }
+
+    record.roomName = config.credentials?.roomName ?? '';
 
     return record;
   },

@@ -4,6 +4,7 @@ import { getCurrentUnixTimeStamp } from '../lib/time-stamp';
 import { validateEmail } from '../lib/validator';
 import InvalidEmailFormatError from '../errors/InvalidEmailFormatError';
 import { findByOrganizerId } from './meeting/zoom-meeting-repository';
+import { findByOrganizerId as findJitsiByOrganizerId } from './meeting/jitsi-meeting-repository';
 
 export async function findOneByUsername(username) {
   const result = await query('SELECT * FROM organizer WHERE username = ?', [username]);
@@ -60,11 +61,17 @@ async function enrichRelations(organizer) {
   if (organizer === null) {
     return null;
   }
-  organizer = enrichZoomMeetings(organizer);
+  organizer = await enrichZoomMeetings(organizer);
+  organizer = await enrichJitsiMeetings(organizer);
   return organizer;
 }
 
 async function enrichZoomMeetings(organizer) {
   organizer.zoomMeetings = await findByOrganizerId(organizer.id);
+  return organizer;
+}
+
+async function enrichJitsiMeetings(organizer) {
+  organizer.jitsiMeetings = await findJitsiByOrganizerId(organizer.id);
   return organizer;
 }

@@ -9,6 +9,7 @@ enum PollType {
 }
 enum VideoConferenceType {
   ZOOM
+  JITSI
 }
 type Query {
   # Fetches a list of upcoming events by organizer id.
@@ -45,6 +46,8 @@ type Query {
   pollResult(eventId: ID, page: Int, pageSize: Int, includeHidden: Boolean): [PollResult]
   # Fetches a zoom meeting by id
   zoomMeeting(id: ID!): ZoomMeeting
+  # Fetches a jitsi meeting by id
+  jitsiMeeting(id: ID!): JitsiMeeting
   # Fetches a poll by  id.
   poll(id: ID): Poll
 
@@ -148,6 +151,12 @@ type Mutation {
   updateZoomMeeting(input: UpdateZoomMeetingInput!): ZoomMeeting!
   # Deletes a zoom meeting.
   deleteZoomMeeting(id: ID!): Boolean
+  # Creates a new jitsi meeting.
+  createJitsiMeeting(input: CreateJitsiMeetingInput!): JitsiMeeting!
+  # Updates a jitsi meeting.
+  updateJitsiMeeting(input: UpdateJitsiMeetingInput!): JitsiMeeting!
+  # Deletes a jitsi meeting.
+  deleteJitsiMeeting(id: ID!): Boolean
   # Creates an event user, generates an auth token and sends an email to the target email.
   createEventUserAuthToken(input: CreateEventUserAuthTokenInput!): Boolean
   
@@ -210,6 +219,7 @@ type Organizer {
   verified: Boolean!
   hash: String
   zoomMeetings: [ZoomMeeting]
+  jitsiMeetings: [JitsiMeeting]
 }
 type Event {
   id: ID!
@@ -227,6 +237,7 @@ type Event {
   active: Boolean
   multivoteType: Int
   zoomMeeting: ZoomMeeting
+  jitsiMeeting: JitsiMeeting
   videoConferenceConfig: String
   async: Boolean!
   allowMagicLink: Boolean!
@@ -357,6 +368,12 @@ type ZoomMeeting {
   sdkSecret: String!
   meetingId: String
   password: String
+}
+type JitsiMeeting {
+  id: ID!
+  title: String!
+  serverUrl: String!
+  roomName: String
 }
 input PollPossibleAnswerInput {
   content: String!
@@ -538,6 +555,16 @@ input UpdateZoomMeetingInput {
   title: String
   sdkKey: String
   sdkSecret: String
+}
+input CreateJitsiMeetingInput {
+  organizerId: ID!
+  title: String!
+  serverUrl: String!
+}
+input UpdateJitsiMeetingInput {
+  id: ID!
+  title: String
+  serverUrl: String
 }
 
 type ColumnContent {
