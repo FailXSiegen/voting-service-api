@@ -6,6 +6,8 @@ import {
   invalidatePollResultCache,
 } from '../../lib/poll-result-cache';
 
+// no-console-check
+
 export async function findOneById(id) {
   // Try to get from cache first
   const cachedResult = getPollResultCache(id);

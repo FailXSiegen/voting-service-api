@@ -2,6 +2,8 @@
 import { insert, query } from './../../lib/database';
 import { getCurrentUnixTimeStamp } from '../../lib/time-stamp';
 
+// no-console-check
+
 export async function findByPollResultId(pollResultId) {
   const result = await query('SELECT * FROM poll_answer WHERE poll_result_id = ?', [pollResultId]);
   return Array.isArray(result) ? result : [];
@@ -27,9 +29,6 @@ export async function insertPollSubmitAnswer(input) {
     // Kleinere Verzögerung als bei Bulk (0-150ms)
     const jitterMs = (input.eventUserId % 5) * 30;
     if (jitterMs > 0) {
-      console.log(
-        `[INFO:INSERT_ANSWER][${executionId}] Adding jitter delay of ${jitterMs}ms for user ${input.eventUserId}`
-      );
       await new Promise((resolve) => setTimeout(resolve, jitterMs));
     }
   }

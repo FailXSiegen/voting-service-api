@@ -16,6 +16,8 @@ import { incrementVoteCycleAfterVote } from '../../../repository/poll/poll-user-
 import { query } from '../../../lib/database';
 import { getCurrentUnixTimeStamp } from '../../../lib/time-stamp';
 
+// no-console-check
+
 /**
  * Publishes a POLL_LIFE_CYCLE event with the "closed" state
  * Ensures all necessary poll data is included for proper client-side processing
@@ -144,22 +146,15 @@ async function publishPollLifeCycle(pollResultId) {
 export default {
   // todo refactor + document the logic here.
   createPollSubmitAnswer: async (_, { input }) => {
-    console.log(
-      `[DEBUG:POLL_ANSWER] Starting createPollSubmitAnswer for user ${input.eventUserId}, poll ${input.pollId}`
-    );
-
     const cloneAnswerObject = {};
     const pollId = input.pollId;
     const pollResult = await findOneByPollId(input.pollId);
     if (!pollResult) {
-      console.error(`[DEBUG:POLL_ANSWER] Error: Missing poll result for pollId ${input.pollId}`);
       throw Error('Missing poll result record!');
     }
-    console.log(`[DEBUG:POLL_ANSWER] Found pollResult:`, pollResult);
 
     const eventId = await findEventIdByPollResultId(pollResult.id);
     if (!eventId) {
-      console.error(`[DEBUG:POLL_ANSWER] Error: Missing event for pollResultId ${pollResult.id}`);
       throw Error('Missing related event record!');
     }
 
@@ -197,19 +192,10 @@ export default {
       const isAsync = await isAsyncEvent(eventId);
       if (isAsync) {
         leftAnswersDataSet = await findLeftAnswersCountForAsync(pollResult.id);
-        console.log(
-          `[DEBUG:POLL_ANSWER] findLeftAnswersCountForAsync returned:`,
-          leftAnswersDataSet
-        );
       } else {
         leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);
-        console.log(`[DEBUG:POLL_ANSWER] findLeftAnswersCount returned:`, leftAnswersDataSet);
       }
       if (leftAnswersDataSet === null) {
-        console.log(
-          `[DEBUG:POLL_ANSWER] leftAnswersDataSet is null - poll may be closed or at capacity`
-        );
-
         // First check if the poll is already closed
         const pollStatusCheck = await query('SELECT closed FROM poll_result WHERE id = ?', [
           pollResult.id,
@@ -311,21 +297,14 @@ export default {
         return false;
       }
 
-      console.log(
-        `[DEBUG:POLL_ANSWER] Calling existsPollUserVoted for user ${input.eventUserId}, multiVote=${multiVote}`
-      );
       allowToVote = await existsPollUserVoted(
         pollResult.id,
         input.eventUserId,
         multiVote,
         input // Übergebe den gesamten input, damit voteCycle verfügbar ist
       );
-      console.log(`[DEBUG:POLL_ANSWER] existsPollUserVoted returned: ${allowToVote}`);
     }
     if (allowToVote) {
-      console.log(
-        `[DEBUG:POLL_ANSWER] Calling createPollUserIfNeeded with pollResultId=${pollResult.id}, eventUserId=${input.eventUserId}`
-      );
       await createPollUserIfNeeded(pollResult.id, input.eventUserId);
       let actualAnswerCount = 0;
       await query('START TRANSACTION', [], { throwError: true });
@@ -379,7 +358,6 @@ export default {
       // Get the event user to check their vote amount - needed regardless of multiVote
       const eventUser = await findOneById(input.eventUserId);
       if (!eventUser) {
-        console.error(`[DEBUG:POLL_ANSWER] Event user ${input.eventUserId} not found!`);
         throw Error('Event user not found!');
       }
 
@@ -421,8 +399,6 @@ export default {
 
         // Only insert votes if we have votes remaining
         if (votesToSubmit > 0) {
-          // Variable zur Verfolgung, ob mindestens eine Antwort erfolgreich eingefügt wurde
-          let successfulInsert = false;
           for (let index = 1; index <= votesToSubmit; ++index) {
             // One last check before each insertion to avoid race conditions - with transaction
             let currentCount = 0;
@@ -493,14 +469,7 @@ export default {
 
             // An die insertPollSubmitAnswer-Funktion das voteComplete-Flag übergeben,
             // damit der vote_cycle nur einmal pro Stimmzettel erhöht wird
-            const insertResult = await insertPollSubmitAnswer(input, voteComplete);
-
-            if (insertResult) {
-              // Wir merken uns, dass mindestens eine Antwort erfolgreich war
-              successfulInsert = true;
-            } else {
-              console.warn(`[DEBUG:POLL_ANSWER] Vote ${index}/${votesToSubmit} insertion failed`);
-            }
+            await insertPollSubmitAnswer(input, voteComplete);
 
             // OPTIMIERT: Komplett entfernte Verzögerung zwischen den Einsätzen für maximale Performance
             // Die Verzögerungslogik wurde vollständig entfernt, um die Verarbeitung zu beschleunigen
@@ -509,10 +478,6 @@ export default {
 
           // Der vote_cycle wurde bereits in der insertPollSubmitAnswer-Funktion erhöht,
           // wenn voteComplete=true (beim letzten Element des Batches)
-          if (!successfulInsert) {
-            console.warn(`[DEBUG:POLL_ANSWER] No votes were successfully inserted`);
-          }
-
           // Also verify the poll_user_voted table was updated
           const verifyVoteCycleQuery = await query(
             `SELECT vote_cycle AS voteCycle FROM poll_user_voted 
@@ -595,21 +560,11 @@ export default {
         // isLastAnswerInBallot is already defined higher in the scope
 
         // voteComplete nur setzen, wenn es die letzte Antwort des Stimmzettels ist
-        const insertResult = await insertPollSubmitAnswer(input, isLastAnswerInBallot);
-
-        if (!insertResult) {
-          console.warn(`[DEBUG:POLL_ANSWER] Single vote insertion failed`);
-        }
+        await insertPollSubmitAnswer(input, isLastAnswerInBallot);
 
         // If this is the last answer in ballot, update poll_user_voted
         if (isLastAnswerInBallot) {
-          const incrementedVoteCycle = await incrementVoteCycleAfterVote(
-            pollResult.id,
-            input.eventUserId
-          );
-          if (!incrementedVoteCycle) {
-            console.warn(`[DEBUG:POLL_ANSWER] Increment vote_cycle for single vote failed`);
-          }
+          await incrementVoteCycleAfterVote(pollResult.id, input.eventUserId);
         }
       }
 
@@ -652,10 +607,6 @@ export default {
           return true;
         }
       }
-    } else {
-      console.warn(
-        `[DEBUG:POLL_ANSWER] Vote NOT allowed for user ${input.eventUserId}, allowToVote=${allowToVote}`
-      );
     }
 
     if (leftAnswersDataSet) {

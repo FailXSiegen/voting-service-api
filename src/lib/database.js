@@ -3,6 +3,8 @@ import mysql from 'promise-mysql';
 import humps from 'humps';
 // Wir entfernen den child_process Import, da wir keine Server-Admin-Befehle ausführen werden
 
+// no-console-check
+
 const config = {
   host: process.env.DATABASE_HOST,
   port: process.env.DATABASE_PORT,

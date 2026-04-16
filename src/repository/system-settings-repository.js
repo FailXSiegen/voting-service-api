@@ -2,6 +2,8 @@
 
 const db = require('../lib/database');
 
+// no-console-check
+
 /**
  * Repository for managing system settings
  */

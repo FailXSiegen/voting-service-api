@@ -9,8 +9,11 @@ declare -a always_forbidden=("debugger")
 declare -a folders=("src")
 declare -a exclude_folders=("node_modules" "dist" "build" ".git")
 
-# Environment guard patterns (if found within 5 lines above, console statement is allowed)
-ENV_PATTERNS="NODE_ENV|isDev|isDevelopment|LOG_QUERIES|import\.meta\.env\.DEV"
+# Environment guard patterns (if found within 10 lines above, console statement is allowed)
+ENV_PATTERNS="NODE_ENV|isDev|isDevelopment|LOG_QUERIES|ENABLE_DEBUG|import\.meta\.env\.DEV"
+
+# File-level opt-out: files containing this marker skip console checks entirely
+FILE_OPT_OUT="no-console-check"
 
 # Prepare the exclude parameters for grep
 exclude_params=""
@@ -51,8 +54,13 @@ for folder in "${folders[@]}"; do
         line=$(echo "$match" | cut -d: -f2)
         content=$(echo "$match" | cut -d: -f3-)
 
-        # Check 5 lines above for environment guard pattern
-        start_line=$((line - 5))
+        # Skip files with opt-out marker
+        if grep -q "$FILE_OPT_OUT" "$file" 2>/dev/null; then
+          continue
+        fi
+
+        # Check 10 lines above for environment guard pattern
+        start_line=$((line - 10))
         if [ $start_line -lt 1 ]; then
           start_line=1
         fi

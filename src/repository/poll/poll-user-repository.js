@@ -34,9 +34,6 @@ export async function existAsPollUserInCurrentVote(pollResultId, eventUserId) {
 
 export async function createPollUserWithPollResultId(pollResultId, eventUserId) {
   const createDatetime = getCurrentUnixTimeStamp();
-  console.log(
-    `[DEBUG:CREATE_POLL_USER] Starting for pollResultId=${pollResultId}, eventUserId=${eventUserId}`
-  );
 
   const userInformation = await query(
     `
@@ -44,9 +41,6 @@ export async function createPollUserWithPollResultId(pollResultId, eventUserId) 
   `,
     [eventUserId]
   );
-
-  console.log(`[DEBUG:CREATE_POLL_USER] Query result:`, userInformation);
-  console.log(`[DEBUG:CREATE_POLL_USER] userInformation[0]:`, userInformation?.[0]);
 
   if (Array.isArray(userInformation) && userInformation.length > 0) {
     await query(

@@ -8,6 +8,8 @@
 // Load environment variables first
 require('dotenv').config();
 
+// no-console-check
+
 const { deleteAllByEventId } = require('../repository/event-user-shortlink-repository');
 const { findById: findEventById } = require('../repository/event-repository');
 

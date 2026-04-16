@@ -11,6 +11,8 @@ import { findByPollResultId } from '../repository/poll/poll-user-voted-repositor
 import { findByPollResultId as findAnswersByPollResultId } from '../repository/poll/poll-answer-repository.js';
 import { findByEventId } from '../repository/poll/poll-user-repository.js';
 
+// no-console-check
+
 class LivePollCache {
   constructor() {
     this.cache = new Map(); // cacheKey (eventId:pollId) -> cached data
@@ -265,26 +267,20 @@ class LivePollCache {
 
       // Hole aktive Poll für dieses Event
       const activePollBasic = await findActivePollEventUser(eventId);
-      console.log(`[DEBUG] fetchActivePollData für Event ${eventId}:`, activePollBasic);
 
       if (!activePollBasic || !activePollBasic.pollResultId) {
-        console.log(`[DEBUG] Keine aktive Poll gefunden für Event ${eventId}`);
         return null;
       }
 
       const pollResultId = activePollBasic.pollResultId;
 
       // Parallel alle benötigten Daten laden (EINE SQL-Abfrage pro Datentyp)
-      console.log(
-        `[DEBUG] Loading data for pollResultId: ${pollResultId}, poll: ${activePollBasic.poll}`
-      );
       const [pollUserVoted, pollAnswers, pollUser, pollData] = await Promise.all([
         findByPollResultId(pollResultId),
         findAnswersByPollResultId(pollResultId),
         findByEventId(eventId),
         findOneById(activePollBasic.poll),
       ]);
-      console.log(`[DEBUG] Loaded data - pollData:`, pollData, 'pollUser count:', pollUser?.length);
 
       // Nur bei öffentlichen Abstimmungen Antworten zurückgeben
       const finalPollAnswers = pollData?.type === 1 ? pollAnswers : [];

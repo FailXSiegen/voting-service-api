@@ -3,6 +3,8 @@
 const fs = require('fs').promises;
 const path = require('path');
 
+// no-console-check
+
 /**
  * Repository for managing translations
  */

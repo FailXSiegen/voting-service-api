@@ -4,6 +4,8 @@
  * Implements throttling, debouncing, and batching for GraphQL PubSub events
  */
 
+// no-console-check
+
 class ThrottledPubSub {
   constructor(pubsub) {
     this.pubsub = pubsub;

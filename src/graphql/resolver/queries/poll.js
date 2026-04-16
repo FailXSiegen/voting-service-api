@@ -42,9 +42,6 @@ export default {
     return await findPollsByEventId(eventId);
   },
   userVoteCycle: async (_, { eventUserId, pollId }) => {
-    console.log(
-      `[DEBUG:USER_VOTE_CYCLE] Query aufgerufen mit eventUserId=${eventUserId}, pollId=${pollId}`
-    );
     try {
       // Parameter validieren
       if (!eventUserId || !pollId) {
@@ -53,29 +50,18 @@ export default {
       }
 
       const pollResult = await findOneByPollId(pollId);
-      console.log(`[DEBUG:USER_VOTE_CYCLE] pollResult gefunden:`, pollResult);
       if (!pollResult) {
-        console.log(`[DEBUG:USER_VOTE_CYCLE] Kein pollResult gefunden für pollId=${pollId}`);
         return { voteCycle: 0, maxVotes: 0 };
       }
 
       const eventUser = await findEventUserById(eventUserId);
-      console.log(
-        `[DEBUG:USER_VOTE_CYCLE] eventUser gefunden:`,
-        eventUser?.id,
-        eventUser?.voteAmount
-      );
       if (!eventUser) {
-        console.log(
-          `[DEBUG:USER_VOTE_CYCLE] Kein eventUser gefunden für eventUserId=${eventUserId}`
-        );
         return { voteCycle: 0, maxVotes: 0 };
       }
 
       let userVote = null;
       if (pollResult) {
         userVote = await getUserVoteCycle(pollResult.id, eventUserId);
-        console.log(`[DEBUG:USER_VOTE_CYCLE] getUserVoteCycle Ergebnis:`, userVote);
       }
 
       // Prüfe auf Diskrepanz zwischen vote_cycle und version

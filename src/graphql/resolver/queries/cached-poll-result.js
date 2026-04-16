@@ -9,6 +9,8 @@
 import { livePollCache } from '../../../cache/live-poll-cache.js';
 import { findActivePollEventUser } from '../../../repository/poll/poll-result-repository.js';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 export default {
   /**
    * Cached Version des activePollEventUser Resolvers
@@ -18,19 +20,20 @@ export default {
    */
   cachedActivePollEventUser: async (_, { eventId }) => {
     try {
-      console.log(`[CachedPollResolver] Anfrage für Event ${eventId}`);
+      if (isDev) console.log(`[CachedPollResolver] Anfrage für Event ${eventId}`);
 
       // Prüfe ob bereits gecacht
       let cachedData = livePollCache.getCachedData(eventId);
 
       if (cachedData) {
         // Cache Hit - verwende gecachte Daten
-        console.log(`[CachedPollResolver] Cache Hit für Event ${eventId}`);
+        if (isDev) console.log(`[CachedPollResolver] Cache Hit für Event ${eventId}`);
         return cachedData;
       }
 
       // Cache Miss - starte Caching und gib direkte Daten zurück
-      console.log(`[CachedPollResolver] Cache Miss für Event ${eventId} - starte Caching`);
+      if (isDev)
+        console.log(`[CachedPollResolver] Cache Miss für Event ${eventId} - starte Caching`);
 
       // Starte Background-Caching
       livePollCache.startCaching(eventId);
@@ -39,12 +42,13 @@ export default {
       const directData = await findActivePollEventUser(eventId);
 
       if (directData) {
-        console.log(`[CachedPollResolver] Direkte Daten für Event ${eventId} geladen`);
+        if (isDev) console.log(`[CachedPollResolver] Direkte Daten für Event ${eventId} geladen`);
         return directData;
       }
 
       // Fallback: Original Resolver
-      console.log(`[CachedPollResolver] Fallback auf Original Resolver für Event ${eventId}`);
+      if (isDev)
+        console.log(`[CachedPollResolver] Fallback auf Original Resolver für Event ${eventId}`);
       return await findActivePollEventUser(eventId);
     } catch (error) {
       console.error(`[CachedPollResolver] Fehler für Event ${eventId}:`, error);

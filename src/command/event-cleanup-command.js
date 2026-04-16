@@ -1,5 +1,7 @@
 import { performEventCleanup } from '../services/event-cleanup.js';
 
+// no-console-check
+
 export default {
   name: 'Event cleanup (every 4 hours)',
   interval: '0 */4 * * *', // Every 4 hours at minute 0

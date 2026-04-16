@@ -55,13 +55,7 @@ class MediaRepository {
       LIMIT ?
     `;
 
-    console.log('Running query to fetch all media');
     const result = await db.query(query, [limit]);
-    console.log('Query result:', result ? result.length : 0);
-
-    if (result && result.length > 0) {
-      console.log('First media item sample:', JSON.stringify(result[0]));
-    }
 
     return result || [];
   }

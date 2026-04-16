@@ -19,7 +19,6 @@ const resolvers = {
         const { user } = context;
 
         // Prüfe Berechtigung (nur Admins können Medien verwalten)
-        console.log('User in context:', user ? 'Authenticated' : 'Unauthenticated');
         // Eigenschaften sind im camelCase
         if (
           !user ||
@@ -30,9 +29,7 @@ const resolvers = {
           return [];
         }
 
-        console.log('Fetching media items');
         const result = await mediaRepository.findAll(100);
-        console.log('Media items found:', result.length, result);
         return result || [];
       } catch (err) {
         console.error('Error in mediaItems resolver:', err);

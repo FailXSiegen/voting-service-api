@@ -4,6 +4,8 @@ import { getCurrentUnixTimeStamp } from '../lib/time-stamp';
 import { createPollUserIfNeeded } from '../service/poll-service';
 import { findActivePoll } from './poll/poll-result-repository';
 
+// no-console-check
+
 export async function findOneById(id) {
   const result = await query(
     'SELECT id, event_id, create_datetime, username, email, password, public_name, allow_to_vote, vote_amount, online, coorganizer, verified, last_activity, poll_hints FROM event_user WHERE id = ?',

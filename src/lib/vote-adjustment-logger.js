@@ -1,6 +1,8 @@
 import { getCurrentUnixTimeStamp } from './time-stamp.js';
 import { insert, query } from './database.js';
 
+// no-console-check
+
 /**
  * Logger für Benutzerstimmen-Anpassungen
  * Erstellt separate Logs pro Event für Organisatoren

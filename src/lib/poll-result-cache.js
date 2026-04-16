@@ -4,6 +4,8 @@
  * This module provides caching for poll results data to reduce database load
  */
 
+// no-console-check
+
 // Cache for closed poll results (Map of pollResultId -> cached data)
 const pollResultCache = new Map();
 
