@@ -1,12 +1,19 @@
 import { create, findOneByUsername } from '../../repository/organizer-repository';
 import { generateAndSetOrganizerHash } from '../../lib/organizer/optin-util';
 import mailer from '../../lib/email-util';
+import { verifyRecaptcha } from '../../lib/recaptcha';
 
 export default async function createOrganizer(req, res) {
   res.setHeader('content-type', 'application/json');
   try {
     const origin = req.get('origin');
     const organizerArguments = req.body;
+
+    const captcha = await verifyRecaptcha(organizerArguments.captchaToken);
+    if (!captcha.success) {
+      throw new Error('reCAPTCHA verification failed');
+    }
+
     if ((await findOneByUsername(organizerArguments.username)) !== null) {
       throw new Error(
         'organizer with the following username already exists: ' + organizerArguments.username

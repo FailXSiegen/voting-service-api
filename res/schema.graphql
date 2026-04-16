@@ -683,6 +683,8 @@ type TokenRefreshPayload {
 }
 
 # System settings for global configuration
+# Note: recaptchaSecretKey is intentionally not exposed as a readable field.
+# It can only be written via SystemSettingsInput; it is never returned to clients.
 type SystemSettings {
   id: ID!
   useDirectStaticPaths: Boolean!
@@ -691,7 +693,6 @@ type SystemSettings {
   titleSuffix: String
   recaptchaEnabled: Boolean
   recaptchaSiteKey: String
-  recaptchaSecretKey: String
   updatedAt: String
   updatedBy: Organizer
 }

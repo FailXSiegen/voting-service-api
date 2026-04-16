@@ -1,5 +1,6 @@
 const SystemSettingsRepository = require('../../repository/system-settings-repository');
 const { findOneById } = require('../../repository/organizer-repository');
+const AuthenticationError = require('../../errors/AuthenticationError').default;
 
 /**
  * System Settings resolver
@@ -20,7 +21,6 @@ const resolvers = {
         titleSuffix: 'digitalwahl.org',
         recaptchaEnabled: false,
         recaptchaSiteKey: '',
-        recaptchaSecretKey: '',
         updatedAt: new Date().toISOString(),
       };
 
@@ -46,7 +46,6 @@ const resolvers = {
             titleSuffix: settings.titleSuffix || 'digitalwahl.org',
             recaptchaEnabled: settings.recaptchaEnabled || false,
             recaptchaSiteKey: settings.recaptchaSiteKey || '',
-            recaptchaSecretKey: settings.recaptchaSecretKey || '',
             updatedAt: settings.updatedAt
               ? new Date(settings.updatedAt).toISOString()
               : new Date().toISOString(),
@@ -71,6 +70,12 @@ const resolvers = {
      * @returns {Promise<Object>} Updated system settings
      */
     updateSystemSettings: async (_, { input }, context) => {
+      // Only super admins may change global system settings.
+      const user = context && context.user;
+      if (!user || !user.organizer || !user.organizer.superAdmin) {
+        throw new AuthenticationError('Not authorized to update system settings');
+      }
+
       // Default settings to return if something goes wrong
       const defaults = {
         id: 0,
@@ -82,14 +87,10 @@ const resolvers = {
         titleSuffix: input.titleSuffix !== undefined ? input.titleSuffix : 'digitalwahl.org',
         recaptchaEnabled: input.recaptchaEnabled !== undefined ? input.recaptchaEnabled : false,
         recaptchaSiteKey: input.recaptchaSiteKey !== undefined ? input.recaptchaSiteKey : '',
-        recaptchaSecretKey: input.recaptchaSecretKey !== undefined ? input.recaptchaSecretKey : '',
         updatedAt: new Date().toISOString(),
       };
 
       try {
-        // TEMPORARILY allow updates for debugging purposes
-        // In production, we'd enforce authentication here
-
         // Get current settings or create default
         try {
           await SystemSettingsRepository.getSettings();
@@ -186,12 +187,6 @@ const resolvers = {
                 ? updatedSettings.recaptchaSiteKey
                 : input.recaptchaSiteKey !== undefined
                   ? input.recaptchaSiteKey
-                  : '',
-            recaptchaSecretKey:
-              updatedSettings.recaptchaSecretKey !== undefined
-                ? updatedSettings.recaptchaSecretKey
-                : input.recaptchaSecretKey !== undefined
-                  ? input.recaptchaSecretKey
                   : '',
             updatedAt: updatedSettings.updatedAt
               ? new Date(updatedSettings.updatedAt).toISOString()
