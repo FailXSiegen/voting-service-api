@@ -16,6 +16,7 @@
     "format:check": "prettier src --check",
     "lint:debug": "bash bin/find-forbidden-words.sh",
     "qa": "npm run lint:check && npm run format:check && npm run lint:debug",
+    "test:mail": "node scripts/smoke-mail.js",
     "qa:cpd": "jscpd src",
     "qa:unused": "knip",
     "qa:all": "npm run qa && npm run qa:cpd && npm run qa:unused",

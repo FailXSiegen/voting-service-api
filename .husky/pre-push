@@ -1,0 +1,3 @@
+# ponytail: nur die schnellen Checks (eslint + prettier, ~15s).
+# jscpd/knip laufen in der CI - lokal zu langsam bzw. brauchen node >=20.19.
+npm run qa
