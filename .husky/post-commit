@@ -1,0 +1,2 @@
+# ponytail: husky setzt core.hooksPath, deshalb lief .git/hooks/post-commit nie.
+/home/felixherrmann/projects/VotingTool/sync-to-hetzner.sh
