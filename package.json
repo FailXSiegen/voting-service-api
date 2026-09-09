@@ -2,7 +2,6 @@
   "name": "voting-service-api",
   "version": "2.0.1",
   "description": "Voting service API",
-
   "scripts": {
     "serve": "babel-watch ./src",
     "dev": "babel-watch ./src",
@@ -46,7 +45,7 @@
     "jsrsasign": "^11.0",
     "md5": "^2.3.0",
     "minimist": "^1.2.5",
-    "multer": "^2.0.2",
+    "multer": "^2.3.0",
     "node-cron": "^3.0.3",
     "nodemailer": "^8.0.4",
     "nodemailer-pug-engine": "^2.0.1",
@@ -71,7 +70,8 @@
   },
   "overrides": {
     "cross-undici-fetch": "0.4.8",
-    "path-to-regexp": "0.1.13"
+    "path-to-regexp": "0.1.13",
+    "qs": "^6.16.0"
   },
   "engines": {
     "npm": ">=9.0.0",
