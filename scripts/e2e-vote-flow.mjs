@@ -5,6 +5,7 @@
 //   E2E_API=http://localhost:4000 E2E_ORG_USER=… E2E_ORG_PASS=… E2E_ORG_ID=… node scripts/e2e-vote-flow.mjs
 import { createClient } from 'graphql-ws';
 import WebSocket from 'ws';
+import { randomUUID } from 'node:crypto';
 
 const API = process.env.E2E_API || 'http://localhost:4000';
 const { E2E_ORG_USER, E2E_ORG_PASS, E2E_ORG_ID } = process.env;
@@ -100,7 +101,7 @@ for (let n = 1; n <= USERS; n++) {
   const token = await login({
     loginType: 'event-user',
     username: u.username,
-    password: 'e2e-pass',
+    password: randomUUID(),
     eventId: event.id,
     displayName: `E2E ${n}`,
   });
