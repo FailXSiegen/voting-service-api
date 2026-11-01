@@ -1,13 +1,19 @@
 import { filter, pipe } from 'graphql-yoga';
+import { canAccessEvent } from '../../authorize';
+import { lookup } from '../../authorize-lookup';
 import { POLL_ANSWER_LIFE_CYCLE } from './subscription-types';
 import { pubsub } from '../../../server/graphql';
 
 export default {
   [POLL_ANSWER_LIFE_CYCLE]: {
-    subscribe: (_, args) =>
-      pipe(
+    subscribe: (_, args, context) => {
+      const allowed = canAccessEvent(args.eventId, context?.user, lookup).catch(() => false);
+      return pipe(
         pubsub.subscribe(POLL_ANSWER_LIFE_CYCLE),
-        filter((payload) => {
+        filter(async (payload) => {
+          if (!(await allowed)) {
+            return false;
+          }
           // Always require eventId filtering to prevent unnecessary message delivery
           if (!args.eventId || !payload.eventId) {
             return false;
@@ -17,7 +23,8 @@ export default {
           const matches = parseInt(payload.eventId, 10) === parseInt(args.eventId, 10);
           return matches;
         })
-      ),
+      );
+    },
     resolve: (payload) => {
       // Ensure we don't return more data than needed and provide defaults for safety
       if (!payload) return null;

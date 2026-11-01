@@ -19,8 +19,10 @@ const resolvers = {
         useDbFooterNavigation: true, // Enable DB footer navigation by default
         faviconUrl: null,
         titleSuffix: 'digitalwahl.org',
-        recaptchaEnabled: false,
-        recaptchaSiteKey: '',
+        mosparoEnabled: false,
+        mosparoPublicKey: '',
+        mosparoHost: '',
+        mosparoUuid: '',
         updatedAt: new Date().toISOString(),
       };
 
@@ -44,8 +46,10 @@ const resolvers = {
               settings.useDbFooterNavigation !== undefined ? settings.useDbFooterNavigation : true,
             faviconUrl: settings.faviconUrl || null,
             titleSuffix: settings.titleSuffix || 'digitalwahl.org',
-            recaptchaEnabled: settings.recaptchaEnabled || false,
-            recaptchaSiteKey: settings.recaptchaSiteKey || '',
+            mosparoEnabled: settings.mosparoEnabled || false,
+            mosparoPublicKey: settings.mosparoPublicKey || '',
+            mosparoHost: settings.mosparoHost || '',
+            mosparoUuid: settings.mosparoUuid || '',
             updatedAt: settings.updatedAt
               ? new Date(settings.updatedAt).toISOString()
               : new Date().toISOString(),
@@ -85,8 +89,10 @@ const resolvers = {
           input.useDbFooterNavigation !== undefined ? input.useDbFooterNavigation : true,
         faviconUrl: input.faviconUrl !== undefined ? input.faviconUrl : null,
         titleSuffix: input.titleSuffix !== undefined ? input.titleSuffix : 'digitalwahl.org',
-        recaptchaEnabled: input.recaptchaEnabled !== undefined ? input.recaptchaEnabled : false,
-        recaptchaSiteKey: input.recaptchaSiteKey !== undefined ? input.recaptchaSiteKey : '',
+        mosparoEnabled: input.mosparoEnabled !== undefined ? input.mosparoEnabled : false,
+        mosparoPublicKey: input.mosparoPublicKey !== undefined ? input.mosparoPublicKey : '',
+        mosparoHost: input.mosparoHost !== undefined ? input.mosparoHost : '',
+        mosparoUuid: input.mosparoUuid !== undefined ? input.mosparoUuid : '',
         updatedAt: new Date().toISOString(),
       };
 
@@ -126,16 +132,24 @@ const resolvers = {
           updateData.titleSuffix = input.titleSuffix;
         }
 
-        if (input.recaptchaEnabled !== undefined) {
-          updateData.recaptchaEnabled = input.recaptchaEnabled;
+        if (input.mosparoEnabled !== undefined) {
+          updateData.mosparoEnabled = input.mosparoEnabled;
         }
 
-        if (input.recaptchaSiteKey !== undefined) {
-          updateData.recaptchaSiteKey = input.recaptchaSiteKey;
+        if (input.mosparoPublicKey !== undefined) {
+          updateData.mosparoPublicKey = input.mosparoPublicKey;
         }
 
-        if (input.recaptchaSecretKey !== undefined) {
-          updateData.recaptchaSecretKey = input.recaptchaSecretKey;
+        if (input.mosparoHost !== undefined) {
+          updateData.mosparoHost = input.mosparoHost;
+        }
+
+        if (input.mosparoUuid !== undefined) {
+          updateData.mosparoUuid = input.mosparoUuid;
+        }
+
+        if (input.mosparoPrivateKey !== undefined) {
+          updateData.mosparoPrivateKey = input.mosparoPrivateKey;
         }
 
         // If we have current settings with a valid ID, try to update them
@@ -176,17 +190,29 @@ const resolvers = {
                 : input.titleSuffix !== undefined
                   ? input.titleSuffix
                   : 'digitalwahl.org',
-            recaptchaEnabled:
-              updatedSettings.recaptchaEnabled !== undefined
-                ? updatedSettings.recaptchaEnabled
-                : input.recaptchaEnabled !== undefined
-                  ? input.recaptchaEnabled
+            mosparoEnabled:
+              updatedSettings.mosparoEnabled !== undefined
+                ? updatedSettings.mosparoEnabled
+                : input.mosparoEnabled !== undefined
+                  ? input.mosparoEnabled
                   : false,
-            recaptchaSiteKey:
-              updatedSettings.recaptchaSiteKey !== undefined
-                ? updatedSettings.recaptchaSiteKey
-                : input.recaptchaSiteKey !== undefined
-                  ? input.recaptchaSiteKey
+            mosparoPublicKey:
+              updatedSettings.mosparoPublicKey !== undefined
+                ? updatedSettings.mosparoPublicKey
+                : input.mosparoPublicKey !== undefined
+                  ? input.mosparoPublicKey
+                  : '',
+            mosparoHost:
+              updatedSettings.mosparoHost !== undefined
+                ? updatedSettings.mosparoHost
+                : input.mosparoHost !== undefined
+                  ? input.mosparoHost
+                  : '',
+            mosparoUuid:
+              updatedSettings.mosparoUuid !== undefined
+                ? updatedSettings.mosparoUuid
+                : input.mosparoUuid !== undefined
+                  ? input.mosparoUuid
                   : '',
             updatedAt: updatedSettings.updatedAt
               ? new Date(updatedSettings.updatedAt).toISOString()

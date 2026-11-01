@@ -27,6 +27,8 @@ import pollSubscriptionResolvers from './resolver/subscription/poll';
 import eventUserSubscriptionResolvers from './resolver/subscription/event-user';
 import poolAnswerSubscriptionResolvers from './resolver/subscription/poll-answer';
 import votingDetailsSubscriptionResolvers from './resolver/subscription/voting-details';
+import { protectMutations } from './authorize';
+import { lookup } from './authorize-lookup';
 const staticContentResolvers = require('./resolver/static-content-resolver');
 const pageSlugResolvers = require('./resolver/page-slug-resolver');
 const mediaResolvers = require('./resolver/media-resolver');
@@ -53,24 +55,27 @@ export default {
     ...systemSettingsResolvers.Query,
     ...translationsResolvers.Query,
   },
-  Mutation: {
-    ...organizerMutations,
-    ...eventMutations,
-    ...pollMutations,
-    ...pollResultMutations,
-    ...pollAnswerMutations,
-    ...eventUserMutations,
-    ...pollUserVotedMutations,
-    ...zoomMeetingMutations,
-    ...jitsiMeetingMutations,
-    ...eventUserAuthTokenMutations,
-    ...transferVotesMutations,
-    ...staticContentResolvers.Mutation,
-    ...pageSlugResolvers.Mutation,
-    ...mediaResolvers.Mutation,
-    ...systemSettingsResolvers.Mutation,
-    ...translationsResolvers.Mutation,
-  },
+  Mutation: protectMutations(
+    {
+      ...organizerMutations,
+      ...eventMutations,
+      ...pollMutations,
+      ...pollResultMutations,
+      ...pollAnswerMutations,
+      ...eventUserMutations,
+      ...pollUserVotedMutations,
+      ...zoomMeetingMutations,
+      ...jitsiMeetingMutations,
+      ...eventUserAuthTokenMutations,
+      ...transferVotesMutations,
+      ...staticContentResolvers.Mutation,
+      ...pageSlugResolvers.Mutation,
+      ...mediaResolvers.Mutation,
+      ...systemSettingsResolvers.Mutation,
+      ...translationsResolvers.Mutation,
+    },
+    lookup
+  ),
   ActivePollEventUser: {
     ...activePollEventUser,
   },

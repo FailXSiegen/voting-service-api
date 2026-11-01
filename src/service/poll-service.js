@@ -49,10 +49,14 @@ export async function createPollUserIfNeeded(pollResultId, eventUserId) {
 
             // Event auslösen, um alle Clients zu aktualisieren
             if (leftAnswersDataSet) {
-              pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
-                ...leftAnswersDataSet,
-                eventId: eventId,
-              });
+              pubsub.publish(
+                POLL_ANSWER_LIFE_CYCLE,
+                {
+                  ...leftAnswersDataSet,
+                  eventId: eventId,
+                },
+                { filterBy: { eventId: eventId } }
+              );
             }
           }
         } catch (error) {

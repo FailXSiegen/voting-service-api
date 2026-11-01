@@ -1,5 +1,7 @@
 /* global Promise */
 import { filter, pipe } from 'graphql-yoga';
+import { canAccessEvent } from '../../authorize';
+import { lookup } from '../../authorize-lookup';
 import { POLL_ANSWER_LIFE_CYCLE } from './subscription-types';
 import { pubsub } from '../../../server/graphql';
 
@@ -13,17 +15,22 @@ export default {
   // Optimized subscription for voting details with improved performance
   // and reduced database queries
   votingDetailsUpdate: {
-    subscribe: (_, args) =>
-      pipe(
+    subscribe: (_, args, context) => {
+      const allowed = canAccessEvent(args.eventId, context?.user, lookup).catch(() => false);
+      return pipe(
         pubsub.subscribe(POLL_ANSWER_LIFE_CYCLE),
-        filter((payload) => {
+        filter(async (payload) => {
+          if (!(await allowed)) {
+            return false;
+          }
           // Strict filtering to prevent unnecessary updates
           if (!args.eventId || !payload.eventId) {
             return false;
           }
           return parseInt(payload.eventId, 10) === parseInt(args.eventId, 10);
         })
-      ),
+      );
+    },
     resolve: async (payload) => {
       try {
         // Early return if no valid payload data

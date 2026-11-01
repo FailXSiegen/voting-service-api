@@ -1,7 +1,8 @@
 import { create, findOneByUsername } from '../../repository/organizer-repository';
 import { generateAndSetOrganizerHash } from '../../lib/organizer/optin-util';
 import mailer from '../../lib/email-util';
-import { verifyRecaptcha } from '../../lib/recaptcha';
+import { verifyMosparo } from '../../lib/mosparo';
+import SystemSettingsRepository from '../../repository/system-settings-repository';
 
 export default async function createOrganizer(req, res) {
   res.setHeader('content-type', 'application/json');
@@ -9,9 +10,22 @@ export default async function createOrganizer(req, res) {
     const origin = req.get('origin');
     const organizerArguments = req.body;
 
-    const captcha = await verifyRecaptcha(organizerArguments.captchaToken);
+    const captcha = await verifyMosparo(
+      {
+        formData: {
+          username: organizerArguments.username,
+          email: organizerArguments.email,
+          publicName: organizerArguments.publicName,
+          publicOrganisation: organizerArguments.publicOrganisation,
+        },
+        submitToken: organizerArguments.mosparoSubmitToken,
+        validationToken: organizerArguments.mosparoValidationToken,
+      },
+      await SystemSettingsRepository.getSettings()
+    );
     if (!captcha.success) {
-      throw new Error('reCAPTCHA verification failed');
+      console.warn('[mosparo] signup rejected:', captcha.reason);
+      throw new Error('Captcha verification failed');
     }
 
     if ((await findOneByUsername(organizerArguments.username)) !== null) {

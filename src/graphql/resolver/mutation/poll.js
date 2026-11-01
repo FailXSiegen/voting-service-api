@@ -106,6 +106,12 @@ export default {
           { priority: true }
         );
       }
+    } else if ((await findOneEventById(pollRecord.eventId))?.async) {
+      // Editing dropped the poll result; a mail-in poll has no later start to recreate it.
+      await createPollDependencies(
+        pollRecord,
+        await findVotableEventUserByEventId(pollRecord.eventId)
+      );
     }
     return pollRecord;
   },

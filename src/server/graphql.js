@@ -26,14 +26,7 @@ export const yoga = createYoga({
   schema,
   port: process.env.APP_PORT,
   hostname: process.env.APP_DOMAIN,
-  logging: isDev
-    ? {
-        debug: (...args) => console.log('[DEBUG] GraphQL Yoga:', ...args),
-        info: (...args) => console.log('[INFO] GraphQL Yoga:', ...args),
-        warn: (...args) => console.warn('[WARN] GraphQL Yoga:', ...args),
-        error: (...args) => console.error('[ERROR] GraphQL Yoga:', ...args),
-      }
-    : false,
+  logging: isDev ? 'debug' : false,
   maskedErrors: false,
   // Hier definieren wir eine Funktion, die für jede Anfrage den Kontext erstellt
   context: async ({ request }) => {

@@ -683,7 +683,7 @@ type TokenRefreshPayload {
 }
 
 # System settings for global configuration
-# Note: recaptchaSecretKey is intentionally not exposed as a readable field.
+# Note: mosparoPrivateKey is intentionally not exposed as a readable field.
 # It can only be written via SystemSettingsInput; it is never returned to clients.
 type SystemSettings {
   id: ID!
@@ -691,8 +691,10 @@ type SystemSettings {
   useDbFooterNavigation: Boolean!
   faviconUrl: String
   titleSuffix: String
-  recaptchaEnabled: Boolean
-  recaptchaSiteKey: String
+  mosparoEnabled: Boolean
+  mosparoHost: String
+  mosparoUuid: String
+  mosparoPublicKey: String
   updatedAt: String
   updatedBy: Organizer
 }
@@ -703,9 +705,11 @@ input SystemSettingsInput {
   useDbFooterNavigation: Boolean
   faviconUrl: String
   titleSuffix: String
-  recaptchaEnabled: Boolean
-  recaptchaSiteKey: String
-  recaptchaSecretKey: String
+  mosparoEnabled: Boolean
+  mosparoHost: String
+  mosparoUuid: String
+  mosparoPublicKey: String
+  mosparoPrivateKey: String
 }
 
 # Input for translation updates

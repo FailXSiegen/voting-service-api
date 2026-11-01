@@ -2,6 +2,8 @@
 import { findOneById, update, addPollHint } from '../../../repository/event-user-repository';
 import { pubsub } from '../../../server/graphql';
 import { UPDATE_EVENT_USER_ACCESS_RIGHTS } from '../subscription/subscription-types';
+import { findActivePoll } from '../../../repository/poll/poll-result-repository';
+import { query } from '../../../lib/database';
 import { logVoteTransfer } from '../../../lib/vote-adjustment-logger.js';
 // import { getAuditLogger, ACTION_TYPES, PRIVACY_LEVELS } from "../../../lib/audit-logger.js"; // TEMPORARILY DISABLED
 
@@ -39,6 +41,21 @@ export default {
     // Validate that source user has enough votes
     if (sourceUser.voteAmount < voteAmount) {
       throw new Error('Source user does not have enough votes');
+    }
+
+    // Votes already cast in the running poll must not be cast again by the target.
+    const activePoll = await findActivePoll(sourceUser.eventId);
+    if (activePoll) {
+      const voted = await query(
+        'SELECT vote_cycle FROM poll_user_voted WHERE poll_result_id = ? AND event_user_id = ?',
+        [activePoll.id, sourceUserId]
+      );
+      const usedVotes = parseInt(voted?.[0]?.voteCycle, 10) || 0;
+      if (voteAmount > sourceUser.voteAmount - usedVotes) {
+        throw new Error(
+          `Bereits abgegebene Stimmen können nicht übertragen werden. Noch übertragbar: ${Math.max(0, sourceUser.voteAmount - usedVotes)}.`
+        );
+      }
     }
 
     // Validate that both users are verified
@@ -93,24 +110,32 @@ export default {
     const finalTargetUser = await findOneById(targetUserId);
 
     // Notify source user about vote change
-    pubsub.publish(UPDATE_EVENT_USER_ACCESS_RIGHTS, {
-      eventId: finalSourceUser.eventId,
-      eventUserId: finalSourceUser.id,
-      verified: finalSourceUser.verified,
-      allowToVote: finalSourceUser.allowToVote,
-      voteAmount: finalSourceUser.voteAmount,
-      pollHints: finalSourceUser.pollHints,
-    });
+    pubsub.publish(
+      UPDATE_EVENT_USER_ACCESS_RIGHTS,
+      {
+        eventId: finalSourceUser.eventId,
+        eventUserId: finalSourceUser.id,
+        verified: finalSourceUser.verified,
+        allowToVote: finalSourceUser.allowToVote,
+        voteAmount: finalSourceUser.voteAmount,
+        pollHints: finalSourceUser.pollHints,
+      },
+      { priority: true }
+    );
 
     // Notify target user about vote change
-    pubsub.publish(UPDATE_EVENT_USER_ACCESS_RIGHTS, {
-      eventId: finalTargetUser.eventId,
-      eventUserId: finalTargetUser.id,
-      verified: finalTargetUser.verified,
-      allowToVote: finalTargetUser.allowToVote,
-      voteAmount: finalTargetUser.voteAmount,
-      pollHints: finalTargetUser.pollHints,
-    });
+    pubsub.publish(
+      UPDATE_EVENT_USER_ACCESS_RIGHTS,
+      {
+        eventId: finalTargetUser.eventId,
+        eventUserId: finalTargetUser.id,
+        verified: finalTargetUser.verified,
+        allowToVote: finalTargetUser.allowToVote,
+        voteAmount: finalTargetUser.voteAmount,
+        pollHints: finalTargetUser.pollHints,
+      },
+      { priority: true }
+    );
 
     // Log the vote transfer
     try {

@@ -36,20 +36,24 @@ export default {
 
     // Check if verification status is changing
     const verificationChanged =
-      input.verified !== undefined && eventUser.verified !== input.verified;
+      input.verified !== undefined && Boolean(eventUser.verified) !== Boolean(input.verified);
     const previousVerificationStatus = eventUser.verified;
 
     await update(input);
     eventUser = await findOneById(input.id);
 
     // Publish normal update
-    pubsub.publish(UPDATE_EVENT_USER_ACCESS_RIGHTS, {
-      eventId: eventUser.eventId,
-      eventUserId: eventUser.id,
-      verified: eventUser.verified,
-      allowToVote: eventUser.allowToVote,
-      voteAmount: eventUser.voteAmount,
-    });
+    pubsub.publish(
+      UPDATE_EVENT_USER_ACCESS_RIGHTS,
+      {
+        eventId: eventUser.eventId,
+        eventUserId: eventUser.id,
+        verified: eventUser.verified,
+        allowToVote: eventUser.allowToVote,
+        voteAmount: eventUser.voteAmount,
+      },
+      { priority: true }
+    );
 
     // If verified status changed, generate new token and publish refresh notification
     if (verificationChanged) {
@@ -62,15 +66,19 @@ export default {
         );
 
         // Publish token refresh event with fields matching client expectations
-        pubsub.publish(TOKEN_REFRESH_REQUIRED, {
-          eventUserId: eventUser.id,
-          userId: eventUser.id,
-          userType: 'event-user',
-          token: newToken,
-          reason: 'verification_change',
-          previousVerificationStatus,
-          currentVerificationStatus: eventUser.verified,
-        });
+        pubsub.publish(
+          TOKEN_REFRESH_REQUIRED,
+          {
+            eventUserId: eventUser.id,
+            userId: eventUser.id,
+            userType: 'event-user',
+            token: newToken,
+            reason: 'verification_change',
+            previousVerificationStatus,
+            currentVerificationStatus: eventUser.verified,
+          },
+          { priority: true }
+        );
       } catch (error) {
         console.error(`[ERROR] Failed to generate refresh token for user ${eventUser.id}:`, error);
       }
@@ -96,13 +104,17 @@ export default {
     await update(eventUser);
 
     // Publish normal update
-    pubsub.publish(UPDATE_EVENT_USER_ACCESS_RIGHTS, {
-      eventId: eventUser.eventId,
-      eventUserId: eventUser.id,
-      verified: eventUser.verified,
-      allowToVote: eventUser.allowToVote,
-      voteAmount: eventUser.voteAmount,
-    });
+    pubsub.publish(
+      UPDATE_EVENT_USER_ACCESS_RIGHTS,
+      {
+        eventId: eventUser.eventId,
+        eventUserId: eventUser.id,
+        verified: eventUser.verified,
+        allowToVote: eventUser.allowToVote,
+        voteAmount: eventUser.voteAmount,
+      },
+      { priority: true }
+    );
 
     // If verified status changed, generate new token and publish refresh notification
     if (verificationChanged) {
@@ -115,15 +127,19 @@ export default {
         );
 
         // Publish token refresh event with fields matching client expectations
-        pubsub.publish(TOKEN_REFRESH_REQUIRED, {
-          eventUserId: eventUser.id,
-          userId: eventUser.id,
-          userType: 'event-user',
-          token: newToken,
-          reason: 'verification_change',
-          previousVerificationStatus,
-          currentVerificationStatus: eventUser.verified,
-        });
+        pubsub.publish(
+          TOKEN_REFRESH_REQUIRED,
+          {
+            eventUserId: eventUser.id,
+            userId: eventUser.id,
+            userType: 'event-user',
+            token: newToken,
+            reason: 'verification_change',
+            previousVerificationStatus,
+            currentVerificationStatus: eventUser.verified,
+          },
+          { priority: true }
+        );
       } catch (error) {
         console.error(
           `[ERROR] Failed to generate refresh token for guest user ${eventUser.id}:`,
@@ -152,13 +168,17 @@ export default {
     await update(eventUser);
 
     // Publish normal update
-    pubsub.publish(UPDATE_EVENT_USER_ACCESS_RIGHTS, {
-      eventId: eventUser.eventId,
-      eventUserId: eventUser.id,
-      verified: eventUser.verified,
-      allowToVote: eventUser.allowToVote,
-      voteAmount: eventUser.voteAmount,
-    });
+    pubsub.publish(
+      UPDATE_EVENT_USER_ACCESS_RIGHTS,
+      {
+        eventId: eventUser.eventId,
+        eventUserId: eventUser.id,
+        verified: eventUser.verified,
+        allowToVote: eventUser.allowToVote,
+        voteAmount: eventUser.voteAmount,
+      },
+      { priority: true }
+    );
 
     // If verified status changed, generate new token and publish refresh notification
     if (verificationChanged) {
@@ -171,15 +191,19 @@ export default {
         );
 
         // Publish token refresh event with fields matching client expectations
-        pubsub.publish(TOKEN_REFRESH_REQUIRED, {
-          eventUserId: eventUser.id,
-          userId: eventUser.id,
-          userType: 'event-user',
-          token: newToken,
-          reason: 'verification_change',
-          previousVerificationStatus,
-          currentVerificationStatus: eventUser.verified,
-        });
+        pubsub.publish(
+          TOKEN_REFRESH_REQUIRED,
+          {
+            eventUserId: eventUser.id,
+            userId: eventUser.id,
+            userType: 'event-user',
+            token: newToken,
+            reason: 'verification_change',
+            previousVerificationStatus,
+            currentVerificationStatus: eventUser.verified,
+          },
+          { priority: true }
+        );
       } catch (error) {
         console.error(
           `[ERROR] Failed to generate refresh token for participant user ${eventUser.id}:`,

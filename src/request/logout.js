@@ -60,11 +60,15 @@ export default async function logoutRequest(req, res) {
       });
     }
 
-    pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-      online: false,
-      eventUserId: tokenRecord.eventUserId,
-      eventId,
-    });
+    pubsub.publish(
+      EVENT_USER_LIFE_CYCLE,
+      {
+        online: false,
+        eventUserId: tokenRecord.eventUserId,
+        eventId,
+      },
+      { priority: true }
+    );
 
     await query('DELETE FROM event_user_auth_token WHERE event_user_id = ?', [
       tokenRecord.eventUserId,

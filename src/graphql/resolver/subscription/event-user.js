@@ -6,18 +6,27 @@ import {
   EVENT_USER_LIFE_CYCLE,
   TOKEN_REFRESH_REQUIRED,
 } from './subscription-types';
+import {
+  canAccessEventAsOrganizer,
+  canReceiveAccessRights,
+  canReceiveTokenRefresh,
+} from '../../authorize';
+import { lookup } from '../../authorize-lookup';
 
 const isDev = process.env.NODE_ENV === 'development';
 
 export default {
   [UPDATE_EVENT_USER_ACCESS_RIGHTS]: {
-    subscribe: (_, args) =>
+    subscribe: (_, args, context) =>
       pipe(
         pubsub.subscribe(UPDATE_EVENT_USER_ACCESS_RIGHTS),
-        filter((payload) => {
-          // Require either eventUserId match or explicit organizer flag
-          if (!args.eventUserId && args.isOrganizer === true) {
-            return true; // Allow organizers to get notified without eventUserId
+        filter(async (payload) => {
+          if (!(await canReceiveAccessRights(payload, args, context?.user, lookup))) {
+            return false;
+          }
+          // Organizers get all updates without eventUserId.
+          if (!args.eventUserId && context?.user?.type === 'organizer') {
+            return true;
           }
           // Otherwise require eventUserId match
           return (
@@ -30,7 +39,10 @@ export default {
     resolve: (payload) => payload,
   },
   [NEW_EVENT_USER]: {
-    subscribe: (_, args) => {
+    subscribe: (_, args, context) => {
+      const allowed = canAccessEventAsOrganizer(args.eventId, context?.user, lookup).catch(
+        () => false
+      );
       if (isDev) {
         console.log(
           '[DEBUG] event-user.js - NEW_EVENT_USER subscription requested with args:',
@@ -40,7 +52,10 @@ export default {
 
       return pipe(
         pubsub.subscribe(NEW_EVENT_USER),
-        filter((payload) => {
+        filter(async (payload) => {
+          if (!(await allowed)) {
+            return false;
+          }
           if (isDev) {
             console.log('[DEBUG] event-user.js - NEW_EVENT_USER payload received:', {
               payloadEventId: payload.eventId,
@@ -83,7 +98,10 @@ export default {
     },
   },
   [EVENT_USER_LIFE_CYCLE]: {
-    subscribe: (_, args) => {
+    subscribe: (_, args, context) => {
+      const allowed = canAccessEventAsOrganizer(args.eventId, context?.user, lookup).catch(
+        () => false
+      );
       if (isDev) {
         console.log(
           '[DEBUG] event-user.js - EVENT_USER_LIFE_CYCLE subscription requested with args:',
@@ -93,7 +111,10 @@ export default {
 
       return pipe(
         pubsub.subscribe(EVENT_USER_LIFE_CYCLE),
-        filter((payload) => {
+        filter(async (payload) => {
+          if (!(await allowed)) {
+            return false;
+          }
           if (isDev) {
             console.log('[DEBUG] event-user.js - EVENT_USER_LIFE_CYCLE payload received:', payload);
           }
@@ -148,12 +169,13 @@ export default {
     },
   },
   [TOKEN_REFRESH_REQUIRED]: {
-    subscribe: (_, args) =>
+    subscribe: (_, args, context) =>
       pipe(
         pubsub.subscribe(TOKEN_REFRESH_REQUIRED),
         filter((payload) => {
-          if (!args.eventUserId) {
-            return false; // Require eventUserId to be specified
+          // The payload carries a JWT, so only its owner may receive it.
+          if (!args.eventUserId || !canReceiveTokenRefresh(args.eventUserId, context?.user)) {
+            return false;
           }
           return parseInt(payload.eventUserId) === parseInt(args.eventUserId);
         })

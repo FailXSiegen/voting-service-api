@@ -1,14 +1,20 @@
 import { pubsub } from '../../../server/graphql';
 import { filter, pipe } from 'graphql-yoga';
+import { canAccessEvent } from '../../authorize';
+import { lookup } from '../../authorize-lookup';
 import { POLL_LIFE_CYCLE } from './subscription-types';
 
 export default {
   [POLL_LIFE_CYCLE]: {
-    subscribe: (_, args) => {
+    subscribe: (_, args, context) => {
+      const allowed = canAccessEvent(args.eventId, context?.user, lookup).catch(() => false);
       // Use pipe for filtering but with improved debugging
       return pipe(
         pubsub.subscribe(POLL_LIFE_CYCLE),
-        filter((payload) => {
+        filter(async (payload) => {
+          if (!(await allowed)) {
+            return false;
+          }
           // Always require eventId filtering to prevent unnecessary message delivery
           if (!args.eventId || !payload.eventId) {
             console.warn(`[POLL_LIFECYCLE] Missing eventId in filter or payload`, {

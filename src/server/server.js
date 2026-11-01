@@ -7,7 +7,7 @@ import { query } from '../lib/database';
 import addStandaloneRequests from './standalone-requests';
 import { context, yoga } from './graphql';
 import { WebSocketServer } from 'ws';
-import { useServer } from 'graphql-ws/lib/use/ws';
+import { useServer } from 'graphql-ws/use/ws';
 import { createServer } from 'node:http';
 import authenticate from '../middleware/authenticate';
 import {

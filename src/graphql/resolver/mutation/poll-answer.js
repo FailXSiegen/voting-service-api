@@ -933,28 +933,9 @@ export default {
         }
       }
 
-      // Verify inserts by counting (kein Lock notwendig, nur für Logging)
-      const verifyInsertQuery = await query(
-        `SELECT COUNT(*) AS insertCount 
-         FROM poll_answer 
-         WHERE poll_result_id = ? AND create_datetime = ?`,
-        [pollResult.id, timestamp]
-      );
-
-      const insertCount =
-        Array.isArray(verifyInsertQuery) && verifyInsertQuery.length > 0
-          ? parseInt(verifyInsertQuery[0].insertCount, 10) || 0
-          : 0;
-
-      if (insertCount < votesToSubmit) {
-        console.warn(
-          `[WARN:BULK_VOTE][${executionId}] Expected to insert ${votesToSubmit} votes, but only found ${insertCount}`
-        );
-      }
-
       // vote_cycle erhöhen — Lock haben wir bereits seit dem SELECT FOR UPDATE oben
       // Begrenze auf maxAllowedVotes als absolute Sicherheit
-      const incrementBy = insertCount > 0 ? insertCount : votesToSubmit;
+      const incrementBy = votesToSubmit;
       const newVoteCycle = Math.min(currentVoteCycle + incrementBy, maxAllowedVotes);
 
       await query(
@@ -966,7 +947,7 @@ export default {
 
       // Commit transaction
       await query('COMMIT', [], { throwError: true });
-      successfulVotes = insertCount;
+      successfulVotes = votesToSubmit;
 
       // Get updated poll answer counts for notification
       const leftAnswersDataSet = await findLeftAnswersCount(pollResult.id);

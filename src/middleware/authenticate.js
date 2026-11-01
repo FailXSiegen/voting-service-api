@@ -1,6 +1,37 @@
 import * as jwt from 'jsonwebtoken';
+import { parse } from 'graphql';
 import { updateLastActivity } from '../repository/event-user-repository';
 import { findOneByRefreshToken } from '../repository/jwt-refresh-token-repository';
+
+const PUBLIC_QUERY_FIELDS = [
+  '__typename',
+  'systemSettings',
+  'staticContentsByPage',
+  'staticContentBySection',
+  'staticContentByPageSlug',
+  'pageSlugs',
+  'pageSlugByPageKey',
+  'pageSlugBySlug',
+  'translations',
+  'translationsByLocale',
+];
+
+// Only a query selecting nothing but public root fields runs without a token.
+export function isPublicQuery(source) {
+  try {
+    return parse(source).definitions.every(
+      (definition) =>
+        definition.kind === 'OperationDefinition' &&
+        definition.operation === 'query' &&
+        definition.selectionSet.selections.every(
+          (selection) =>
+            selection.kind === 'Field' && PUBLIC_QUERY_FIELDS.includes(selection.name.value)
+        )
+    );
+  } catch (error) {
+    return false;
+  }
+}
 
 export default async function (req, res, next) {
   // If JWT is disabled, skip authentication
@@ -20,7 +51,7 @@ export default async function (req, res, next) {
     '/event/verify-slug',
   ];
 
-  if (publicEndpoints.includes(req.url) || req.url !== process.env.GRAPHQL_ENDPOINT) {
+  if (publicEndpoints.includes(req.path) || req.path !== process.env.GRAPHQL_ENDPOINT) {
     return next();
   }
 
@@ -49,25 +80,7 @@ export default async function (req, res, next) {
         }
       }
 
-      // Check if it's a public query - these should be allowed without auth
-      if (
-        body.query &&
-        // System settings queries
-        (body.query.includes('systemSettings') ||
-          body.query.includes('GetSystemSettings') ||
-          body.operationName === 'GetSystemSettings' ||
-          // Static content queries for public pages
-          body.query.includes('staticContentsByPage') ||
-          body.query.includes('GetFaqContent') ||
-          body.operationName === 'GetFaqContent' ||
-          // Translations queries
-          body.query.includes('translations') ||
-          body.query.includes('GetTranslations') ||
-          body.operationName === 'GetTranslations' ||
-          // WebSocket keep-alive query
-          body.query.includes('__typename') ||
-          body.operationName === 'KeepAlive')
-      ) {
+      if (typeof body.query === 'string' && isPublicQuery(body.query)) {
         return next();
       }
     } catch (parseError) {

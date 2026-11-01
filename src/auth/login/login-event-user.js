@@ -165,10 +165,14 @@ export async function loginEventUser({ username, password, email, displayName, e
       const leftAnswersDataSet = await findLeftAnswersCount(activePollResult.id);
 
       if (leftAnswersDataSet) {
-        pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
-          ...leftAnswersDataSet,
-          eventId: eventId,
-        });
+        pubsub.publish(
+          POLL_ANSWER_LIFE_CYCLE,
+          {
+            ...leftAnswersDataSet,
+            eventId: eventId,
+          },
+          { filterBy: { eventId: eventId } }
+        );
       }
     }
   } catch (error) {

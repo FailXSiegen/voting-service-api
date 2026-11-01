@@ -14,12 +14,12 @@ import { findOneByRefreshToken } from '../repository/jwt-refresh-token-repositor
 import { createPollUserIfNeeded } from '../service/poll-service';
 import * as jwt from 'jsonwebtoken';
 
-export async function onSubscribeWebsocket(ctx, msg) {
+export async function onSubscribeWebsocket(ctx, id, payload) {
   const { schema, execute, subscribe, contextFactory, parse, validate } = yoga.getEnveloped({
     ...ctx,
     req: ctx.extra.request,
     socket: ctx.extra.socket,
-    params: msg.payload,
+    params: payload,
   });
 
   // Create base context
@@ -57,23 +57,8 @@ export async function onSubscribeWebsocket(ctx, msg) {
             };
           }
         } catch (verifyError) {
-          // Fallback to decode if verification fails (for backward compatibility)
-          console.warn('[WARN] JWT verification failed, falling back to decode:', verifyError);
-          const decodedToken = jwt.decode(jwtToken);
-
-          // Set user information in the context from decoded token
-          if (decodedToken && decodedToken.user) {
-            contextValue.user = decodedToken.user;
-            if (typeof contextValue.user.id === 'string' && !isNaN(contextValue.user.id)) {
-              contextValue.user.id = parseInt(contextValue.user.id, 10);
-            }
-          } else if (decodedToken && decodedToken.eventUserId) {
-            // Legacy format support with proper parsing of ID
-            contextValue.user = {
-              id: parseInt(decodedToken.eventUserId, 10),
-              type: 'event-user',
-            };
-          }
+          // An unverifiable token gets no user context.
+          console.warn('[WARN] JWT verification failed for subscription:', verifyError.message);
         }
       }
     } catch (error) {
@@ -83,9 +68,9 @@ export async function onSubscribeWebsocket(ctx, msg) {
 
   const args = {
     schema,
-    operationName: msg.payload.operationName,
-    document: parse(msg.payload.query),
-    variableValues: msg.payload.variables,
+    operationName: payload.operationName,
+    document: parse(payload.query),
+    variableValues: payload.variables,
     contextValue,
     rootValue: {
       execute,
@@ -146,11 +131,15 @@ export async function onConnectWebsocket(ctx) {
 
             // PubSub-Event senden, wenn nötig
             if (result && result.shouldPublish === true) {
-              pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-                online: true,
-                eventUserId: eventUserId,
-                eventId: eventUser.eventId,
-              });
+              pubsub.publish(
+                EVENT_USER_LIFE_CYCLE,
+                {
+                  online: true,
+                  eventUserId: eventUserId,
+                  eventId: eventUser.eventId,
+                },
+                { priority: true }
+              );
             }
 
             // Aktive Umfragen verarbeiten
@@ -160,10 +149,14 @@ export async function onConnectWebsocket(ctx) {
 
               const leftAnswersDataSet = await findLeftAnswersCount(activePollResult.id);
               if (leftAnswersDataSet) {
-                pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
-                  ...leftAnswersDataSet,
-                  eventId: eventUser.eventId,
-                });
+                pubsub.publish(
+                  POLL_ANSWER_LIFE_CYCLE,
+                  {
+                    ...leftAnswersDataSet,
+                    eventId: eventUser.eventId,
+                  },
+                  { filterBy: { eventId: eventUser.eventId } }
+                );
               }
             }
           }
@@ -224,11 +217,15 @@ export async function onConnectWebsocket(ctx) {
 
                   // Prüfen, ob wir ein PubSub-Event senden sollen
                   if (result && result.shouldPublish === true) {
-                    pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-                      online: true,
-                      eventUserId: parseInt(eventUserId),
-                      eventId: eventUser.eventId,
-                    });
+                    pubsub.publish(
+                      EVENT_USER_LIFE_CYCLE,
+                      {
+                        online: true,
+                        eventUserId: parseInt(eventUserId),
+                        eventId: eventUser.eventId,
+                      },
+                      { priority: true }
+                    );
                   }
                 }
               } catch (userLookupError) {
@@ -251,11 +248,15 @@ export async function onConnectWebsocket(ctx) {
 
                     // Prüfen, ob wir ein PubSub-Event senden sollen
                     if (result && result.shouldPublish === true) {
-                      pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-                        online: true,
-                        eventUserId: parseInt(eventUserId),
-                        eventId: eventUser.eventId,
-                      });
+                      pubsub.publish(
+                        EVENT_USER_LIFE_CYCLE,
+                        {
+                          online: true,
+                          eventUserId: parseInt(eventUserId),
+                          eventId: eventUser.eventId,
+                        },
+                        { priority: true }
+                      );
                     }
                   }
                 } catch (userLookupError) {
@@ -345,11 +346,15 @@ export async function onConnectWebsocket(ctx) {
     }
 
     // Tell subscribers about the successfull connection.
-    pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-      online: true,
-      eventUserId: eventUser.id,
-      eventId: eventUser.eventId,
-    });
+    pubsub.publish(
+      EVENT_USER_LIFE_CYCLE,
+      {
+        online: true,
+        eventUserId: eventUser.id,
+        eventId: eventUser.eventId,
+      },
+      { priority: true }
+    );
 
     // Handle active poll updates related to this event user.
     if (eventUser?.allowToVote) {
@@ -362,10 +367,14 @@ export async function onConnectWebsocket(ctx) {
 
       const leftAnswersDataSet = await findLeftAnswersCount(activePollResult.id);
       if (leftAnswersDataSet) {
-        pubsub.publish(POLL_ANSWER_LIFE_CYCLE, {
-          ...leftAnswersDataSet,
-          eventId: eventUser.eventId,
-        });
+        pubsub.publish(
+          POLL_ANSWER_LIFE_CYCLE,
+          {
+            ...leftAnswersDataSet,
+            eventId: eventUser.eventId,
+          },
+          { filterBy: { eventId: eventUser.eventId } }
+        );
       }
     }
   } catch (error) {
@@ -427,11 +436,15 @@ export async function onDisconnectWebsocket(ctx) {
 
           // PubSub-Event senden, wenn nötig
           if (result && result.shouldPublish === true) {
-            pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-              online: false,
-              eventUserId: eventUserId,
-              eventId: eventUserLookup.eventId,
-            });
+            pubsub.publish(
+              EVENT_USER_LIFE_CYCLE,
+              {
+                online: false,
+                eventUserId: eventUserId,
+                eventId: eventUserLookup.eventId,
+              },
+              { priority: true }
+            );
           }
         } catch (error) {
           console.warn(
@@ -483,11 +496,15 @@ export async function onDisconnectWebsocket(ctx) {
 
             // Event User Lifecycle Event nur auslösen, wenn sich der Status geändert hat
             if (result && result.shouldPublish === true) {
-              pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-                online: false,
-                eventUserId: parseInt(eventUserId),
-                eventId: eventUserLookup.eventId,
-              });
+              pubsub.publish(
+                EVENT_USER_LIFE_CYCLE,
+                {
+                  online: false,
+                  eventUserId: parseInt(eventUserId),
+                  eventId: eventUserLookup.eventId,
+                },
+                { priority: true }
+              );
             }
 
             // Wir haben den Offline-Status bereits aktualisiert, also hier fertig
@@ -514,11 +531,15 @@ export async function onDisconnectWebsocket(ctx) {
 
               // Event User Lifecycle Event nur auslösen, wenn sich der Status geändert hat
               if (result && result.shouldPublish === true) {
-                pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-                  online: false,
-                  eventUserId: parseInt(eventUserId),
-                  eventId: eventUserLookup.eventId,
-                });
+                pubsub.publish(
+                  EVENT_USER_LIFE_CYCLE,
+                  {
+                    online: false,
+                    eventUserId: parseInt(eventUserId),
+                    eventId: eventUserLookup.eventId,
+                  },
+                  { priority: true }
+                );
               }
 
               // Wir haben den Offline-Status bereits aktualisiert, also hier fertig
@@ -588,11 +609,15 @@ export async function onDisconnectWebsocket(ctx) {
     if (tokenRecord.eventUserId) {
       // Need to fetch the event ID for this user first
       const tokenEventUser = await findEventUserById(parseInt(tokenRecord.eventUserId));
-      pubsub.publish(EVENT_USER_LIFE_CYCLE, {
-        online: false,
-        eventUserId: tokenRecord.eventUserId,
-        eventId: tokenEventUser ? tokenEventUser.eventId : null,
-      });
+      pubsub.publish(
+        EVENT_USER_LIFE_CYCLE,
+        {
+          online: false,
+          eventUserId: tokenRecord.eventUserId,
+          eventId: tokenEventUser ? tokenEventUser.eventId : null,
+        },
+        { priority: true }
+      );
     }
   } catch (error) {
     console.error('[ERROR] Fehler beim Verarbeiten des Refresh-Tokens für Disconnect:', error);

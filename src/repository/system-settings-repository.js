@@ -78,9 +78,11 @@ class SystemSettingsRepository {
           use_db_footer_navigation BOOLEAN NOT NULL DEFAULT false,
           favicon_url VARCHAR(500) NULL,
           title_suffix VARCHAR(255) NULL DEFAULT 'digitalwahl.org',
-          recaptcha_enabled BOOLEAN NOT NULL DEFAULT false,
-          recaptcha_site_key VARCHAR(255) NULL,
-          recaptcha_secret_key VARCHAR(255) NULL,
+          mosparo_enabled BOOLEAN NOT NULL DEFAULT false,
+          mosparo_host VARCHAR(255) NULL,
+          mosparo_uuid VARCHAR(255) NULL,
+          mosparo_public_key VARCHAR(255) NULL,
+          mosparo_private_key VARCHAR(255) NULL,
           updated_by INT,
           updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -90,17 +92,19 @@ class SystemSettingsRepository {
 
       await db.query(createTableQuery);
 
-      // Try to add reCAPTCHA columns if they don't exist (for existing tables)
+      // Try to add mosparo columns if they don't exist (for existing tables)
       try {
         await db.query(`
           ALTER TABLE system_settings 
-          ADD COLUMN IF NOT EXISTS recaptcha_enabled BOOLEAN NOT NULL DEFAULT false,
-          ADD COLUMN IF NOT EXISTS recaptcha_site_key VARCHAR(255) NULL,
-          ADD COLUMN IF NOT EXISTS recaptcha_secret_key VARCHAR(255) NULL
+          ADD COLUMN IF NOT EXISTS mosparo_enabled BOOLEAN NOT NULL DEFAULT false,
+          ADD COLUMN IF NOT EXISTS mosparo_host VARCHAR(255) NULL,
+          ADD COLUMN IF NOT EXISTS mosparo_uuid VARCHAR(255) NULL,
+          ADD COLUMN IF NOT EXISTS mosparo_public_key VARCHAR(255) NULL,
+          ADD COLUMN IF NOT EXISTS mosparo_private_key VARCHAR(255) NULL
         `);
-        console.log('Added reCAPTCHA columns to existing system_settings table');
+        console.log('Added mosparo columns to existing system_settings table');
       } catch (alterError) {
-        console.log('reCAPTCHA columns may already exist or ALTER failed:', alterError.message);
+        console.log('mosparo columns may already exist or ALTER failed:', alterError.message);
       }
 
       // Don't try to add the foreign key constraint here, as it might fail
@@ -253,16 +257,24 @@ class SystemSettingsRepository {
           updateData.titleSuffix = data.titleSuffix;
         }
 
-        if (data.recaptchaEnabled !== undefined) {
-          updateData.recaptchaEnabled = data.recaptchaEnabled;
+        if (data.mosparoEnabled !== undefined) {
+          updateData.mosparoEnabled = data.mosparoEnabled;
         }
 
-        if (data.recaptchaSiteKey !== undefined) {
-          updateData.recaptchaSiteKey = data.recaptchaSiteKey;
+        if (data.mosparoPublicKey !== undefined) {
+          updateData.mosparoPublicKey = data.mosparoPublicKey;
         }
 
-        if (data.recaptchaSecretKey !== undefined) {
-          updateData.recaptchaSecretKey = data.recaptchaSecretKey;
+        if (data.mosparoHost !== undefined) {
+          updateData.mosparoHost = data.mosparoHost;
+        }
+
+        if (data.mosparoUuid !== undefined) {
+          updateData.mosparoUuid = data.mosparoUuid;
+        }
+
+        if (data.mosparoPrivateKey !== undefined) {
+          updateData.mosparoPrivateKey = data.mosparoPrivateKey;
         }
 
         try {
@@ -304,18 +316,20 @@ class SystemSettingsRepository {
           data.titleSuffix !== undefined
             ? data.titleSuffix
             : settings.titleSuffix || 'digitalwahl.org',
-        recaptchaEnabled:
-          data.recaptchaEnabled !== undefined
-            ? data.recaptchaEnabled
-            : settings.recaptchaEnabled || false,
-        recaptchaSiteKey:
-          data.recaptchaSiteKey !== undefined
-            ? data.recaptchaSiteKey
-            : settings.recaptchaSiteKey || '',
-        recaptchaSecretKey:
-          data.recaptchaSecretKey !== undefined
-            ? data.recaptchaSecretKey
-            : settings.recaptchaSecretKey || '',
+        mosparoEnabled:
+          data.mosparoEnabled !== undefined
+            ? data.mosparoEnabled
+            : settings.mosparoEnabled || false,
+        mosparoPublicKey:
+          data.mosparoPublicKey !== undefined
+            ? data.mosparoPublicKey
+            : settings.mosparoPublicKey || '',
+        mosparoHost: data.mosparoHost !== undefined ? data.mosparoHost : settings.mosparoHost || '',
+        mosparoUuid: data.mosparoUuid !== undefined ? data.mosparoUuid : settings.mosparoUuid || '',
+        mosparoPrivateKey:
+          data.mosparoPrivateKey !== undefined
+            ? data.mosparoPrivateKey
+            : settings.mosparoPrivateKey || '',
         updatedAt: new Date(),
       };
     } catch (error) {
@@ -329,9 +343,11 @@ class SystemSettingsRepository {
           data.useDbFooterNavigation !== undefined ? data.useDbFooterNavigation : false,
         faviconUrl: data.faviconUrl !== undefined ? data.faviconUrl : null,
         titleSuffix: data.titleSuffix !== undefined ? data.titleSuffix : 'digitalwahl.org',
-        recaptchaEnabled: data.recaptchaEnabled !== undefined ? data.recaptchaEnabled : false,
-        recaptchaSiteKey: data.recaptchaSiteKey !== undefined ? data.recaptchaSiteKey : '',
-        recaptchaSecretKey: data.recaptchaSecretKey !== undefined ? data.recaptchaSecretKey : '',
+        mosparoEnabled: data.mosparoEnabled !== undefined ? data.mosparoEnabled : false,
+        mosparoPublicKey: data.mosparoPublicKey !== undefined ? data.mosparoPublicKey : '',
+        mosparoHost: data.mosparoHost !== undefined ? data.mosparoHost : '',
+        mosparoUuid: data.mosparoUuid !== undefined ? data.mosparoUuid : '',
+        mosparoPrivateKey: data.mosparoPrivateKey !== undefined ? data.mosparoPrivateKey : '',
         updatedAt: new Date(),
       };
     }
