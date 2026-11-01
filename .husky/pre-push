@@ -1,3 +1,5 @@
-# ponytail: nur die schnellen Checks (eslint + prettier, ~15s).
-# jscpd/knip laufen in der CI - lokal zu langsam bzw. brauchen node >=20.19.
+# Same checks as .github/workflows/lint.yml, so a push cannot turn CI red.
+set -e
 npm run qa
+npm run qa:cpd
+npm run qa:unused

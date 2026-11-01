@@ -17,7 +17,7 @@ const PUBLIC_QUERY_FIELDS = [
 ];
 
 // Only a query selecting nothing but public root fields runs without a token.
-export function isPublicQuery(source) {
+function isPublicQuery(source) {
   try {
     return parse(source).definitions.every(
       (definition) =>

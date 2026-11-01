@@ -1,12 +1,18 @@
 // Run: node scripts/check-authorize.js
 const assert = require('assert');
-const a = require('../src/graphql/authorize');
+const {
+  assertAllowed,
+  canAccessEvent,
+  canAccessEventAsOrganizer,
+  canReceiveAccessRights,
+  canReceiveTokenRefresh,
+} = require('../src/graphql/authorize');
 
 const owners = { event: { 1: [10, 20], 2: [30] }, eventUser: { 5: [10, 20] }, poll: { 3: [30] } };
 const lookup = async (kind, id) =>
   kind === 'isSuperOrganizer' ? Number(id) === 99 : owners[kind]?.[id] || [];
 const allowed = (name, args, user) =>
-  a.assertAllowed(name, args, user, lookup).then(
+  assertAllowed(name, args, user, lookup).then(
     () => true,
     () => false
   );
@@ -48,18 +54,18 @@ const vote = 'createBulkPollSubmitAnswer';
     assert.equal(await allowed(name, args, user), expected, `${name} ${JSON.stringify(args)}`);
   }
 
-  assert.equal(a.canReceiveTokenRefresh('7', self), true);
-  assert.equal(a.canReceiveTokenRefresh('8', self), false);
-  assert.equal(a.canReceiveTokenRefresh('1', org(1)), false);
-  assert.equal(await a.canAccessEvent(1, self, lookup), true);
-  assert.equal(await a.canAccessEvent(2, self, lookup), false);
-  assert.equal(await a.canAccessEvent(1, undefined, lookup), false);
-  assert.equal(await a.canAccessEvent(1, org(20), lookup), true);
-  assert.equal(await a.canAccessEvent(1, org(30), lookup), false);
-  assert.equal(await a.canAccessEvent(1, org(99), lookup), true);
-  assert.equal(await a.canAccessEventAsOrganizer(1, self, lookup), false);
-  assert.equal(await a.canReceiveAccessRights({ eventId: 1 }, {}, org(10), lookup), true);
-  assert.equal(await a.canReceiveAccessRights({ eventId: 2 }, {}, org(10), lookup), false);
+  assert.equal(canReceiveTokenRefresh('7', self), true);
+  assert.equal(canReceiveTokenRefresh('8', self), false);
+  assert.equal(canReceiveTokenRefresh('1', org(1)), false);
+  assert.equal(await canAccessEvent(1, self, lookup), true);
+  assert.equal(await canAccessEvent(2, self, lookup), false);
+  assert.equal(await canAccessEvent(1, undefined, lookup), false);
+  assert.equal(await canAccessEvent(1, org(20), lookup), true);
+  assert.equal(await canAccessEvent(1, org(30), lookup), false);
+  assert.equal(await canAccessEvent(1, org(99), lookup), true);
+  assert.equal(await canAccessEventAsOrganizer(1, self, lookup), false);
+  assert.equal(await canReceiveAccessRights({ eventId: 1 }, {}, org(10), lookup), true);
+  assert.equal(await canReceiveAccessRights({ eventId: 2 }, {}, org(10), lookup), false);
 
   console.log('authorize ok');
 })().catch((error) => {

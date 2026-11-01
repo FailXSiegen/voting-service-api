@@ -71,4 +71,4 @@ async function verifyMosparo({ formData, submitToken, validationToken }, setting
   }
 }
 
-module.exports = { verifyMosparo, buildRequest, DEFAULT_MOSPARO_HOST };
+module.exports = { verifyMosparo, buildRequest };
