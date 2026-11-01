@@ -110,5 +110,7 @@ dist/
 backups/
 *.sql
 *.sql.gz
+# Migrations must be committed, otherwise they fail at container start.
+!migrations/sqls/*.sql
 
 src/messages*
