@@ -18,6 +18,12 @@ import uploadMedia from '../request/media/upload-media';
 import redirectShortlink from '../request/shortlink/redirect';
 import resolveShortlink from '../request/shortlink/resolve';
 import express from 'express';
+import { canAccessEventAsOrganizer } from '../graphql/authorize';
+import { lookup } from '../graphql/authorize-lookup';
+
+// SEC-17: authenticate.js setzt req.user (JWT geprüft), hier die Rechte je Route.
+const isOrganizer = (req) => process.env.ENABLE_JWT !== '1' || req.user?.type === 'organizer';
+const forbidden = (res) => res.status(403).json({ error: 'Not authorized.' });
 
 export default function (app) {
   app.post('/login', async (req, res) => {
@@ -42,9 +48,13 @@ export default function (app) {
     await verifySlug(req, res);
   });
   app.post('/event/export-results', async (req, res) => {
+    if (!(await canAccessEventAsOrganizer(req.body?.eventId, req.user, lookup)))
+      return forbidden(res);
     await downloadPollResultCsv(req, res);
   });
   app.get('/event/:eventId/export-vote-adjustments', async (req, res) => {
+    if (!(await canAccessEventAsOrganizer(req.params.eventId, req.user, lookup)))
+      return forbidden(res);
     await downloadVoteAdjustmentsCsv(req, res);
   });
   app.post('/organizer/validate-hash', async (req, res) => {
@@ -63,12 +73,15 @@ export default function (app) {
     await createOrganizer(req, res);
   });
   app.post('/cleanup', async (req, res) => {
+    if (!isOrganizer(req) || !(await lookup('isSuperOrganizer', req.user?.id)))
+      return forbidden(res);
     await cleanUp(req, res);
   });
   app.post('/zoom/auth/token', zoomAuthToken);
 
   // Media Upload und Verwaltung
   app.post('/media/upload', async (req, res) => {
+    if (!isOrganizer(req)) return forbidden(res);
     await uploadMedia(req, res);
   });
 

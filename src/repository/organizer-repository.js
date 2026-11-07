@@ -19,6 +19,10 @@ export async function findOneById(id) {
 }
 
 export async function findOneByHash(hash) {
+  // SEC-09/13: leerer Hash (nach Reset gesetzt) oder Objekt im JSON-Body darf nie treffen.
+  if (typeof hash !== 'string' || !/^[a-f0-9]{32,128}$/i.test(hash)) {
+    return null;
+  }
   const result = await query('SELECT * FROM organizer WHERE hash = ?', [hash]);
   const organizer = Array.isArray(result) ? result[0] || null : null;
   return enrichRelations(organizer);
