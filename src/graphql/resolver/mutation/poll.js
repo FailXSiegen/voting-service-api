@@ -73,10 +73,8 @@ export default {
     const possibleAnswers = args.input.possibleAnswers;
     delete poll.possibleAnswers;
     const pollId = poll.id;
-    await updatePoll(poll);
-    for await (const answerInput of possibleAnswers) {
-      await createPossibleAnswer({ pollId, content: answerInput.content });
-    }
+    // Prüft SEC-29 (gesperrt nach Start/Stimmabgabe) und schreibt alles in einer Transaktion.
+    await updatePoll(poll, possibleAnswers);
     const pollRecord = await findOneById(pollId);
 
     // Lade die möglichen Antworten für das vollständige Poll-Objekt

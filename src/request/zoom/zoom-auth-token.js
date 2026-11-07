@@ -1,54 +1,51 @@
-import KJUR from 'jsrsasign';
 import * as jwt from 'jsonwebtoken';
 import { findById as findOneEventById } from '../../repository/event-repository';
 import { findOneById as findOneZoomMeetingById } from '../../repository/meeting/zoom-meeting-repository';
+import { VideoConferenceType } from '../../enum';
 
-// todo: refactor this!
-export default async function (req, res) {
+// SEC-19: Nutzer aus dem verifizierten JWT (authenticate.js setzt req.user samt eventId aus der DB),
+// Event und Meeting serverseitig, Rolle immer Teilnehmer (0).
+// SEC-41: Meeting-Nummer und Passwort kommen mit, damit der Client sie nicht im Cookie halten muss.
+export default async function zoomAuthToken(req, res) {
   try {
-    const { sdkKey, sdkSecret } = await fetchZoomMeetingRecordByAuthHeader(
-      req.headers.authorization
-    );
+    if (req.user?.type !== 'event-user' || !req.user.eventId) {
+      return res.status(403).json({ success: false, error: 'Not authorized.' });
+    }
+    const event = await findOneEventById(req.user.eventId);
+    const config = event?.videoConferenceConfig ? JSON.parse(event.videoConferenceConfig) : null;
+    if (!config || Number(config.type) !== VideoConferenceType.ZOOM) {
+      return res.status(404).json({ success: false, error: 'No zoom meeting.' });
+    }
+    const meeting = await findOneZoomMeetingById(config.id);
+    if (!meeting?.sdkKey || !meeting?.sdkSecret) {
+      return res.status(404).json({ success: false, error: 'No zoom meeting.' });
+    }
+    const meetingNumber = String(config.credentials?.meetingId ?? config.credentials?.id ?? '');
 
-    const iat = Math.round(new Date().getTime() / 1000) - 30;
+    const iat = Math.round(Date.now() / 1000) - 30;
     const exp = iat + 60 * 60 * 2;
-    const header = JSON.stringify({ alg: 'HS256', typ: 'JWT' });
-    const payload = JSON.stringify({
-      sdkKey,
-      mn: req.body.meetingNumber,
-      role: req.body.role,
-      iat: iat,
-      exp: exp,
-      appKey: sdkKey,
-      tokenExp: iat + 60 * 60 * 2,
-    });
+    const signature = jwt.sign(
+      {
+        sdkKey: meeting.sdkKey,
+        appKey: meeting.sdkKey,
+        mn: meetingNumber,
+        role: 0,
+        iat,
+        exp,
+        tokenExp: exp,
+      },
+      meeting.sdkSecret,
+      { algorithm: 'HS256' }
+    );
 
     res.json({
       success: true,
-      signature: KJUR.jws.JWS.sign('HS256', header, payload, sdkSecret),
+      signature,
+      meetingNumber,
+      password: config.credentials?.password ?? '',
     });
   } catch (error) {
-    res.json({
-      success: false,
-      error,
-    });
+    console.error('zoom auth token:', error.message);
+    res.status(500).json({ success: false });
   }
-}
-
-/**
- * todo add errors!
- * @param {string} authHeader
- * @returns {object}
- */
-async function fetchZoomMeetingRecordByAuthHeader(authHeader) {
-  const token = authHeader.split(' ')[1] || '';
-  const decodedToken = jwt.decode(token);
-  const eventId = decodedToken?.user?.eventId;
-
-  const event = await findOneEventById(parseInt(eventId, 10));
-  const videoConferenceConfig = JSON.parse(event.videoConferenceConfig);
-
-  const zoomMeetingRecord = await findOneZoomMeetingById(videoConferenceConfig.id);
-
-  return zoomMeetingRecord;
 }

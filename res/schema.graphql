@@ -137,6 +137,8 @@ type Mutation {
   deleteEventUser(eventUserId: ID!): Boolean
   # Updates an event user.
   updateEventUser(input: UpdateEventUserInput!): EventUser!
+  # Login-Shortcode eines Teilnehmers (Organizer des Events), legt ihn bei Bedarf an.
+  createEventUserShortlink(eventUserId: ID!): String!
   # Updates an event user to guest (verfied: true, allowToVote: false).
   updateUserToGuest(eventUserId: ID!): EventUser!
   # Updates an event user to participant (verfied: true, allowToVote: true).
@@ -144,7 +146,6 @@ type Mutation {
   # Transfers votes from one event user to another.
   transferVotes(input: TransferVotesInput!): TransferVotesResult!
   # Creates a pollUserVoted entry for each voting cycle an eventuser has
-  createPollUserVoted(input: PollUserVotedInput!): Boolean
   # Creates a new zoom meeting.
   createZoomMeeting(input: CreateZoomMeetingInput!): ZoomMeeting!
   # Updates a zoom meeting.
@@ -210,13 +211,15 @@ type Organizer {
   createDatetime: Int!
   username: String!
   email: String!
-  password: String!
+  # SEC-15: wird nie ausgeliefert (immer null), bleibt nur für bestehende Client-Queries im Schema.
+  password: String
   publicName: String!
   publicOrganisation: String
   events: [Event]
   confirmedEmail: Boolean!
   superAdmin: Boolean!
   verified: Boolean!
+  # SEC-15: wird nie ausgeliefert (immer null).
   hash: String
   zoomMeetings: [ZoomMeeting]
   jitsiMeetings: [JitsiMeeting]
@@ -365,7 +368,8 @@ type ZoomMeeting {
   id: ID!
   title: String!
   sdkKey: String!
-  sdkSecret: String!
+  # Nur für den besitzenden Organizer bzw. Super-Admin, sonst null.
+  sdkSecret: String
   meetingId: String
   password: String
 }
@@ -389,6 +393,8 @@ input CreateOrganizerInput {
 }
 input UpdateOrganizerInput {
   id: ID!
+  # SEC-39: Pflicht, wenn das eigene Passwort oder die eigene E-Mail geändert wird.
+  currentPassword: String
   email: String
   password: String
   publicName: String
@@ -519,12 +525,6 @@ input PollSubmitAnswerInput {
   browserInstanceId: String
   isLastAnswerInBallot: Boolean
 }
-input PollUserVotedInput {
-  pollResultId: ID!
-  eventUserId: ID!
-  voteCycle: Int!
-}
-
 input BulkPollSubmitAnswerInput {
   pollId: ID!
   eventUserId: ID!
@@ -548,7 +548,8 @@ input CreateZoomMeetingInput {
   organizerId: ID!
   title: String!
   sdkKey: String!
-  sdkSecret: String!
+  # Nur für den besitzenden Organizer bzw. Super-Admin, sonst null.
+  sdkSecret: String
 }
 input UpdateZoomMeetingInput {
   id: ID!

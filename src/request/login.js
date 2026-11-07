@@ -1,15 +1,20 @@
 import loginOrganizer from '../auth/login/login-organizer';
 import { loginEventUser } from '../auth/login/login-event-user';
+import { setRefreshCookie } from '../auth/login/session';
+
+// Fehler, die der Client gezielt anzeigt. Alles andere wird zu "ungültige Zugangsdaten",
+// damit sich Benutzernamen nicht enumerieren lassen (SEC-38) und keine Interna rausgehen.
+const EVENT_ERRORS = [
+  'EventNotFoundError',
+  'InactiveEventLoginError',
+  'InvalidAnonymousLoginError',
+];
 
 export default async function loginRequest(req, res) {
   res.setHeader('content-type', 'application/json');
   try {
-    const requestArguments = req.body;
-    if (!requestArguments.loginType) {
-      // throw missing loginType argument error
-      throw new Error('Missing loginType');
-    }
-    let result = {};
+    const requestArguments = req.body || {};
+    let result;
     switch (requestArguments.loginType) {
       case 'organizer':
         result = await loginOrganizer(requestArguments);
@@ -18,16 +23,11 @@ export default async function loginRequest(req, res) {
         result = await loginEventUser(requestArguments);
         break;
       default:
-        throw new Error('Invalid loginTyp');
+        throw new Error('Invalid loginType');
     }
 
     res.status(201);
-    res.cookie('refreshToken', result.refreshToken, {
-      maxAge: 86400 * 30 * 1000, // Lasts 30 days.
-      httpOnly: true,
-      signed: true,
-      secure: process.env.NODE_ENV === 'production',
-    });
+    setRefreshCookie(res, result.refreshToken);
     res.send(
       JSON.stringify({
         succes: true,
@@ -36,41 +36,17 @@ export default async function loginRequest(req, res) {
       })
     );
   } catch (error) {
-    console.error('Login error:', error);
-
-    let errorMessage = 'Login failed';
-    let errorCode = 'UNKNOWN_ERROR';
-
-    if (
-      error.constructor.name === 'AuthenticationError' ||
-      (error.constructor.name === 'ApolloError' && error.message === 'Not authorized.')
-    ) {
-      errorMessage = 'Invalid username or password';
-      errorCode = 'INVALID_CREDENTIALS';
-    } else if (error.message && error.message.includes('Could not find organizer')) {
-      errorMessage = 'User not found or not verified';
-      errorCode = 'USER_NOT_FOUND';
-    } else if (error.message && error.message.includes('Missing loginType')) {
-      errorMessage = 'Login type is required';
-      errorCode = 'MISSING_LOGIN_TYPE';
-    } else if (error.message && error.message.includes('Invalid loginTyp')) {
-      errorMessage = 'Invalid login type';
-      errorCode = 'INVALID_LOGIN_TYPE';
-    } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
-      errorMessage = 'Database connection error';
-      errorCode = 'DATABASE_ERROR';
-    } else if (error.message) {
-      errorMessage = error.message;
-      errorCode = 'GENERAL_ERROR';
+    const name = EVENT_ERRORS.includes(error?.name) ? error.name : 'AuthenticationError';
+    if (name === 'AuthenticationError' && error?.name !== 'AuthenticationError') {
+      console.error('Login error:', error?.message);
     }
-
     res.send(
       JSON.stringify({
         succes: false,
         error: {
-          message: errorMessage,
-          code: errorCode,
-          type: error.constructor.name || 'Error',
+          name,
+          message: name === 'AuthenticationError' ? 'Invalid username or password' : error.message,
+          code: name === 'AuthenticationError' ? 'INVALID_CREDENTIALS' : name,
         },
       })
     );

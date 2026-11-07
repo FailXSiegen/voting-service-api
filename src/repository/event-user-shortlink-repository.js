@@ -12,6 +12,13 @@ export async function findOneByShortCode(shortCode) {
   return Array.isArray(result) ? result[0] || null : null;
 }
 
+export async function findOneByEventUserId(eventUserId) {
+  const result = await query('SELECT * FROM event_user_shortlink WHERE event_user_id = ?', [
+    eventUserId,
+  ]);
+  return Array.isArray(result) ? result[0] || null : null;
+}
+
 /**
  * @param {number} eventUserId
  * @param {number} eventId

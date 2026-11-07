@@ -6,52 +6,46 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const mediaRepository = require('../../repository/media/media-repository');
 
-// Konfiguration für Multer (Datei-Upload)
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Verwende Umgebungsvariable für Upload-Pfad oder das persistente Upload-Volume
-    const uploadBasePath = process.env.UPLOAD_BASE_PATH || '/app/uploads';
-
-    // Erstelle vollständigen Pfad mit images
-    const uploadDir = path.join(uploadBasePath, 'images');
-
-    // Stelle sicher, dass das Verzeichnis existiert
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    cb(null, uploadDir);
+// SEC-20: Typ und Endung ausschließlich aus den Magic Bytes; kein SVG/HTML.
+const SIGNATURES = [
+  {
+    ext: 'png',
+    mime: 'image/png',
+    test: (b) => b.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')),
   },
-  filename: function (req, file, cb) {
-    // Generiere eindeutigen Dateinamen mit UUID und behalte die Originaldateiendung
-    const fileExt = path.extname(file.originalname);
-    const fileName = `${uuidv4()}${fileExt}`;
-    cb(null, fileName);
+  { ext: 'jpg', mime: 'image/jpeg', test: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  {
+    ext: 'gif',
+    mime: 'image/gif',
+    test: (b) => /^GIF8[79]a$/.test(b.subarray(0, 6).toString('latin1')),
   },
-});
+  {
+    ext: 'webp',
+    mime: 'image/webp',
+    test: (b) =>
+      b.subarray(0, 4).toString('latin1') === 'RIFF' &&
+      b.subarray(8, 12).toString('latin1') === 'WEBP',
+  },
+];
 
-// Upload-Filter: Nur Bilder erlauben
-const fileFilter = (req, file, cb) => {
-  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+const detectImage = (buffer) =>
+  buffer && buffer.length >= 12
+    ? SIGNATURES.find((signature) => signature.test(buffer))
+    : undefined;
 
-  if (allowedMimeTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Nur Bilddateien sind erlaubt (JPEG, PNG, GIF, WebP, SVG)'), false);
-  }
-};
-
-// Größenlimit: 5MB
-const limits = {
-  fileSize: 5 * 1024 * 1024,
-};
-
-// Multer-Upload-Funktion mit Konfiguration
 const upload = multer({
-  storage,
-  fileFilter,
-  limits,
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 5 },
 }).single('file');
+
+const uploadDir = () => path.join(process.env.UPLOAD_BASE_PATH || '/app/uploads', 'images');
+
+// Originalname nur als Anzeige-Metadatum, ohne Pfadanteile/Steuerzeichen.
+const displayName = (name) =>
+  path
+    .basename(String(name || 'upload'))
+    .replace(/[^\p{L}\p{N}._ -]/gu, '_')
+    .slice(0, 200);
 
 /**
  * Handler für Media-Upload
@@ -59,41 +53,39 @@ const upload = multer({
  * @param {Object} res - Express Response
  */
 module.exports = async function (req, res) {
-  // Multer-Upload durchführen
   upload(req, res, async (err) => {
     if (err) {
-      console.error('Upload error:', err);
-      return res.status(400).json({
-        error: true,
-        message: err.message || 'Fehler beim Hochladen der Datei',
-      });
+      const message =
+        err.code === 'LIMIT_FILE_SIZE' ? 'Datei ist zu groß (max. 5 MB)' : 'Fehler beim Hochladen';
+      return res.status(400).json({ error: true, message });
     }
 
     try {
-      // Wenn keine Datei vorhanden
       if (!req.file) {
+        return res.status(400).json({ error: true, message: 'Keine Datei ausgewählt' });
+      }
+
+      const type = detectImage(req.file.buffer);
+      if (!type) {
         return res.status(400).json({
           error: true,
-          message: 'Keine Datei ausgewählt',
+          message: 'Nur Bilddateien sind erlaubt (JPEG, PNG, GIF, WebP)',
         });
       }
 
-      // Pfad für den Client - über den /uploads Endpunkt des Servers erreichbar
-      const clientPath = `/uploads/images/${req.file.filename}`;
+      const dir = uploadDir();
+      await fs.promises.mkdir(dir, { recursive: true });
+      const fileName = `${uuidv4()}.${type.ext}`;
+      await fs.promises.writeFile(path.join(dir, fileName), req.file.buffer, { flag: 'wx' });
 
-      // Speichere in der Datenbank die Metadaten
-      const mediaData = {
-        filename: req.file.originalname,
-        path: clientPath,
-        mimeType: req.file.mimetype,
+      const savedMedia = await mediaRepository.create({
+        filename: displayName(req.file.originalname),
+        path: `/uploads/images/${fileName}`,
+        mimeType: type.mime,
         fileSize: req.file.size,
         createdBy: req.user?.organizer?.id || null,
-      };
+      });
 
-      // Speichere in Datenbank
-      const savedMedia = await mediaRepository.create(mediaData);
-
-      // Erfolgreiche Antwort mit Daten für den Client
       return res.status(200).json({
         id: savedMedia.id,
         filename: savedMedia.filename,
@@ -103,7 +95,7 @@ module.exports = async function (req, res) {
         uploadedAt: savedMedia.createdAt,
       });
     } catch (error) {
-      console.error('Media upload error:', error);
+      console.error('Media upload error:', error.message);
       return res.status(500).json({
         error: true,
         message: 'Serverfehler beim Verarbeiten des Uploads',

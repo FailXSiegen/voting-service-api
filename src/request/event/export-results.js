@@ -10,42 +10,40 @@ import {
 } from '../../repository/event-user-shortlink-repository';
 import { findById as findEventById } from '../../repository/event-repository';
 import { generateUniqueShortCode } from '../../lib/shortlink-generator';
-import * as fs from 'fs';
 import * as fastcsv from 'fast-csv';
-import path from 'path';
+
+const EXPORTS = {
+  pollOverview: getPollOverview,
+  pollResults: getPollResults,
+  pollResultsDetail: getPollResultsDetails,
+  pollEventUsersVoted: getEventUsersWithVoteCount,
+  eventUsersWithShortlinks: (eventId) => getEventUsersWithShortlinks(eventId),
+};
+
+// SEC-31: Zellen, die Excel/LibreOffice als Formel lesen würde, entschärfen.
+const neutralizeFormula = (value) =>
+  typeof value === 'string' && /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 
 export default async function downloadPollResultCsv(req, res) {
   try {
-    const data = req.body;
-    const generatedfilename = data.eventId + data.exportType + '.csv';
-    const relPath = generatedfilename;
-    const absPath = path.join(__dirname, '../../../', generatedfilename);
-    let responseData = '';
-    switch (data.exportType) {
-      case 'pollOverview':
-        responseData = await getPollOverview(data.eventId);
-        break;
-      case 'pollResults':
-        responseData = await getPollResults(data.eventId);
-        break;
-      case 'pollResultsDetail':
-        responseData = await getPollResultsDetails(data.eventId);
-        break;
-      case 'pollEventUsersVoted':
-        responseData = await getEventUsersWithVoteCount(data.eventId);
-        break;
-      case 'eventUsersWithShortlinks':
-        responseData = await getEventUsersWithShortlinks(data.eventId);
-        break;
+    const { eventId, exportType } = req.body || {};
+    // SEC-31: Typ aus Whitelist, eventId nur numerisch – nichts davon landet in einem Dateipfad.
+    if (!/^\d+$/.test(String(eventId)) || !Object.hasOwn(EXPORTS, exportType)) {
+      res.status(400);
+      return res.send(JSON.stringify({ error: 'Invalid export', success: false }));
     }
-    exportFile(relPath, absPath, responseData, res);
-  } catch (error) {
-    res.send(
-      JSON.stringify({
-        error: error.message,
-        success: false,
-      })
+    const rows = (await EXPORTS[exportType](eventId)) || [];
+    const safeRows = rows.map((row) =>
+      Object.fromEntries(Object.entries(row).map(([key, value]) => [key, neutralizeFormula(value)]))
     );
+    res.attachment(`${eventId}${exportType}.csv`);
+    res.type('text/csv; charset=utf-8');
+    // Direkt in die Antwort streamen, keine temporäre Datei.
+    fastcsv.write(safeRows, { headers: true, delimiter: ';', quote: true }).pipe(res);
+  } catch (error) {
+    console.error('export-results:', error.message);
+    res.status(500);
+    res.send(JSON.stringify({ error: 'Export failed', success: false }));
   }
 }
 
@@ -81,16 +79,4 @@ async function getEventUsersWithShortlinks(eventId) {
   }
 
   return results;
-}
-
-function exportFile(relPath, absPath, responseData, res) {
-  const ws = fs.createWriteStream(relPath);
-  fastcsv.write(responseData, { headers: true, delimiter: ';', quote: true }).pipe(ws);
-  ws.on('finish', () => {
-    res.download(absPath, function () {
-      fs.unlink(absPath, (error) => {
-        console.error(error);
-      });
-    });
-  });
 }

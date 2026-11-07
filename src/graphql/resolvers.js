@@ -9,10 +9,10 @@ import jitsiMeetingQueries from './resolver/queries/jitsi-meeting';
 import organizerMutations from './resolver/mutation/organizer';
 import eventMutations from './resolver/mutation/event';
 import eventUserMutations from './resolver/mutation/event-user';
+import eventUserShortlinkMutations from './resolver/mutation/event-user-shortlink';
 import pollMutations from './resolver/mutation/poll';
 import pollResultMutations from './resolver/mutation/poll-result';
 import pollAnswerMutations from './resolver/mutation/poll-answer';
-import pollUserVotedMutations from './resolver/mutation/poll-user-voted';
 import zoomMeetingMutations from './resolver/mutation/zoom-meeting';
 import jitsiMeetingMutations from './resolver/mutation/jitsi-meeting';
 import eventUserAuthTokenMutations from './resolver/mutation/event-user-auth-token';
@@ -29,6 +29,7 @@ import poolAnswerSubscriptionResolvers from './resolver/subscription/poll-answer
 import votingDetailsSubscriptionResolvers from './resolver/subscription/voting-details';
 import { protectMutations } from './authorize';
 import { lookup } from './authorize-lookup';
+import { protectQueries, organizerFieldGuards, zoomMeetingFieldGuards } from './authorize-queries';
 const staticContentResolvers = require('./resolver/static-content-resolver');
 const pageSlugResolvers = require('./resolver/page-slug-resolver');
 const mediaResolvers = require('./resolver/media-resolver');
@@ -40,21 +41,24 @@ export default {
     ZOOM: 1,
     JITSI: 2,
   },
-  Query: {
-    ...eventQueries,
-    ...eventUserQueries,
-    ...pollQueries,
-    ...pollResultQueries,
-    ...cachedPollResultQueries,
-    ...organizerQueries,
-    ...zoomMeetingQueries,
-    ...jitsiMeetingQueries,
-    ...staticContentResolvers.Query,
-    ...pageSlugResolvers.Query,
-    ...mediaResolvers.Query,
-    ...systemSettingsResolvers.Query,
-    ...translationsResolvers.Query,
-  },
+  Query: protectQueries(
+    {
+      ...eventQueries,
+      ...eventUserQueries,
+      ...pollQueries,
+      ...pollResultQueries,
+      ...cachedPollResultQueries,
+      ...organizerQueries,
+      ...zoomMeetingQueries,
+      ...jitsiMeetingQueries,
+      ...staticContentResolvers.Query,
+      ...pageSlugResolvers.Query,
+      ...mediaResolvers.Query,
+      ...systemSettingsResolvers.Query,
+      ...translationsResolvers.Query,
+    },
+    lookup
+  ),
   Mutation: protectMutations(
     {
       ...organizerMutations,
@@ -63,7 +67,7 @@ export default {
       ...pollResultMutations,
       ...pollAnswerMutations,
       ...eventUserMutations,
-      ...pollUserVotedMutations,
+      ...eventUserShortlinkMutations,
       ...zoomMeetingMutations,
       ...jitsiMeetingMutations,
       ...eventUserAuthTokenMutations,
@@ -90,7 +94,9 @@ export default {
   },
   Organizer: {
     ...organizerResolvers,
+    ...organizerFieldGuards,
   },
+  ZoomMeeting: zoomMeetingFieldGuards(lookup),
   PollResult: {
     ...pollResultResolvers,
   },

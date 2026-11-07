@@ -31,13 +31,6 @@ export async function findEventIdByPollResultId(pollResultId) {
   return Array.isArray(result) ? result[0].eventId || null : null;
 }
 
-export async function getMultivoteType(eventId) {
-  const result = await query('SELECT event.multivote_type FROM event WHERE event.id = ?', [
-    eventId,
-  ]);
-  return Array.isArray(result) ? result[0].multivoteType : 1;
-}
-
 export async function isAsyncEventStarted(eventId) {
   const result = await query('SELECT async, scheduled_datetime FROM event WHERE id = ?', [eventId]);
   if (!Array.isArray(result) || result.length === 0) return true; // Default: allow

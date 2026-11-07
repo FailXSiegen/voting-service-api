@@ -13,6 +13,7 @@ import cleanUp from '../request/cleanup';
 import fetchEventById from '../request/event/fetch-event';
 import activateEventUserAuthToken from '../request/login/activate-event-user-auth-token';
 import loginByEventUserAuthToken from '../request/login/login-by-event-user-auth-token';
+import loginByShortlink from '../request/login/login-by-shortlink';
 import zoomAuthToken from '../request/zoom/zoom-auth-token';
 import uploadMedia from '../request/media/upload-media';
 import redirectShortlink from '../request/shortlink/redirect';
@@ -41,6 +42,9 @@ export default function (app) {
   app.post('/login/event-user-auth-token', async (req, res) => {
     await loginByEventUserAuthToken(req, res);
   });
+  app.post('/login/shortlink', async (req, res) => {
+    await loginByShortlink(req, res);
+  });
   app.get('/event/:id', async (req, res) => {
     await fetchEventById(req, res);
   });
@@ -66,7 +70,11 @@ export default function (app) {
   app.post('/organizer/update-password', async (req, res) => {
     await updateOrganizerPassword(req, res);
   });
+  // SEC-44: POST bevorzugt; GET bleibt für den bestehenden Client, beide nur vom eigenen Site.
   app.get('/logout', async (req, res) => {
+    await logoutRequest(req, res);
+  });
+  app.post('/logout', async (req, res) => {
     await logoutRequest(req, res);
   });
   app.post('/organizer/create', async (req, res) => {
@@ -77,17 +85,41 @@ export default function (app) {
       return forbidden(res);
     await cleanUp(req, res);
   });
-  app.post('/zoom/auth/token', zoomAuthToken);
+  app.post('/zoom/auth/token', async (req, res) => {
+    await zoomAuthToken(req, res);
+  });
 
   // Media Upload und Verwaltung
+  // SEC-20: nur Organizer mit CMS-Recht (canEditContent) oder Super-Admin.
   app.post('/media/upload', async (req, res) => {
-    if (!isOrganizer(req)) return forbidden(res);
+    const organizer = req.user?.organizer;
+    if (
+      process.env.ENABLE_JWT === '1' &&
+      !(isOrganizer(req) && (organizer?.canEditContent || organizer?.superAdmin))
+    ) {
+      return forbidden(res);
+    }
     await uploadMedia(req, res);
   });
 
-  // Static file serving für uploads (über persistentes Volume)
+  // Static file serving für uploads (über persistentes Volume).
+  // SEC-20: kein MIME-Sniffing, und falls doch HTML/SVG im Verzeichnis liegt: Sandbox ohne Skripte.
   const uploadBasePath = process.env.UPLOAD_BASE_PATH || '/app/uploads';
-  app.use('/uploads', express.static(uploadBasePath));
+  app.use(
+    '/uploads',
+    express.static(uploadBasePath, {
+      index: false,
+      dotfiles: 'deny',
+      redirect: false,
+      setHeaders: (res) => {
+        res.set('X-Content-Type-Options', 'nosniff');
+        res.set(
+          'Content-Security-Policy',
+          "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+        );
+      },
+    })
+  );
 
   // Shortlink API endpoint - returns JSON data for frontend to handle redirect
   app.get('/api/shortlink/:shortCode', async (req, res) => {

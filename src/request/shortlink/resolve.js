@@ -6,9 +6,12 @@ export default async function resolveShortlink(req, res) {
   res.setHeader('content-type', 'application/json');
   try {
     const { shortCode } = req.params;
+    res.set('Cache-Control', 'no-store');
 
     // Find the shortlink in database
-    const shortlink = await findOneByShortCode(shortCode);
+    const shortlink = /^[a-z0-9]{4,32}$/.test(shortCode)
+      ? await findOneByShortCode(shortCode)
+      : null;
     if (!shortlink) {
       res.status(404);
       return res.send(

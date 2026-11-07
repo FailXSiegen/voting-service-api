@@ -18,12 +18,15 @@ export async function findOneById(id) {
   return enrichRelations(organizer);
 }
 
-export async function findOneByHash(hash) {
-  // SEC-09/13: leerer Hash (nach Reset gesetzt) oder Objekt im JSON-Body darf nie treffen.
-  if (typeof hash !== 'string' || !/^[a-f0-9]{32,128}$/i.test(hash)) {
+// SEC-10: nur feste Spalten (kein Spaltenname aus Eingaben).
+const TOKEN_HASH_COLUMNS = { optinToken: 'optin_token_hash', resetToken: 'reset_token_hash' };
+
+export async function findOneByTokenHash(column, tokenHash) {
+  const sqlColumn = TOKEN_HASH_COLUMNS[column];
+  if (!sqlColumn || typeof tokenHash !== 'string' || !/^[a-f0-9]{64}$/.test(tokenHash)) {
     return null;
   }
-  const result = await query('SELECT * FROM organizer WHERE hash = ?', [hash]);
+  const result = await query(`SELECT * FROM organizer WHERE ${sqlColumn} = ?`, [tokenHash]);
   const organizer = Array.isArray(result) ? result[0] || null : null;
   return enrichRelations(organizer);
 }

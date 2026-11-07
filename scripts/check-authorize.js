@@ -29,6 +29,8 @@ const vote = 'createBulkPollSubmitAnswer';
     [false, vote, { input: {} }, self],
     [false, 'transferVotes', { input: { sourceUserId: 5 } }, self],
     [false, vote, { input: { eventUserId: '7' } }, undefined],
+    // SEC-08: Super-Admin darf nicht im Namen eines Wählers abstimmen.
+    [false, vote, { input: { eventUserId: '7' } }, org(99, { superAdmin: 1 })],
     // Transferred event: current (10) and original (20) organizer, nobody else.
     [true, 'transferVotes', { input: { sourceUserId: 5 } }, org(10)],
     [true, 'transferVotes', { input: { sourceUserId: 5 } }, org(20)],

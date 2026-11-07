@@ -1,5 +1,6 @@
 import { create, findOneByUsername } from '../../repository/organizer-repository';
-import { generateAndSetOrganizerHash } from '../../lib/organizer/optin-util';
+import { TOKEN_PURPOSE, issueOrganizerToken } from '../../lib/organizer/optin-util';
+import { assertPasswordPolicy, clientBaseUrl } from '../../server/security';
 import mailer from '../../lib/email-util';
 import { verifyMosparo } from '../../lib/mosparo';
 import SystemSettingsRepository from '../../repository/system-settings-repository';
@@ -7,8 +8,13 @@ import SystemSettingsRepository from '../../repository/system-settings-repositor
 export default async function createOrganizer(req, res) {
   res.setHeader('content-type', 'application/json');
   try {
-    const origin = req.get('origin');
-    const organizerArguments = req.body;
+    const organizerArguments = req.body || {};
+    // SEC-13: nur Strings.
+    const fields = ['username', 'email', 'password', 'publicName', 'publicOrganisation'];
+    if (fields.some((field) => typeof organizerArguments[field] !== 'string')) {
+      throw new Error('Invalid input');
+    }
+    assertPasswordPolicy(organizerArguments.password);
 
     const captcha = await verifyMosparo(
       {
@@ -29,9 +35,8 @@ export default async function createOrganizer(req, res) {
     }
 
     if ((await findOneByUsername(organizerArguments.username)) !== null) {
-      throw new Error(
-        'organizer with the following username already exists: ' + organizerArguments.username
-      );
+      // Bewusst sichtbar (Nutzer muss einen anderen Namen wählen); Enumeration bremsen Captcha + Rate-Limit.
+      throw new Error('Username already exists');
     }
     const organizerId = await create({
       username: organizerArguments.username,
@@ -46,8 +51,8 @@ export default async function createOrganizer(req, res) {
       );
     }
 
-    const fakeOrganizer = { id: organizerId };
-    const hash = await generateAndSetOrganizerHash(fakeOrganizer);
+    const hash = await issueOrganizerToken(organizerId, TOKEN_PURPOSE.OPTIN);
+    const origin = clientBaseUrl();
     await mailer.sendMail({
       from: process.env.MAIL_DEFAULT_FROM,
       to: organizerArguments.email,
@@ -56,7 +61,7 @@ export default async function createOrganizer(req, res) {
       template: 'validate-email',
       ctx: {
         username: organizerArguments.username,
-        publicname: organizerArguments.publicname,
+        publicname: organizerArguments.publicName,
         host: origin,
         hash: hash,
         link: origin + '/register/' + hash,

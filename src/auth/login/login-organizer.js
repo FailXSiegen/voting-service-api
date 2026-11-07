@@ -1,32 +1,20 @@
 import { findOneByUsername } from '../../repository/organizer-repository';
 import AuthenticationError from '../../errors/AuthenticationError';
-import { generateJwt } from '../../lib/jwt-auth';
-import * as jwt from 'jsonwebtoken';
+import { verify } from '../../lib/crypto';
 import { addRefreshToken } from './refresh-token';
-import verifyPassword from './login-verify-password';
+import { signSession } from './session';
 
 export default async function loginOrganizer({ username, password }) {
-  // Fetch organizer record.
-  const organizer = await findOneByUsername(username);
-  if (!organizer || !organizer.verified) {
-    throw new Error(
-      'Could not find organizer with the following email or is not yet verified: ' + username
-    );
-  }
-  // validate password
-  const passwordIsValid = await verifyPassword(username, password);
-  if (!passwordIsValid) {
+  if (typeof username !== 'string' || typeof password !== 'string') {
     throw new AuthenticationError();
   }
-  // Create jwt and refresh token.
+  const organizer = await findOneByUsername(username);
+  // SEC-38: unbekannter Nutzer, nicht freigeschaltet und falsches Passwort sehen gleich aus.
+  const passwordIsValid = organizer ? await verify(password, organizer.password) : false;
+  if (!organizer || !organizer.verified || !passwordIsValid) {
+    throw new AuthenticationError();
+  }
   const refreshToken = await addRefreshToken('organizer', organizer.id);
-  const claims = {
-    user: { id: organizer.id, type: 'organizer' },
-    role: 'organizer',
-    // Für Organizer fügen wir keine eventUserId hinzu, da diese nicht existiert
-    organizerId: organizer.id, // Stattdessen setzen wir die organizerId für WebSocket-Auth
-  };
-  const token = await generateJwt(claims);
-  const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
+  const { token, decodedToken } = await signSession('organizer', organizer);
   return { token, decodedToken, refreshToken };
 }

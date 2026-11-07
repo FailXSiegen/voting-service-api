@@ -1,157 +1,147 @@
 /* global Promise */
-import { findOneById, update, addPollHint } from '../../../repository/event-user-repository';
+import { findOneById, addPollHint } from '../../../repository/event-user-repository';
 import { pubsub } from '../../../server/graphql';
 import { UPDATE_EVENT_USER_ACCESS_RIGHTS } from '../subscription/subscription-types';
-import { findActivePoll } from '../../../repository/poll/poll-result-repository';
-import { query } from '../../../lib/database';
+import { withTransaction } from '../../../lib/database';
 import { logVoteTransfer } from '../../../lib/vote-adjustment-logger.js';
-// import { getAuditLogger, ACTION_TYPES, PRIVACY_LEVELS } from "../../../lib/audit-logger.js"; // TEMPORARILY DISABLED
+
+const toPositiveInt = (value) => {
+  const number = typeof value === 'string' ? Number(value) : value;
+  return Number.isSafeInteger(number) && number > 0 ? number : null;
+};
+
+/**
+ * SEC-30: Übertragung atomar – beide Wähler gesperrt (feste Reihenfolge gegen Deadlocks),
+ * bedingte Updates, Protokolleintrag in derselben Transaktion. Die Stimmabgabe sperrt dieselbe
+ * event_user-Zeile, daher kann zwischen Prüfung des Restkontingents und Übertragung niemand
+ * abstimmen.
+ */
+async function transferInTransaction({ sourceUserId, targetUserId, voteAmount, organizerId }) {
+  return withTransaction(async (tx) => {
+    const locked = await tx.query(
+      `SELECT id, event_id, username, public_name, verified, vote_amount
+       FROM event_user WHERE id IN (?, ?) ORDER BY id FOR UPDATE`,
+      [sourceUserId, targetUserId]
+    );
+    const source = locked.find((row) => row.id === sourceUserId);
+    const target = locked.find((row) => row.id === targetUserId);
+
+    if (!source || !target) {
+      throw new Error('One or both users not found');
+    }
+    if (source.eventId !== target.eventId) {
+      throw new Error('Users must belong to the same event');
+    }
+    if (!source.verified || !target.verified) {
+      throw new Error('Both users must be verified');
+    }
+    if (source.voteAmount < voteAmount) {
+      throw new Error('Source user does not have enough votes');
+    }
+
+    // In laufenden Abstimmungen bereits abgegebene Stimmen dürfen nicht erneut abgegeben werden.
+    const [used] = await tx.query(
+      `SELECT COALESCE(MAX(puv.vote_cycle), 0) AS used
+       FROM poll_user_voted puv
+       INNER JOIN poll_result pr ON pr.id = puv.poll_result_id
+       WHERE puv.event_user_id = ? AND pr.closed = 0`,
+      [sourceUserId]
+    );
+    const usedVotes = parseInt(used?.used, 10) || 0;
+    if (voteAmount > source.voteAmount - usedVotes) {
+      throw new Error(
+        `Bereits abgegebene Stimmen können nicht übertragen werden. Noch übertragbar: ${Math.max(0, source.voteAmount - usedVotes)}.`
+      );
+    }
+
+    const newSourceVoteAmount = source.voteAmount - voteAmount;
+    const newTargetVoteAmount = target.voteAmount + voteAmount;
+
+    const sourceUpdate = await tx.query(
+      `UPDATE event_user SET vote_amount = ?, allow_to_vote = ?
+       WHERE id = ? AND vote_amount = ? AND vote_amount >= ?`,
+      [
+        newSourceVoteAmount,
+        newSourceVoteAmount > 0 ? 1 : 0,
+        sourceUserId,
+        source.voteAmount,
+        voteAmount,
+      ]
+    );
+    const targetUpdate = await tx.query(
+      'UPDATE event_user SET vote_amount = ?, allow_to_vote = 1 WHERE id = ? AND vote_amount = ?',
+      [newTargetVoteAmount, targetUserId, target.voteAmount]
+    );
+    if (sourceUpdate.affectedRows !== 1 || targetUpdate.affectedRows !== 1) {
+      throw new Error('Vote transfer failed, please retry');
+    }
+
+    const sourceName = source.publicName || source.username;
+    const targetName = target.publicName || target.username;
+    await logVoteTransfer(
+      {
+        eventId: source.eventId,
+        organizerId,
+        sourceUserId,
+        targetUserId,
+        voteAmount,
+        sourceUserName: sourceName,
+        targetUserName: targetName,
+        sourceUserRemainingVotes: newSourceVoteAmount,
+      },
+      tx
+    );
+
+    return { sourceName, targetName };
+  });
+}
+
+function publishAccessRights(eventUser) {
+  pubsub.publish(
+    UPDATE_EVENT_USER_ACCESS_RIGHTS,
+    {
+      eventId: eventUser.eventId,
+      eventUserId: eventUser.id,
+      verified: eventUser.verified,
+      allowToVote: eventUser.allowToVote,
+      voteAmount: eventUser.voteAmount,
+      pollHints: eventUser.pollHints,
+    },
+    { priority: true }
+  );
+}
 
 export default {
   transferVotes: async (_, { input }, context) => {
-    const { sourceUserId, targetUserId, voteAmount } = input;
-    // const auditLogger = getAuditLogger(); // TEMPORARILY DISABLED
+    const sourceUserId = toPositiveInt(input.sourceUserId);
+    const targetUserId = toPositiveInt(input.targetUserId);
+    const voteAmount = toPositiveInt(input.voteAmount);
 
-    // Validate input
     if (!sourceUserId || !targetUserId || !voteAmount) {
-      throw new Error('Missing required parameters');
+      throw new Error('Missing or invalid parameters');
     }
-
     if (sourceUserId === targetUserId) {
       throw new Error('Cannot transfer votes to the same user');
     }
 
-    if (voteAmount <= 0) {
-      throw new Error('Vote amount must be positive');
-    }
-
-    // Fetch both users
-    const sourceUser = await findOneById(sourceUserId);
-    const targetUser = await findOneById(targetUserId);
-
-    if (!sourceUser || !targetUser) {
-      throw new Error('One or both users not found');
-    }
-
-    // Validate that both users belong to the same event
-    if (sourceUser.eventId !== targetUser.eventId) {
-      throw new Error('Users must belong to the same event');
-    }
-
-    // Validate that source user has enough votes
-    if (sourceUser.voteAmount < voteAmount) {
-      throw new Error('Source user does not have enough votes');
-    }
-
-    // Votes already cast in the running poll must not be cast again by the target.
-    const activePoll = await findActivePoll(sourceUser.eventId);
-    if (activePoll) {
-      const voted = await query(
-        'SELECT vote_cycle FROM poll_user_voted WHERE poll_result_id = ? AND event_user_id = ?',
-        [activePoll.id, sourceUserId]
-      );
-      const usedVotes = parseInt(voted?.[0]?.voteCycle, 10) || 0;
-      if (voteAmount > sourceUser.voteAmount - usedVotes) {
-        throw new Error(
-          `Bereits abgegebene Stimmen können nicht übertragen werden. Noch übertragbar: ${Math.max(0, sourceUser.voteAmount - usedVotes)}.`
-        );
-      }
-    }
-
-    // Validate that both users are verified
-    if (!sourceUser.verified || !targetUser.verified) {
-      throw new Error('Both users must be verified');
-    }
-
-    // Calculate new vote amounts
-    const newSourceVoteAmount = sourceUser.voteAmount - voteAmount;
-    const newTargetVoteAmount = targetUser.voteAmount + voteAmount;
-
-    // Update source user
-    await update({
-      id: sourceUserId,
-      eventId: sourceUser.eventId,
-      username: sourceUser.username,
-      publicName: sourceUser.publicName,
-      verified: sourceUser.verified,
-      voteAmount: newSourceVoteAmount,
-      allowToVote: newSourceVoteAmount > 0, // Automatically set to visitor if no votes left
+    const organizerId = context?.user?.type === 'organizer' ? context.user.id : null;
+    const { sourceName, targetName } = await transferInTransaction({
+      sourceUserId,
+      targetUserId,
+      voteAmount,
+      organizerId,
     });
 
-    // Update target user
-    await update({
-      id: targetUserId,
-      eventId: targetUser.eventId,
-      username: targetUser.username,
-      publicName: targetUser.publicName,
-      verified: targetUser.verified,
-      voteAmount: newTargetVoteAmount,
-      allowToVote: true, // Automatically set to participant if receiving votes
-    });
-
-    // Add poll hints first
+    // Hinweise für die Oberfläche – nicht Teil der Übertragung selbst.
     await Promise.all([
-      addPollHint(
-        targetUserId,
-        voteAmount,
-        sourceUser.publicName || sourceUser.username,
-        'received'
-      ),
-      addPollHint(
-        sourceUserId,
-        voteAmount,
-        targetUser.publicName || targetUser.username,
-        'transferred'
-      ),
+      addPollHint(targetUserId, voteAmount, sourceName, 'received'),
+      addPollHint(sourceUserId, voteAmount, targetName, 'transferred'),
     ]);
 
-    // Fetch updated users with poll_hints after adding hints
     const finalSourceUser = await findOneById(sourceUserId);
     const finalTargetUser = await findOneById(targetUserId);
-
-    // Notify source user about vote change
-    pubsub.publish(
-      UPDATE_EVENT_USER_ACCESS_RIGHTS,
-      {
-        eventId: finalSourceUser.eventId,
-        eventUserId: finalSourceUser.id,
-        verified: finalSourceUser.verified,
-        allowToVote: finalSourceUser.allowToVote,
-        voteAmount: finalSourceUser.voteAmount,
-        pollHints: finalSourceUser.pollHints,
-      },
-      { priority: true }
-    );
-
-    // Notify target user about vote change
-    pubsub.publish(
-      UPDATE_EVENT_USER_ACCESS_RIGHTS,
-      {
-        eventId: finalTargetUser.eventId,
-        eventUserId: finalTargetUser.id,
-        verified: finalTargetUser.verified,
-        allowToVote: finalTargetUser.allowToVote,
-        voteAmount: finalTargetUser.voteAmount,
-        pollHints: finalTargetUser.pollHints,
-      },
-      { priority: true }
-    );
-
-    // Log the vote transfer
-    try {
-      await logVoteTransfer({
-        eventId: sourceUser.eventId,
-        organizerId: context?.user?.id || null,
-        sourceUserId,
-        targetUserId,
-        voteAmount,
-        sourceUserName: sourceUser.publicName || sourceUser.username,
-        targetUserName: targetUser.publicName || targetUser.username,
-        sourceUserRemainingVotes: newSourceVoteAmount,
-      });
-    } catch (logError) {
-      console.error('[ERROR] Failed to log vote transfer:', logError);
-    }
+    publishAccessRights(finalSourceUser);
+    publishAccessRights(finalTargetUser);
 
     return {
       sourceUser: finalSourceUser,

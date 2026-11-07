@@ -1,5 +1,6 @@
-import * as jwt from 'jsonwebtoken';
 import { parse } from 'graphql';
+import { userFromAuthHeader } from '../auth/user-context';
+import { verifyJwt } from '../lib/jwt-auth';
 import { updateLastActivity } from '../repository/event-user-repository';
 import { findOneByRefreshToken } from '../repository/jwt-refresh-token-repository';
 
@@ -17,7 +18,7 @@ const PUBLIC_QUERY_FIELDS = [
 ];
 
 // REST-Routen ohne Login. Alles andere außer GraphQL braucht einen gültigen JWT.
-// ponytail: GET /event/:id bleibt öffentlich (Login-Seite), liefert aber noch Zoom-Secrets (SEC-17 Rest).
+// GET /event/:id und verify-slug liefern ohne Login nur öffentliche Felder (SEC-17).
 const PUBLIC_REST = [
   /^\/login(\/[a-z-]+)?$/,
   /^\/logout$/,
@@ -63,13 +64,12 @@ export default async function (req, res, next) {
   }
 
   if (req.path !== process.env.GRAPHQL_ENDPOINT) {
-    try {
-      const token = (req.headers.authorization || '').split(' ')[1] || '';
-      req.user = (await jwt.verify(token, process.env.JWT_SECRET)).user;
-      return next();
-    } catch (e) {
+    // Verifizierter JWT + Nutzer aus der DB (eventId des Teilnehmers nie aus dem Token).
+    req.user = await userFromAuthHeader(req.headers.authorization);
+    if (!req.user) {
       return res.status(401).json({ error: 'Authentication failed' });
     }
+    return next();
   }
 
   // For POST requests, check if it's a query that should bypass auth
@@ -101,20 +101,14 @@ export default async function (req, res, next) {
     }
   }
 
-  // Regular auth check for other requests
+  // Regular auth check for other requests. Den Nutzer lädt der GraphQL-Kontext (graphql.js).
+  if (!req.headers.authorization) {
+    return res.status(401).json({ error: 'No authorization header' });
+  }
   try {
-    const authHeader = req.headers.authorization;
-
-    // If no auth header is present, reject
-    if (!authHeader) {
-      return res.status(401).json({ error: 'No authorization header' });
-    }
-
-    const token = authHeader.split(' ')[1] || '';
-    await jwt.verify(token, process.env.JWT_SECRET);
-    next();
+    await verifyJwt(req.headers.authorization.split(' ')[1] || '');
   } catch (e) {
-    console.warn('Authentication failed:', e.message);
     return res.status(401).json({ error: 'Authentication failed' });
   }
+  return next();
 }

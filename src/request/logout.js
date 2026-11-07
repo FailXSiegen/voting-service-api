@@ -1,5 +1,9 @@
-import { extractCookieValueByHeader } from '../lib/cookie-from-string-util';
 import { query } from '../lib/database';
+import {
+  isSameSiteRequest,
+  refreshCookieOptions,
+  eventUserAuthCookieOptions,
+} from '../server/security';
 import { pubsub } from '../server/graphql';
 import { EVENT_USER_LIFE_CYCLE } from '../graphql/resolver/subscription/subscription-types';
 import { findOneById as findEventUserById } from '../repository/event-user-repository';
@@ -11,7 +15,14 @@ export default async function logoutRequest(req, res) {
     console.log('[DEBUG] logout.js - Processing logout request');
   }
 
-  const token = extractCookieValueByHeader(req.headers.cookie, 'refreshToken');
+  // SEC-44: kein Logout per fremder Seite (Link/Bild/Formular).
+  if (!isSameSiteRequest(req)) {
+    res.status(403).send(JSON.stringify({ success: false }));
+    return;
+  }
+
+  // Signatur prüfen (vorher wurde sie nur abgeschnitten).
+  const token = req.signedCookies?.refreshToken;
   if (typeof token !== 'string' || token.length === 0) {
     if (isDev) {
       console.log('[DEBUG] logout.js - No refresh token found in cookies');
@@ -81,8 +92,10 @@ export default async function logoutRequest(req, res) {
 
   await query('DELETE FROM jwt_refresh_token WHERE token = ?', [token]);
 
-  res.clearCookie('refreshToken');
-  res.clearCookie('eventUserAuthToken');
+  const refreshClear = refreshCookieOptions();
+  delete refreshClear.maxAge;
+  res.clearCookie('refreshToken', refreshClear);
+  res.clearCookie('eventUserAuthToken', eventUserAuthCookieOptions());
 
   if (isDev) {
     console.log('[DEBUG] logout.js - Logout completed successfully');

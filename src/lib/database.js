@@ -17,7 +17,22 @@ const config = {
   connectTimeout: 30000, // 30 Sekunden Timeout für initiale Verbindung
   waitForConnections: true, // Wartet auf verfügbare Verbindungen statt Fehler zu werfen
   queueLimit: 0, // Keine Begrenzung der Warteschlange (0 = unbegrenzt)
+  // SEC-13: Objekte nie als `key = value` einbetten ({"hash":{"hash":1}} würde jede Zeile treffen).
+  stringifyObjects: true,
 };
+
+// Eigener Pool für Transaktionen: eine echte Verbindung pro Transaktion (SEC-04).
+// baseQuery() bleibt bei einer Verbindung pro Abfrage, damit sich das übrige Verhalten nicht ändert.
+const TX_POOL_LIMIT = parseInt(process.env.DATABASE_TX_POOL_LIMIT, 10) || 50;
+let txPoolPromise = null;
+function getTxPool() {
+  if (!txPoolPromise) {
+    txPoolPromise = mysql.createPool({ ...config, connectionLimit: TX_POOL_LIMIT });
+  }
+  return txPoolPromise;
+}
+
+export const escapeId = (identifier) => mysql.escapeId(identifier);
 
 // Einfacher Semaphor für die Begrenzung der gleichzeitigen Datenbankverbindungen
 const MAX_CONCURRENT_CONNECTIONS = 800; // Maximale gleichzeitige Verbindungen
@@ -123,7 +138,8 @@ function releaseConnection() {
 }
 
 function logQuery(sql, params) {
-  if (process.env.LOG_QUERIES_TO_CONSOLE !== '1') {
+  // SEC-24: Query-Logging enthält Wähler-IDs und Antworten, in Produktion daher nie.
+  if (process.env.LOG_QUERIES_TO_CONSOLE !== '1' || process.env.NODE_ENV === 'production') {
     return;
   }
   console.debug('BEGIN-------------------------------------');
@@ -339,8 +355,9 @@ export async function insert(table, input, returnCompleteResult = false) {
       properties.push(property);
       values.push(input[property]);
     });
-    const fieldsList = properties.join(',');
-    const sql = `INSERT INTO ${table} (${fieldsList}) VALUES (?)`;
+    // SEC-46: Tabellen- und Spaltennamen escapen.
+    const fieldsList = properties.map(escapeId).join(',');
+    const sql = `INSERT INTO ${escapeId(table)} (${fieldsList}) VALUES (?)`;
     const result = await baseQuery(sql, [values]);
 
     if (!result) {
@@ -374,8 +391,14 @@ export async function update(table, input, idField = 'id') {
   inputCopy = humps.decamelizeKeys(inputCopy);
 
   try {
-    const sql = `UPDATE ${table} SET ? WHERE ${humps.decamelize(idField)} = ?`;
-    const result = await baseQuery(sql, [inputCopy, id]);
+    // `SET ?` mit Objekt geht mit stringifyObjects nicht mehr – Spalten explizit und escaped.
+    const columns = Object.keys(inputCopy);
+    if (columns.length === 0) {
+      return true;
+    }
+    const assignments = columns.map((column) => `${escapeId(column)} = ?`).join(', ');
+    const sql = `UPDATE ${escapeId(table)} SET ${assignments} WHERE ${escapeId(humps.decamelize(idField))} = ?`;
+    const result = await baseQuery(sql, [...columns.map((column) => inputCopy[column]), id]);
 
     if (!result) {
       console.error(`[ERROR:DATABASE] Update ${table} failed - no result returned for id ${id}`);
@@ -403,8 +426,8 @@ export async function remove(table, id, idField = 'id') {
   }
 
   try {
-    const idColumn = humps.decamelize(idField);
-    const sql = `DELETE FROM ${table} WHERE ${idColumn} = ?`;
+    const idColumn = escapeId(humps.decamelize(idField));
+    const sql = `DELETE FROM ${escapeId(table)} WHERE ${idColumn} = ?`;
     const result = await baseQuery(sql, [id]);
 
     if (!result) {
@@ -419,5 +442,56 @@ export async function remove(table, id, idField = 'id') {
   } catch (err) {
     console.error(`[ERROR:DATABASE] Remove from ${table} failed for id ${id}:`, err);
     return false;
+  }
+}
+
+const RETRYABLE_TX_ERRORS = ['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT'];
+
+/**
+ * Führt fn(tx) in EINER Transaktion auf EINER Verbindung aus (SEC-04/SEC-05).
+ * tx.query(sql, params) wirft bei jedem Fehler; dann wird zurückgerollt und der Fehler weitergereicht.
+ * Bei Deadlock/Lock-Timeout wird die ganze Transaktion bis zu 3× wiederholt – fn muss daher
+ * ausschließlich über tx arbeiten und darf keine Seiteneffekte außerhalb der DB haben.
+ * @template T
+ * @param {(tx: {query: (sql: string, params?: Array) => Promise<any>}) => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export async function withTransaction(fn) {
+  const pool = await getTxPool();
+  for (let attempt = 1; ; attempt++) {
+    const connection = await pool.getConnection();
+    const tx = {
+      query: async (sql, params = []) => {
+        logQuery(sql, params);
+        const result = await connection.query(sql, params);
+        return Array.isArray(result) ? humps.camelizeKeys(result) : result;
+      },
+    };
+    let broken = false;
+    try {
+      await connection.beginTransaction();
+      const result = await fn(tx);
+      await connection.commit();
+      return result;
+    } catch (err) {
+      try {
+        await connection.rollback();
+      } catch (rollbackErr) {
+        // Verbindung in unklarem Zustand – nicht in den Pool zurückgeben.
+        broken = true;
+        console.error('[ERROR:DATABASE] Rollback failed:', rollbackErr.message);
+      }
+      if (RETRYABLE_TX_ERRORS.includes(err?.code) && attempt < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 20 * attempt + Math.random() * 50));
+        continue;
+      }
+      throw err;
+    } finally {
+      if (broken) {
+        connection.destroy();
+      } else {
+        connection.release();
+      }
+    }
   }
 }

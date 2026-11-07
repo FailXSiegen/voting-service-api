@@ -40,7 +40,6 @@ const command = `mysqldump \
   -h ${dbConfig.host} \
   -P ${dbConfig.port} \
   -u ${dbConfig.user} \
-  ${dbConfig.password ? `-p${dbConfig.password}` : ''} \
   --single-transaction \
   --routines \
   --triggers \
@@ -48,7 +47,7 @@ const command = `mysqldump \
   ${dbConfig.database} | gzip > "${backupFile}"`;
 
 // Backup ausführen
-exec(command, (error, stdout, stderr) => {
+exec(command, { env: { ...process.env, MYSQL_PWD: dbConfig.password } }, (error, stdout, stderr) => {
   if (error) {
     console.error('✗ Backup failed:', error.message);
     if (stderr) console.error('Error details:', stderr);

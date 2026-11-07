@@ -93,20 +93,18 @@ rl.question('Do you want to continue? (yes/no): ', (answer) => {
       -h ${dbConfig.host} \
       -P ${dbConfig.port} \
       -u ${dbConfig.user} \
-      ${dbConfig.password ? `-p${dbConfig.password}` : ''} \
-      ${dbConfig.database}`;
+          ${dbConfig.database}`;
   } else {
     // Unkomprimiertes Backup
     command = `mysql \
       -h ${dbConfig.host} \
       -P ${dbConfig.port} \
       -u ${dbConfig.user} \
-      ${dbConfig.password ? `-p${dbConfig.password}` : ''} \
-      ${dbConfig.database} < "${backupPath}"`;
+          ${dbConfig.database} < "${backupPath}"`;
   }
 
   // Restore ausführen
-  exec(command, (error, stdout, stderr) => {
+  exec(command, { env: { ...process.env, MYSQL_PWD: dbConfig.password } }, (error, stdout, stderr) => {
     if (error) {
       console.error('✗ Restore failed:', error.message);
       if (stderr) console.error('Error details:', stderr);

@@ -1,12 +1,10 @@
 import { getVoteAdjustmentsByEventId, convertLogsToTXT } from '../../lib/vote-adjustment-logger.js';
-import * as fs from 'fs';
-import path from 'path';
 
 export default async function downloadVoteAdjustmentsCsv(req, res) {
   try {
     const { eventId } = req.params;
 
-    if (!eventId) {
+    if (!/^\d+$/.test(String(eventId))) {
       return res.status(400).json({
         error: 'Event ID ist erforderlich',
         success: false,
@@ -26,31 +24,15 @@ export default async function downloadVoteAdjustmentsCsv(req, res) {
     // Konvertiere zu TXT
     const txtContent = convertLogsToTXT(logs);
 
-    // Generiere Dateinamen
+    // SEC-31: direkt ausliefern, keine temporäre Datei.
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `vote-adjustments-event-${eventId}-${timestamp}.txt`;
-    const tempPath = path.join(__dirname, '../../../', filename);
-
-    // Schreibe TXT-Datei
-    fs.writeFileSync(tempPath, txtContent, 'utf8');
-
-    // Sende Datei zum Download und lösche sie danach
-    res.download(tempPath, filename, (err) => {
-      // Lösche temporäre Datei nach dem Download
-      fs.unlink(tempPath, (unlinkErr) => {
-        if (unlinkErr) {
-          console.error('Fehler beim Löschen der temporären Datei:', unlinkErr);
-        }
-      });
-
-      if (err) {
-        console.error('Fehler beim Download:', err);
-      }
-    });
+    res.attachment(`vote-adjustments-event-${Number(eventId)}-${timestamp}.txt`);
+    res.type('text/plain; charset=utf-8');
+    res.send(txtContent);
   } catch (error) {
     console.error('Fehler beim Export der Vote-Anpassungen:', error);
     res.status(500).json({
-      error: error.message,
+      error: 'Export failed',
       success: false,
     });
   }

@@ -1,3 +1,9 @@
+// SEC-48: Testdaten (root/1234, TestPassword123!) nie gegen Produktion anlegen.
+if (process.env.NODE_ENV === 'production') {
+  console.error('test-setup.js darf nicht mit NODE_ENV=production laufen.');
+  process.exit(1);
+}
+
 // Direkte Datenbankverbindung für Tests
 const mysql = require('promise-mysql');
 const humps = require('humps');

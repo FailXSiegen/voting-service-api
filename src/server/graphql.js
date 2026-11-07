@@ -3,8 +3,25 @@ import typeDefs from '../../res/schema.graphql';
 import resolvers from '../graphql/resolvers';
 import { createYoga, useExtendContext, createPubSub } from 'graphql-yoga';
 import ThrottledPubSub from '../lib/pubsub-throttle';
+import { GraphQLError, Kind, NoSchemaIntrospectionCustomRule } from 'graphql';
+import { userFromAuthHeader } from '../auth/user-context';
+import { isDevEnv } from './security';
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = isDevEnv();
+
+// SEC-32: Fehler, die ein Resolver bewusst wirft (z. B. 'Not authorized.'), bleiben lesbar;
+// Datenbank- und Laufzeitfehler werden zu einer generischen Meldung.
+const RUNTIME_ERRORS = ['TypeError', 'ReferenceError', 'RangeError', 'SyntaxError'];
+function maskError(error, message) {
+  const original = error?.originalError;
+  if (!original) return error; // Parse-/Validierungsfehler
+  const internal =
+    original.code ||
+    original.errno ||
+    original.sqlMessage ||
+    RUNTIME_ERRORS.includes(original.name);
+  return internal ? new GraphQLError(message) : error;
+}
 
 // Create the base PubSub instance
 const basePubSub = createPubSub();
@@ -20,120 +37,77 @@ const schema = makeExecutableSchema({
   inheritResolversFromInterfaces: false,
 });
 
-export const context = { pubsub };
+// SEC-34: Tiefe begrenzen (Client-Queries brauchen < 8). Introspection-Felder (__*) zählen nicht.
+const MAX_QUERY_DEPTH = 10;
+function depthLimitRule(context) {
+  const fragments = {};
+  const depthOf = (selectionSet, depth, seen) => {
+    if (!selectionSet) return depth;
+    let max = depth;
+    for (const selection of selectionSet.selections) {
+      if (selection.kind === Kind.FIELD) {
+        if (selection.name.value.startsWith('__')) continue;
+        max = Math.max(max, depthOf(selection.selectionSet, depth + 1, seen));
+      } else if (selection.kind === Kind.INLINE_FRAGMENT) {
+        max = Math.max(max, depthOf(selection.selectionSet, depth, seen));
+      } else if (selection.kind === Kind.FRAGMENT_SPREAD) {
+        const name = selection.name.value;
+        if (seen.has(name) || !fragments[name]) continue;
+        max = Math.max(max, depthOf(fragments[name].selectionSet, depth, new Set([...seen, name])));
+      }
+    }
+    return max;
+  };
+  return {
+    Document(node) {
+      node.definitions
+        .filter((definition) => definition.kind === Kind.FRAGMENT_DEFINITION)
+        .forEach((definition) => (fragments[definition.name.value] = definition));
+      node.definitions
+        .filter((definition) => definition.kind === Kind.OPERATION_DEFINITION)
+        .forEach((definition) => {
+          if (depthOf(definition.selectionSet, 0, new Set()) > MAX_QUERY_DEPTH) {
+            context.reportError(
+              new GraphQLError(`Query is too deep (max. ${MAX_QUERY_DEPTH}).`, {
+                nodes: [definition],
+              })
+            );
+          }
+        });
+    },
+  };
+}
+
+const useSecurityValidation = () => ({
+  onValidate({ addValidationRule }) {
+    addValidationRule(depthLimitRule);
+    // SEC-33: keine Introspection außerhalb development/test.
+    if (!isDev) addValidationRule(NoSchemaIntrospectionCustomRule);
+  },
+});
 
 export const yoga = createYoga({
   schema,
   port: process.env.APP_PORT,
   hostname: process.env.APP_DOMAIN,
   logging: isDev ? 'debug' : false,
-  maskedErrors: false,
-  // Hier definieren wir eine Funktion, die für jede Anfrage den Kontext erstellt
-  context: async ({ request }) => {
-    if (isDev) {
-      console.log('[DEBUG] graphql.js - Creating context for request');
-    }
-
-    // Basis-Kontext
-    const baseContext = { pubsub };
-
-    try {
-      // Extrahiere den JWT-Token aus dem Authorization-Header, wenn vorhanden
-      let token = null;
-
-      // Verbesserte Prüfung für WebSocket und HTTP-Anfragen
-      if (request && request.headers && typeof request.headers.get === 'function') {
-        // HTTP-Anfragen haben ein headers-Objekt mit get-Methode
-        const authHeader = request.headers.get('authorization');
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-          token = authHeader.split(' ')[1];
-          if (isDev) {
-            console.log('[DEBUG] graphql.js - Found token in HTTP headers');
-          }
-        }
-      } else if (request && request.headers && typeof request.headers === 'object') {
-        // Fallback für WebSocket-Anfragen, die eventuell ein anderes headers-Format haben
-        const authHeader = request.headers.authorization || request.headers.Authorization || '';
-        if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
-          token = authHeader.split(' ')[1];
-          if (isDev) {
-            console.log('[DEBUG] graphql.js - Found token in WebSocket headers');
-          }
-        }
-      } else if (request && request.connectionParams) {
-        // Direkte Unterstützung für WebSocket connectionParams
-        const authHeader = request.connectionParams.authorization || '';
-        if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
-          token = authHeader.split(' ')[1];
-          if (isDev) {
-            console.log('[DEBUG] graphql.js - Found token in WebSocket connectionParams');
-          }
-        }
-      }
-
-      // Wenn wir einen Token haben, verifizieren und dekodieren
-      if (token) {
-        const { verifyJwt } = require('../lib/jwt-auth');
-
-        try {
-          // JWT-Token verifizieren und dekodieren
-          const decodedToken = await verifyJwt(token);
-
-          if (decodedToken && decodedToken.user) {
-            // Benutzertyp-spezifische Informationen laden
-            let user = { ...decodedToken.user };
-
-            // Falls es ein Organizer ist, lade zusätzliche Informationen
-            if (user.type === 'organizer' && user.id) {
-              const { findOneById } = require('../repository/organizer-repository');
-              const organizer = await findOneById(user.id);
-              if (organizer) {
-                user.organizer = organizer;
-              }
-            }
-
-            // Falls es ein Event-User ist, lade zusätzliche Informationen
-            if (user.type === 'event-user' && user.id) {
-              const { findOneById } = require('../repository/event-user-repository');
-              const eventUser = await findOneById(user.id);
-              if (eventUser) {
-                user.eventUser = eventUser;
-              }
-            }
-
-            // Füge den Benutzer zum Kontext hinzu
-            baseContext.user = user;
-            if (isDev) {
-              console.log('[DEBUG] graphql.js - User context created:', {
-                type: user.type,
-                id: user.id,
-                eventId: user.eventUser?.eventId || user.organizer?.id,
-              });
-            }
-          }
-        } catch (err) {
-          if (isDev) {
-            console.error(
-              '[ERROR] graphql.js - Fehler beim Dekodieren des JWT-Tokens im GraphQL-Kontext:',
-              err.message
-            );
-          }
-        }
-      }
-    } catch (error) {
-      if (isDev) {
-        console.error(
-          '[ERROR] graphql.js - Fehler beim Erstellen des GraphQL-Kontexts:',
-          error.message
-        );
-      }
-    }
-
+  // SEC-32: interne Fehler (SQL o. ä.) nur in development/test im Klartext. Fehler, die ein
+  // Resolver bewusst wirft (Error mit Meldung), maskiert yoga nicht – nur unerwartete.
+  maskedErrors: isDev ? false : { maskError },
+  context: async ({ request, req }) => {
+    // Refresh-Cookie der aktuellen Sitzung (Express/cookie-parser), z. B. um sie beim Passwortwechsel zu behalten.
+    const baseContext = { pubsub, refreshToken: req?.signedCookies?.refreshToken || null };
+    // HTTP: Headers-Objekt mit get(); WebSocket-Kontext setzt den Nutzer in onSubscribe selbst.
+    const authHeader =
+      request?.headers && typeof request.headers.get === 'function'
+        ? request.headers.get('authorization')
+        : null;
+    const user = await userFromAuthHeader(authHeader);
+    if (user) baseContext.user = user;
     return baseContext;
   },
-  plugins: [useExtendContext(() => ({ pubsub }))],
+  plugins: [useExtendContext(() => ({ pubsub })), useSecurityValidation()],
   graphqlEndpoint: process.env.GRAPHQL_ENDPOINT,
-  graphiql: {
-    subscriptionsProtocol: 'WS',
-  },
+  // SEC-33: GraphiQL nur in development/test.
+  graphiql: isDev ? { subscriptionsProtocol: 'WS' } : false,
 });

@@ -20,6 +20,7 @@ const CONTENT_MUTATIONS = new Set([
 // Mutation -> records whose owner the organizer must be: [kind, id].
 const OWNED_RECORDS = {
   updateEvent: (a) => [['event', a.input.id]],
+  createEventUserShortlink: (a) => [['eventUser', a.eventUserId]],
   updateEventStatus: (a) => [['event', a.input.id]],
   removeEvent: (a) => [['event', a.id]],
   transferEvent: (a) => [['event', a.eventId]],
@@ -88,15 +89,15 @@ async function assertOrganizerAllowed(name, args, user, lookup) {
 }
 
 async function assertAllowed(name, args, user, lookup) {
+  // SEC-08: Stimmen gibt nur der Wähler selbst ab – auch ein Super-Admin nicht in dessen Namen.
+  if (PARTICIPANT_MUTATIONS.has(name)) {
+    if (user?.type === 'event-user' && Number(args.input?.eventUserId) === Number(user.id)) {
+      return;
+    }
+    deny();
+  }
   if (user?.type === 'organizer') {
     return assertOrganizerAllowed(name, args, user, lookup);
-  }
-  if (
-    user?.type === 'event-user' &&
-    PARTICIPANT_MUTATIONS.has(name) &&
-    Number(args.input?.eventUserId) === Number(user.id)
-  ) {
-    return;
   }
   deny();
 }

@@ -620,6 +620,7 @@ export async function getPollResults(eventId) {
     INNER JOIN poll ON poll_result.poll_id = poll.id
     INNER JOIN poll_answer ON poll_answer.poll_result_id = poll_result.id
     WHERE poll.event_id = ?
+    AND poll_result.closed = 1 -- SEC-31: keine Zwischenergebnisse exportieren
     GROUP BY poll_result.id, poll_answer.answer_content
   `,
     [eventId]
@@ -675,6 +676,7 @@ export async function getPollResultsDetails(eventId) {
     INNER JOIN poll_answer ON poll_answer.poll_result_id = poll_result.id
     LEFT JOIN poll_user ON poll_user.id = poll_answer.poll_user_id
     WHERE poll.event_id = ?
+    AND poll_result.closed = 1 -- SEC-31: keine Zwischenergebnisse exportieren
   `,
     [eventId]
   );

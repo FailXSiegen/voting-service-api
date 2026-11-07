@@ -1,21 +1,21 @@
 import { findOneBySlug } from '../../repository/event-repository';
-import resolveMeeting from './meeting-resolver';
+import { toPublicEvent } from './public-event';
 
 export default async function verifySlug(req, res) {
   res.setHeader('content-type', 'application/json');
   try {
     const requestArguments = req.body;
-    if (!requestArguments.slug) {
+    // SEC-13: nur Strings.
+    if (typeof requestArguments?.slug !== 'string' || !requestArguments.slug) {
       throw new Error('Missing slug');
     }
-    let event = await findOneBySlug(requestArguments.slug);
+    const event = await findOneBySlug(requestArguments.slug);
     if (event === null) {
       throw new Error('slug not found');
     }
-    event = await resolveMeeting(event);
     res.send(
       JSON.stringify({
-        event,
+        event: await toPublicEvent(event, req),
         success: true,
       })
     );

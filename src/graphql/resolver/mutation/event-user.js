@@ -16,6 +16,31 @@ import {
   TOKEN_REFRESH_REQUIRED,
 } from '../subscription/subscription-types';
 import { refreshUserJwtAfterVerification } from '../../../lib/jwt-auth';
+import { query } from '../../../lib/database';
+
+/**
+ * SEC-29: Stimmgewicht eines Wählers ist eingefroren, sobald er in einer laufenden Abstimmung
+ * abgestimmt hat (sonst passen vote_cycle, Kontingent und Ergebnis nicht mehr zusammen).
+ * Stimmübertragungen (transferVotes) prüfen das Restkontingent selbst.
+ */
+async function assertVoteAmountChangeable(eventUser, newVoteAmount) {
+  if (newVoteAmount === undefined || Number(newVoteAmount) === Number(eventUser.voteAmount)) {
+    return;
+  }
+  const voted = await query(
+    `SELECT 1 FROM poll_user_voted puv
+     INNER JOIN poll_result pr ON pr.id = puv.poll_result_id
+     WHERE puv.event_user_id = ? AND pr.closed = 0 AND puv.vote_cycle > 0
+     LIMIT 1`,
+    [eventUser.id],
+    { throwError: true }
+  );
+  if (Array.isArray(voted) && voted.length > 0) {
+    throw new Error(
+      'Das Stimmgewicht kann erst nach Ende der laufenden Abstimmung geändert werden, da bereits abgestimmt wurde.'
+    );
+  }
+}
 
 export default {
   createEventUser: async (_, args) => {
@@ -39,6 +64,7 @@ export default {
       input.verified !== undefined && Boolean(eventUser.verified) !== Boolean(input.verified);
     const previousVerificationStatus = eventUser.verified;
 
+    await assertVoteAmountChangeable(eventUser, input.voteAmount);
     await update(input);
     eventUser = await findOneById(input.id);
 
@@ -95,6 +121,8 @@ export default {
     // Check if verification status is changing
     const verificationChanged = !eventUser.verified;
     const previousVerificationStatus = eventUser.verified;
+
+    await assertVoteAmountChangeable(eventUser, 0);
 
     // Define guest access rights.
     eventUser.verified = true;
@@ -159,6 +187,8 @@ export default {
     // Check if verification status is changing
     const verificationChanged = !eventUser.verified;
     const previousVerificationStatus = eventUser.verified;
+
+    await assertVoteAmountChangeable(eventUser, 1);
 
     // Define participant access rights.
     eventUser.verified = true;

@@ -1,42 +1,22 @@
 import { findOneByShortCode } from '../../repository/event-user-shortlink-repository';
-import { findOneById as findEventUserById } from '../../repository/event-user-repository';
-import { findById as findEventById } from '../../repository/event-repository';
+import { clientBaseUrl } from '../../server/security';
 
+// SEC-40: Legacy-Redirect /s/:code. Keine Personendaten (username/publicname) mehr in die URL –
+// die Client-Route /s/:code löst den Code selbst über /api/shortlink/:code auf.
 export default async function redirectShortlink(req, res) {
   try {
     const { shortCode } = req.params;
-
-    // Find the shortlink in database
-    const shortlink = await findOneByShortCode(shortCode);
+    const shortlink = /^[a-z0-9]{4,32}$/.test(shortCode)
+      ? await findOneByShortCode(shortCode)
+      : null;
     if (!shortlink) {
       return res.status(404).send('Shortlink not found');
     }
-
-    // Get event user and event details
-    const eventUser = await findEventUserById(shortlink.eventUserId);
-    const event = await findEventById(shortlink.eventId);
-
-    if (!eventUser || !event) {
-      return res.status(404).send('Event or user not found');
-    }
-
-    // Build redirect URL with query parameters
-    const baseUrl = process.env.CLIENT_BASE_URL || 'http://localhost:5173';
-    const params = new URLSearchParams();
-
-    if (eventUser.username) {
-      params.append('username', eventUser.username);
-    }
-    if (eventUser.publicName) {
-      params.append('publicname', eventUser.publicName);
-    }
-
-    const redirectUrl = `${baseUrl}/event/${event.slug}?${params.toString()}`;
-
-    // Perform redirect
-    res.redirect(302, redirectUrl);
+    res.set('Cache-Control', 'no-store');
+    res.set('Referrer-Policy', 'no-referrer');
+    res.redirect(302, `${clientBaseUrl()}/s/${shortCode}`);
   } catch (error) {
-    console.error('Shortlink redirect error:', error);
+    console.error('Shortlink redirect error:', error.message);
     res.status(500).send('Internal server error');
   }
 }

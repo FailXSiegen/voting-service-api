@@ -91,14 +91,12 @@ class MediaRepository {
         return false;
       }
 
-      // Lösche die physische Datei
-      const filePath = path.join(
-        __dirname,
-        '../../../../voting-service-client-v2/public',
-        media.path
-      );
-
-      if (fs.existsSync(filePath)) {
+      // SEC-52: Datei dort löschen, wo upload-media.js sie ablegt (UPLOAD_BASE_PATH),
+      // und nur innerhalb dieses Verzeichnisses.
+      const basePath = path.resolve(process.env.UPLOAD_BASE_PATH || '/app/uploads');
+      const relative = String(media.path || '').replace(/^\/uploads\//, '');
+      const filePath = path.resolve(basePath, relative);
+      if (filePath.startsWith(basePath + path.sep) && fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
 

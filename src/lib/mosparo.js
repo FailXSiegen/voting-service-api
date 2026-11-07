@@ -30,8 +30,18 @@ function buildRequest(formData, submitToken, validationToken, privateKey) {
   };
 }
 
+// SEC-38: Ohne aktiviertes mosparo keine Registrierung, außer in development/test oder
+// ausdrücklich per ALLOW_SIGNUP_WITHOUT_CAPTCHA=1.
+const captchaOptional = () =>
+  ['development', 'test'].includes(process.env.NODE_ENV) ||
+  process.env.ALLOW_SIGNUP_WITHOUT_CAPTCHA === '1';
+
 async function verifyMosparo({ formData, submitToken, validationToken }, settings) {
-  if (!settings?.mosparoEnabled) return { skipped: true, success: true };
+  if (!settings?.mosparoEnabled) {
+    return captchaOptional()
+      ? { skipped: true, success: true }
+      : { success: false, reason: 'captcha-disabled' };
+  }
   const { mosparoPublicKey: publicKey, mosparoPrivateKey: privateKey } = settings;
   if (!publicKey || !privateKey) return { success: false, reason: 'missing-keys' };
   if (!submitToken || !validationToken) return { success: false, reason: 'missing-token' };

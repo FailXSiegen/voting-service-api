@@ -1,5 +1,5 @@
 import { getCurrentUnixTimeStamp } from './time-stamp.js';
-import { insert, query } from './database.js';
+import { query } from './database.js';
 
 // no-console-check
 
@@ -9,40 +9,46 @@ import { insert, query } from './database.js';
  */
 
 /**
- * Loggt eine Stimmenübertragung
+ * Loggt eine Stimmenübertragung. Das Protokoll wird nur angefügt, nie geändert oder gelöscht
+ * (SEC-30). Mit `tx` (siehe withTransaction) wird der Eintrag in derselben Transaktion wie die
+ * Übertragung geschrieben – scheitert er, wird auch die Übertragung zurückgerollt.
  */
-export async function logVoteTransfer({
-  eventId,
-  organizerId,
-  sourceUserId,
-  targetUserId,
-  voteAmount,
-  sourceUserName,
-  targetUserName,
-  sourceUserRemainingVotes,
-}) {
-  const logEntry = {
-    event_id: eventId,
-    organizer_id: organizerId,
-    source_user_id: sourceUserId,
-    target_user_id: targetUserId,
-    vote_amount: voteAmount,
-    source_user_name: sourceUserName,
-    target_user_name: targetUserName,
-    timestamp: getCurrentUnixTimeStamp(),
-    action_type: 'transfer',
-    notes: sourceUserRemainingVotes !== undefined ? String(sourceUserRemainingVotes) : null,
-  };
+export async function logVoteTransfer(
+  {
+    eventId,
+    organizerId,
+    sourceUserId,
+    targetUserId,
+    voteAmount,
+    sourceUserName,
+    targetUserName,
+    sourceUserRemainingVotes,
+  },
+  tx = null
+) {
+  const row = [
+    eventId,
+    organizerId,
+    sourceUserId,
+    targetUserId,
+    voteAmount,
+    sourceUserName,
+    targetUserName,
+    getCurrentUnixTimeStamp(),
+    'transfer',
+    sourceUserRemainingVotes !== undefined ? String(sourceUserRemainingVotes) : null,
+  ];
+  const sql = `INSERT INTO vote_adjustment_log
+    (event_id, organizer_id, source_user_id, target_user_id, vote_amount, source_user_name,
+     target_user_name, timestamp, action_type, notes)
+    VALUES (?)`;
 
-  try {
-    await insert('vote_adjustment_log', logEntry);
-    console.log(
-      `[INFO] Vote transfer logged: ${voteAmount} votes from ${sourceUserName} to ${targetUserName} in event ${eventId}`
-    );
-  } catch (error) {
-    console.error('[ERROR] Fehler beim Loggen der Stimmenübertragung:', error);
-    throw error;
+  if (tx) {
+    await tx.query(sql, [row]);
+  } else {
+    await query(sql, [row], { throwError: true });
   }
+  console.log(`[INFO] Vote transfer logged: ${voteAmount} votes in event ${eventId}`);
 }
 
 /**

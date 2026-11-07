@@ -5,9 +5,8 @@ import {
   update,
   setEventUserOnline,
 } from '../../repository/event-user-repository';
-import { generateJwt } from '../../lib/jwt-auth';
-import * as jwt from 'jsonwebtoken';
 import { addRefreshToken } from './refresh-token';
+import { signSession } from './session';
 import { verify } from '../../lib/crypto';
 import AuthenticationError from '../../errors/AuthenticationError';
 import { findById as findOneEventById } from '../../repository/event-repository';
@@ -22,6 +21,24 @@ import { EventNotFoundError } from '../../errors/event/EventNotFoundError';
 import { InvalidAnonymousLoginError } from '../../errors/event/InvalidAnonymousLoginError';
 import { findActivePoll, findLeftAnswersCount } from '../../repository/poll/poll-result-repository';
 import { createPollUserIfNeeded } from '../../service/poll-service';
+
+// MAGIC-1: Der alte Client leitete das Magic-Link-Passwort aus öffentlichen Daten ab
+// (hashString(username + event.createDatetime), voting-service-client-v2/src/core/util/hashString.js).
+// Dieses Passwort wird abgelehnt – Magic-Links laufen über POST /login/shortlink (Shortcode = Einmal-Token).
+function legacyMagicLinkPassword(value) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function isDerivedMagicLinkPassword(password, rawUsername, event) {
+  return [rawUsername, rawUsername.trim()].some(
+    (name) => password === legacyMagicLinkPassword(name + event.createDatetime)
+  );
+}
 
 async function buildNewEventUserObject(username, password, email, displayName, eventId) {
   return {
@@ -45,6 +62,13 @@ export async function loginEventUser({ username, password, email, displayName, e
       displayName,
     });
   }
+  // SEC-13/18: nur Strings, kein leeres Passwort (sonst bleibt das Konto per TOFU übernehmbar).
+  if (typeof username !== 'string' || typeof password !== 'string' || password.length === 0) {
+    throw new AuthenticationError();
+  }
+  if (displayName !== undefined && typeof displayName !== 'string') {
+    throw new AuthenticationError();
+  }
   const event = await findOneEventById(eventId);
   if (!event) {
     throw new EventNotFoundError();
@@ -52,6 +76,10 @@ export async function loginEventUser({ username, password, email, displayName, e
 
   if (!event?.active) {
     throw new InactiveEventLoginError();
+  }
+
+  if (isDerivedMagicLinkPassword(password, username, event)) {
+    throw new AuthenticationError();
   }
 
   username = username.trim();
@@ -182,18 +210,6 @@ export async function loginEventUser({ username, password, email, displayName, e
 
   // Create jwt and refresh token.
   const refreshToken = await addRefreshToken('event-user', eventUser.id);
-  const claims = {
-    user: {
-      id: eventUser.id,
-      eventId,
-      type: 'event-user',
-      verified: eventUser.verified,
-    },
-    role: 'event-user',
-    // Für WebSocket-Authentifizierung hinzufügen
-    eventUserId: eventUser.id,
-  };
-  const token = await generateJwt(claims);
-  const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
+  const { token, decodedToken } = await signSession('event-user', eventUser);
   return { token, decodedToken, refreshToken };
 }

@@ -1,57 +1,39 @@
-import { addRefreshToken, fetchRefreshToken } from '../../auth/login/refresh-token';
-import { generateJwt } from '../../lib/jwt-auth';
-import * as jwt from 'jsonwebtoken';
+import { fetchRefreshToken } from '../../auth/login/refresh-token';
+import { signSession, setRefreshCookie } from '../../auth/login/session';
+import { findOneById as findOrganizerById } from '../../repository/organizer-repository';
+import { findOneById as findEventUserById } from '../../repository/event-user-repository';
 
+const noSession = (res) => res.status(200).send(JSON.stringify({ success: false }));
+
+// SEC-14: Datensatz per Platzhalter, Nutzer aus der DB statt "id: undefined".
+// Das Refresh-Token wird nicht rotiert: parallele Refreshs (mehrere Requests nach Ablauf des
+// 15-min-JWT) würden sich sonst gegenseitig das Cookie ungültig machen und den Nutzer abmelden.
 export default async function loginRefreshRequest(req, res) {
   res.setHeader('content-type', 'application/json');
   try {
-    const signedCookies = req.signedCookies;
-    if (!signedCookies.refreshToken) {
-      throw new Error('Could not fetch refreshToken cookie');
+    const refreshToken = req.signedCookies?.refreshToken;
+    const tokenRecord = await fetchRefreshToken(refreshToken);
+    if (!tokenRecord) return noSession(res);
+
+    let type;
+    let record;
+    if (tokenRecord.organizerId) {
+      type = 'organizer';
+      record = await findOrganizerById(tokenRecord.organizerId);
+      if (!record?.verified) return noSession(res);
+    } else {
+      type = 'event-user';
+      record = tokenRecord.eventUserId ? await findEventUserById(tokenRecord.eventUserId) : null;
+      if (!record) return noSession(res);
     }
-    const tokenRecord = await fetchRefreshToken(signedCookies.refreshToken);
-    if (!tokenRecord) {
-      res.status(200);
-      res.send(
-        JSON.stringify({
-          success: false,
-        })
-      );
-      return;
-    }
-    const type = tokenRecord.organizerId > 0 ? 'organizer' : 'event-user';
-    const id = type === 'organizer' ? tokenRecord.organizerId : tokenRecord.eventUserId;
-    if (id === 'undefined') {
-      res.status(200);
-      res.send(
-        JSON.stringify({
-          success: false,
-        })
-      );
-      return;
-    }
-    const verified = tokenRecord.verified;
-    const claims = {
-      user: { id, type, verified },
-      role: type,
-    };
-    const token = await generateJwt(claims);
-    const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
-    const refreshToken = await addRefreshToken(decodedToken.user.type, decodedToken.user.id);
+
+    const { token, decodedToken } = await signSession(type, record);
     res.status(201);
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: process.env.NODE_ENV === 'production',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 86400 * 30 * 1000, // Lasts 30 days.
-      signed: true,
-    });
-    res.send(
-      JSON.stringify({
-        token: token,
-        expiresAt: decodedToken.exp,
-      })
-    );
+    // Cookie neu setzen (aktuelle Flags); gültig bleibt es nur 30 Tage ab Login (create_datetime).
+    setRefreshCookie(res, refreshToken);
+    res.send(JSON.stringify({ token, expiresAt: decodedToken.exp }));
   } catch (error) {
-    res.send('Error: ' + error.message);
+    console.error('Refresh error:', error.message);
+    return noSession(res);
   }
 }

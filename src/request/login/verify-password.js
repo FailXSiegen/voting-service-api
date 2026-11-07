@@ -1,31 +1,20 @@
 import verifyPassword from '../../auth/login/login-verify-password';
-import InvalidPasswordError from '../../errors/InvalidPasswordError';
 
 export default async function requestVerifyPassword(req, res) {
   res.setHeader('content-type', 'application/json');
+  let success = false;
   try {
-    const requestArguments = req.body;
-    if (!requestArguments.username || !requestArguments.password) {
-      throw new Error('Missing parameter');
+    const { username, password } = req.body || {};
+    // SEC-13/38: nur Strings, einheitliche Antwort für unbekannte Nutzer und falsche Passwörter.
+    if (typeof username === 'string' && typeof password === 'string') {
+      success = await verifyPassword(username, password);
     }
-    const passwordIsVerified = await verifyPassword(
-      requestArguments.username,
-      requestArguments.password
-    );
-    if (!passwordIsVerified) {
-      throw new InvalidPasswordError();
-    }
-    res.send(
-      JSON.stringify({
-        success: true,
-      })
-    );
   } catch (error) {
-    res.send(
-      JSON.stringify({
-        error: error,
-        success: false,
-      })
-    );
+    success = false;
   }
+  res.send(
+    JSON.stringify(
+      success ? { success: true } : { success: false, error: { name: 'InvalidPasswordError' } }
+    )
+  );
 }
